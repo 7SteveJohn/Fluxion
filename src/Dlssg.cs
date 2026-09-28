@@ -588,7 +588,10 @@ namespace Fluxion
         static readonly string[] PlatformPart = new string[] {
             "5eclient", "5ebox", "5e对战", "perfectworld", "完美世界", "对战平台", "电竞平台",
             "epicgames", "goggalaxy", "battlenet", "ubisoftconnect", "eadesktop", "eaapp",
-            "gameviewer", "steamclient", "wegameplatform", "平台" };
+            "gameviewer", "steamclient", "wegameplatform", "平台",
+            // 桌面美化 / 壁纸软件（Steam 上架但不是游戏）：拦在分类这层，联动档位判成"不是游戏"，
+            //   否则 wallpaper64.exe 会以"aaa 档"触发全套游戏联动（2026-09-28 实测）
+            "wallpaperengine", "wallpaper32", "wallpaper64", "mydockfinder", "mydock" };
 
         // 名字像不像"对战平台"。命中即认为不是游戏。
         //  匹配的是"归一化后的 exe 名 / 目录名 / 标题"，不含完整路径 ——

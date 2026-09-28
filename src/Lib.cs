@@ -37,6 +37,7 @@ namespace Fluxion
         public bool Hidden;
         public long LastPlayed;          // unix 秒
         public string LaunchArgs = "";   // 自定义启动参数（如 -force-d3d12，见 SetDx12）
+        public string LaunchExe = "";    // 手动指认的启动 exe（自动定位不到时选一次，之后永久生效）
     }
 
     public static class MetaStore
@@ -82,6 +83,7 @@ namespace Fluxion
                     m.Hidden = B(d, "hidden");
                     m.LastPlayed = L(d, "lastPlayed");
                     m.LaunchArgs = S(d, "launchArgs");
+                    m.LaunchExe = S(d, "launchExe");
                     map[kv.Key] = m;
                 }
             }
@@ -102,6 +104,7 @@ namespace Fluxion
                     d["favorite"] = m.Favorite; d["private"] = m.Private; d["hidden"] = m.Hidden;
                     d["lastPlayed"] = m.LastPlayed;
                     d["launchArgs"] = m.LaunchArgs;
+                    d["launchExe"] = m.LaunchExe;
                     root[kv.Key] = d;
                 }
                 Directory.CreateDirectory(Program.DataDir);
@@ -129,6 +132,33 @@ namespace Fluxion
         }
 
         public static long Now() { return (long)(DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds; }
+
+        // 手动指认的启动 exe（LaunchTargetOf 的最高优先级来源）。文件已不存在视为没指认过。
+        public static string LaunchExeOf(DlssgGame g)
+        {
+            try
+            {
+                if (g == null) return "";
+                GameMeta m;
+                if (!Load().TryGetValue(KeyOf(g), out m)) return "";
+                string p = m.LaunchExe == null ? "" : m.LaunchExe.Trim();
+                return (p.Length > 0 && File.Exists(p)) ? p : "";
+            }
+            catch { return ""; }
+        }
+        // 记住用户指认的启动文件。返回 "" = 成功，其他 = 失败原因（界面直接打日志）。
+        public static string SetLaunchExe(DlssgGame g, string exePath)
+        {
+            try
+            {
+                if (g == null || exePath == null || !File.Exists(exePath)) return "无效的启动文件";
+                GameMeta m = GetOrCreate(KeyOf(g));
+                m.LaunchExe = exePath;
+                Save(m);
+                return "";
+            }
+            catch (Exception ex) { return "启动文件保存失败: " + ex.Message; }
+        }
 
         static string S(Dictionary<string, object> d, string k)
         {
@@ -286,6 +316,10 @@ namespace Fluxion
             // 对战平台 / 匹配平台（用户实测点名：5EClient、perfectworldarena = CS2 的对战平台，
             //  不是游戏本身；以前它们会以"电竞平台"的名义混进游戏库，2026-09-16）
             @"\b5e(client|box|对战|平台)|perfectworld|完美世界|对战平台|电竞平台|" +
+            // 桌面美化 / 壁纸类软件：Steam 上架了但不是游戏（Wallpaper Engine / MyDockFinder），
+            //   以前会混进游戏库 → wallpaper64.exe 被"检测到游戏启动"→ 桌面上空跑加速包+卓越性能+0.5ms
+            //   定时器（2026-09-27/28 日志实测连开一整天）
+            @"wallpaper\s*engine|wallpaper32|wallpaper64|mydockfinder|mydock\b|" +
             @"\bdlss\b|gameboost|gamecenter)", RegexOptions.IgnoreCase);
 
         // 二次元关键词（匹配 名称 / 路径 / exe）
@@ -1492,15 +1526,21 @@ namespace Fluxion
         //   安装目录根下：实测 WeGame 版无畏契约的 aclos-launcher.exe 在
         //   "...\无畏契约(2001715)\ACLOS\" 里，Dir + 文件名 拼出来是不存在的路径，
         //   于是启动动作静默退化成"打开文件夹"（2026-09-23 用户报的正是这个）。
-        // 策略：先试根目录；不中就在根下 1~2 层子目录里找同名文件（跳过 redist/directx 这类）。
+        // 解析顺序：⓪ 手动指认（指认一次永久记住）→ ① 目录直拼 → ② 2 层浅搜 →
+        //           ③ 平台感知深找。② 的 2 层够不着 WeGame 三角洲的主程序
+        //   （DeltaForce\Binaries\Win64\DeltaForceClient-Win64-Shipping.exe，3 层深），
+        //   2026-09-27 用户报"启动三角洲只弹出文件夹"即此 —— ③ 补上扫描期同款的深度引擎。
         //   命中结果按"目录+文件名"缓存 —— 运行期目录内容不会变，不必每次启动都去遍历。
         static readonly Dictionary<string, string> ExePathCache = new Dictionary<string, string>();
 
         public static string LaunchTargetOf(DlssgGame g)
         {
             if (g == null || g.Dir == null || g.Dir.Length == 0) return "";
+            // ⓪ 手动指认过的启动文件最优先（见 DoLaunchGame 的指认对话框）
+            string pinned = MetaStore.LaunchExeOf(g);
+            if (pinned.Length > 0) return pinned;
             string exe = g.Exe == null ? "" : g.Exe.Trim();
-            if (exe.Length == 0) return "";
+            if (exe.Length == 0) return FindExeDeep(g);   // 条目没记 exe（WeGame 扫描常见）→ 直接深找
             string direct = Path.Combine(g.Dir, exe);
             if (File.Exists(direct)) return direct;
             // 已经带目录层级的写法（相对/绝对路径）→ 拼出来不在了就是不在了，不再瞎找
@@ -1509,8 +1549,49 @@ namespace Fluxion
             string hit;
             lock (ExePathCache) if (ExePathCache.TryGetValue(key, out hit)) return hit;
             hit = FindExeShallow(g.Dir, Path.GetFileName(exe), 2);
+            if (hit.Length == 0) hit = FindExeDeep(g);
             lock (ExePathCache) ExePathCache[key] = hit;
             return hit;
+        }
+
+        // 平台感知的深找：WeGame 优先用**安装根目录的 rail 启动器**（DeltaForceClient.exe /
+        //   aclos-launcher.exe 这类，官方快捷方式同款）—— 直接拉 Shipping 主程序会缺 WeGame 的
+        //   登录票据上下文，登录/更新/TCLS 引导都归启动器管；根目录没有可用的再退通用深找。
+        // 其余平台直接用扫描期同款引擎（名称匹配 > UE Shipping > 体积打分）。
+        static string FindExeDeep(DlssgGame g)
+        {
+            if (g == null || g.Dir == null || g.Dir.Length == 0) return "";
+            if (string.Equals(g.Platform, "wegame", StringComparison.OrdinalIgnoreCase))
+            {
+                string root = WeGameRootLauncher(g.Dir);
+                if (root.Length > 0) return root;
+            }
+            return PlatformScan.FindExe(g.Dir, null, g.Title);
+        }
+
+        // WeGame 安装根目录的 rail 启动器：根下"非卸载器/非助手"里最大的 exe
+        static string WeGameRootLauncher(string dir)
+        {
+            try
+            {
+                string best = ""; long bestSize = 0;
+                foreach (string f in Directory.GetFiles(dir, "*.exe", SearchOption.TopDirectoryOnly))
+                {
+                    try
+                    {
+                        string nm = Path.GetFileName(f).ToLowerInvariant();
+                        if (nm.Contains("unins") || nm.Contains("卸载") || nm.Contains("setup")
+                            || nm.Contains("install") || nm.Contains("crash") || nm.Contains("redist")
+                            || nm.Contains("safemode") || nm.Contains("bootstrap")) continue;
+                        if (PlatformScan.IsHelperExe(f)) continue;
+                        long len = new FileInfo(f).Length;
+                        if (len > bestSize) { bestSize = len; best = f; }
+                    }
+                    catch { }
+                }
+                return best;
+            }
+            catch { return ""; }
         }
 
         // 在 root 下 1~maxDepth 层子目录里找一个叫 name 的 exe（逐层广搜，越浅越优先）
@@ -1545,7 +1626,10 @@ namespace Fluxion
             return "";
         }
 
-        // 启动：Steam 走 steam:// 协议（DRM/更新更稳），其余直接跑 exe（绕开官方启动器的校验弹窗）
+        // 启动：Steam 走 steam:// 协议（DRM/更新更稳），其余直接跑 exe（绕开官方启动器的校验弹窗）。
+        // 返回值："" = 已启动；NeedLocate|目录 = 自动定位不到启动文件，界面弹指认对话框；
+        //         其他非空 = 失败原因。
+        public const string NeedLocate = "LOCATE|";
         public static string Launch(DlssgGame g)
         {
             if (g == null) return "无效的游戏条目";
@@ -1564,10 +1648,10 @@ namespace Fluxion
                     }
                     else if (Directory.Exists(g.Dir))
                     {
-                        // 说清"这不是启动成功"：以前这里静默返回成功，日志照打"已启动"，
-                        //   用户只看到弹出个文件夹、游戏没起来，无从判断哪里错了。
-                        Process.Start("explorer.exe", "\"" + g.Dir + "\"");
-                        return "没在游戏目录里找到 " + g.Exe + "（已打开它的文件夹，请手动确认启动文件）";
+                        // 说清"这不是启动成功"（2026-09-23）：以前这里静默开文件夹还照打"已启动"。
+                        // 2026-09-28 起改为返回 NeedLocate 标记：界面弹"指认启动文件"对话框，
+                        //   选择持久化进 library.json —— 下次点启动直接命中，不再每次都开文件夹。
+                        return NeedLocate + g.Dir;
                     }
                     else return "找不到可执行文件";
                 }

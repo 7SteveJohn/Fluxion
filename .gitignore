@@ -32,6 +32,12 @@ config.json
 library.json
 
 # 私密/内部文件（不上传）
+# 打包与安装包相关（自用定制，不入库）
+installer/
+make_installer.bat
+compile_share.ps1
+tools/build.py
+tools/iss_check.py
 covers/
 docs/
 .share_build/

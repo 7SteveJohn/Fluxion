@@ -3438,6 +3438,7 @@ namespace Fluxion
         DateTime gpuWarnAt = DateTime.MinValue, cpuWarnAt = DateTime.MinValue, memWarnAt = DateTime.MinValue;
         bool lastGameState = false;
         string lastGame = null;          // 当前联动周期内的游戏进程名（换游戏也要重新触发联动）
+        int gameMiss = 0;                // 连续"没检测到游戏"的轮询次数（退出防抖，见 UpdateLink）
         bool linkActive = false;         // 本次游戏会话是否真的执行过联动（决定退出时是否收尾）
         // 启动前预应用的显示联动（v3.9.1）：点「启动」时先按规则禁屏 / 切分辨率，再拉起游戏。
         // 记时刻是为了看门狗 —— 若之后一直没检测到游戏进程（启动失败 / 用户中途放弃），
@@ -5756,6 +5757,35 @@ namespace Fluxion
             try
             {
                 string game = Program.GetRunningGame();
+                // 退出防抖（2026-09-27 日志实测：一局 CS2 里"游戏已退出→又检测到"抖了 4 次，
+                //   分辨率/远控/电源跟着来回切 —— 即用户报的"切一小会就自动切回去 / 切屏也会切回去 /
+                //   联动有时断开"）。根因：进程枚举偶发漏掉在跑的游戏（或全屏游戏把 UI 消息泵饿死、
+                //   tick 迟到叠加），而下面一次 null 就立即收尾。对策：
+                //   ① 刚从"在玩"变"没检测到"时，绕过 2 秒快照缓存全新枚举复核一次，瞬时误报当场纠正；
+                //   ② 仍查不到也要连续 miss 满 3 个轮询周期（约 9 秒）才宣布退出 —— 真退出的进程不会
+                //      复活，被漏看一次的进程 3 秒内就会回来，用这个不对称性区分两者。
+                if (game == null && lastGame != null && lastGame.Length > 0)
+                {
+                    gameMiss++;
+                    if (gameMiss == 1 && Program.ProcExistsFresh(lastGame))
+                    {
+                        Log("进程枚举瞬时抖动：复核仍检测到 " + Program.GameDisplayName(lastGame) + "，联动保持不收尾");
+                        game = lastGame;
+                        gameMiss = 0;
+                    }
+                    else if (gameMiss < 3)
+                    {
+                        game = lastGame;   // 未达判决线：本周期先当作还在玩（标签照常显示游戏中）
+                    }
+                    else
+                    {
+                        gameMiss = 0;      // 连续 3 个周期都查不到 → 真退出了，放行走正常收尾
+                    }
+                }
+                else
+                {
+                    gameMiss = 0;
+                }
                 string cat = Program.GetRunningCategory();
                 string remote = Program.GetRemoteState();
                 bool inGame = game != null && game.Length > 0;
@@ -7364,6 +7394,24 @@ namespace Fluxion
             if (selected == null) { Log("  请先选中游戏（双击卡片也可启动）"); return; }
             PreApplyResLink(selected);          // 先摆好显示状态，再拉游戏（见方法头注释）
             string err = Lib.Launch(selected);
+            // 自动定位不到启动文件：让用户指认一次（选择永久记住，之后点启动直接命中）
+            if (err != null && err.StartsWith(Lib.NeedLocate, StringComparison.Ordinal))
+            {
+                Log("  没能自动定位「" + selected.Title + "」的启动文件，请在弹出的窗口里指认它的主程序（exe）");
+                string picked = PickLaunchExe(selected);
+                if (picked.Length > 0)
+                {
+                    Log("  已记住启动文件：" + picked);
+                    err = Lib.Launch(selected);
+                }
+                else
+                {
+                    string dir = err.Substring(Lib.NeedLocate.Length);
+                    try { if (Directory.Exists(dir)) Process.Start("explorer.exe", "\"" + dir + "\""); } catch { }
+                    Log("  已取消指认：打开了游戏文件夹。下次点「启动游戏」可重新指认。");
+                    return;
+                }
+            }
             if (err.Length > 0) { Log("  " + err); return; }
             string what = (selected.Platform == "steam" && selected.AppId != null && selected.AppId.Length > 0)
                 ? "steam://rungameid/" + selected.AppId
@@ -7376,6 +7424,22 @@ namespace Fluxion
             {
                 Log("  正在确认运行模式（读游戏的 Player.log，最多 90 秒）…");
                 StartDx12Verify(selected);
+            }
+        }
+
+        // 启动指认对话框：自动解析失败时让用户挑出真正的启动 exe，选择经 Lib.SetLaunchExe
+        // 持久化进 library.json —— 之后 LaunchTargetOf 最高优先级返回它（用户只指认这一次）。
+        string PickLaunchExe(DlssgGame g)
+        {
+            using (var dlg = new OpenFileDialog())
+            {
+                dlg.Title = "定位「" + (g.Title == null ? "游戏" : g.Title) + "」的启动程序（选择后自动记住）";
+                dlg.Filter = "程序 (*.exe)|*.exe";
+                try { if (g.Dir != null && Directory.Exists(g.Dir)) dlg.InitialDirectory = g.Dir; } catch { }
+                if (dlg.ShowDialog(this) != DialogResult.OK) return "";
+                string r = MetaStore.SetLaunchExe(g, dlg.FileName);
+                if (r.Length > 0) Log("  " + r);
+                return dlg.FileName;
             }
         }
 

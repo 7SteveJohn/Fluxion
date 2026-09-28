@@ -2703,7 +2703,7 @@ namespace Fluxion
         // v1.0.0 = Fluxion 品牌首发（2026-09-20 由 GameBoost-DLSSG 全套改名而来）。
         // ⚠ 版本号在这里重开：改名换了安装包的 AppId，Windows 视作全新产品，
         //   旧的 3.6.x 线不再有升级关系（旧版需手动卸载）。两处版本号必须一起改（build.py --pkg 会校验）。
-        public const string AppVersion = "1.0.8";
+        public const string AppVersion = "1.0.9";
         public const string ShareVersion = "1.0.0";
         // ⚠ 必须用 #if 直接选常量（不能用运行时三元）：这样每个二进制里只留自己那条版本串，
         //   交付后可以直接在 exe 里搜 "SHARE-BUILD" 来证明「这份到底是不是分享构建」。
@@ -6232,15 +6232,43 @@ namespace Fluxion
         {
             if (procSnapshot != null && (DateTime.Now - procSnapshotTime).TotalSeconds < 2)
                 return procSnapshot;
-            try { procSnapshot = new List<Process>(Process.GetProcesses()); }
-            catch { procSnapshot = new List<Process>(); }
-            procSnapshotTime = DateTime.Now;
-            return procSnapshot;
+            try
+            {
+                var fresh = new List<Process>(Process.GetProcesses());
+                if (fresh.Count > 0)
+                {
+                    procSnapshot = fresh;
+                    procSnapshotTime = DateTime.Now;
+                    return fresh;
+                }
+                // 空结果 = 枚举失败而不是真没进程：**不缓存也不交给调用方**。
+                //   缓存它会让之后 2 秒内所有判定"看不见任何进程"→ 游戏联动误判"游戏已退出"
+                //   → 分辨率/远控/电源全部还原，3 秒后又重新触发一轮（2026-09-27 日志实测一局抖 4 次）。
+                return procSnapshot != null ? procSnapshot : fresh;
+            }
+            catch
+            {
+                // 枚举异常同理：退回上一次快照（顶多旧 2 秒），绝不返回空表
+                return procSnapshot != null ? procSnapshot : new List<Process>();
+            }
         }
         public static bool ProcExists(string name)
         {
             foreach (var p in GetProcSnapshot())
                 try { if (p.ProcessName.Equals(name, StringComparison.OrdinalIgnoreCase)) return true; } catch { }
+            return false;
+        }
+        // 绕过快照缓存的全新枚举：联动退出防抖用。快照链路偶发"看不见在跑的游戏"
+        //（枚举瞬时失败 / 全屏游戏把 UI 消息泵饿死导致 tick 迟到），复核一次就能纠正误报。
+        public static bool ProcExistsFresh(string name)
+        {
+            if (name == null || name.Length == 0) return false;
+            try
+            {
+                foreach (var p in Process.GetProcesses())
+                    try { if (p.ProcessName.Equals(name, StringComparison.OrdinalIgnoreCase)) return true; } catch { }
+            }
+            catch { }
             return false;
         }
 
