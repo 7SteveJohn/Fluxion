@@ -1,0 +1,54 @@
+# 构建产物
+.build/
+installer_out/
+share_out/
+dist_share/
+deploy/
+Fluxion.exe
+*.exe.bak
+
+# 探针构建产物与会话状态
+.probe/
+.mimosa/
+src/.mimosa/
+
+# 备份与历史
+backup/
+_old/
+legacy/
+
+# 日志与探针输出
+logs/
+ui-snapshots/
+*_result.txt
+deploy_check.txt
+uiprobe.txt
+_b64_tmp.txt
+gpu-spoof-original.txt
+tools/_scan_dlssfg_result.json
+
+# 本地运行时数据（含个人游戏路径）
+config.json
+library.json
+
+# 私密/内部文件（不上传）
+covers/
+docs/
+.share_build/
+check.bat
+Cleanup-Old-DataDir.bat
+分辨率切换.bat
+待优化清单-*.md
+可添加技术-*.md
+取值细调-*.md
+功能缺口与路线图.md
+优化项盘点与遗漏清单.md
+tools/launch_probe.cs
+tools/run_launch_probe.py
+tools/_archive_d3d12_findings.py
+tools/cover_holo.py
+
+# 临时
+__pycache__/
+*.pyc
+tools/_readme_backup*.md

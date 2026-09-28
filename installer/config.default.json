@@ -1,0 +1,243 @@
+{
+  "_comment": "GameBoost 配置文件。所有优化项均可单独开关。JSON 不支持注释，本文件中的 _comment 字段仅供参考，请勿删除其他字段。",
+  "power": {
+    "_comment": "电源计划优化。scheme: ultimate=卓越性能(Win10专业工作站版支持) / high=高性能。gameAwareSwitch: 进游戏临时切换到 scheme，退出游戏自动还原原计划（崩溃后下次启动自恢复）",
+    "enable": true,
+    "scheme": "ultimate",
+    "gameAwareSwitch": true,
+    "minProcessorState": 100,
+    "maxProcessorState": 100,
+    "usbSuspendOff": true,
+    "pcieAspmOff": true,
+    "standbyTimeoutAc": 0,
+    "hibernateTimeoutAc": 0,
+    "diskTimeoutAc": 0
+  },
+  "gpu": {
+    "_comment": "GPU 与系统层优化。gameDvrOff 关闭游戏录制后台开销；gameModeOn 确保 Windows 游戏模式开启；nvProfiles 通过 NVAPI 给游戏 exe 自动写 NVIDIA 驱动配置(电源管理=最高性能优先+低延迟=超高，等价控制面板手动设置，仅 N 卡生效)",
+    "enable": true,
+    "gameDvrOff": true,
+    "gameModeOn": true,
+    "nvProfiles": true,
+    "fullscreenOptOff": false
+  },
+  "gameBoost": {
+    "_comment": "游戏加速包（参照 Razer Cortex/游戏加加 已验证做法）：进游戏自动执行——①挂起 suspendList 进程(不杀，游戏退出自动恢复) ②内存整理(释放后台大进程工作集) ③暂停 Windows 更新下载服务(wuauserv/bits/dosvc，退出恢复)。⚠️ suspendList 千万别加 QQ/WeChat（三角洲登录依赖），也别加系统进程",
+    "enable": true,
+    "suspendList": [
+      "OneDrive"
+    ],
+    "trimMemory": true,
+    "pauseWindowsUpdate": true
+  },
+  "cleanup": {
+    "_comment": "后台清理。killList 为白名单进程（不带.exe）。注意：①若用 QQ/微信 登录三角洲行动国服，切勿加入 QQ/WeChat 否则会掉线！②UU远程(GameViewer)由 gameAware 游戏联动自动管理，不放进 killList（否则一键优化会杀掉正在使用的远控会话）",
+    "enable": true,
+    "killList": [],
+    "boostGamePriority": true,
+    "gameProcesses": [
+      "cs2",
+      "VALORANT",
+      "RiotClientServices",
+      "DeltaForceClient-Win64-Shipping",
+      "DeltaForce-Win64-Shipping"
+    ]
+  },
+  "network": {
+    "_comment_throttle": "NetworkThrottlingIndex: -1=禁用节流(推荐) / 10=Windows 默认 / 20·30·50 更保守。改完立即生效；体检表里带 ⚙ 的行可双击改。",
+    "throttlingIndex": -1,
+    "_comment": "网络优化。systemResponsiveness 默认20，设小值游戏更优先（推荐10）；nagleOff 关闭小包合并延迟",
+    "enable": true,
+    "nagleOff": true,
+    "systemResponsiveness": 10,
+    "pingTargets": [
+      {
+        "name": "阿里DNS",
+        "host": "223.5.5.5"
+      },
+      {
+        "name": "腾讯DNS",
+        "host": "119.29.29.29"
+      },
+      {
+        "name": "百度",
+        "host": "www.baidu.com"
+      }
+    ]
+  },
+  "monitor": {
+    "_comment": "实时监控参数。intervalSec 采样间隔（秒），logCsv 是否写 CSV 日志",
+    "intervalSec": 2,
+    "logCsv": true
+  },
+  "gameAware": {
+    "_comment": "游戏感知联动：开游戏自动暂停远控（省资源防掉帧），关游戏自动恢复远控。remoteApps 为需联动的远控软件（已按你机器的网易GameViewer配置）",
+    "enable": true,
+    "pollIntervalSec": 3,
+    "notify": true,
+    "gameProcesses": [
+      "cs2",
+      "VALORANT",
+      "DeltaForceClient-Win64-Shipping",
+      "DeltaForce-Win64-Shipping"
+    ],
+    "remoteApps": []
+  },
+  "displayLink": {
+    "_comment": "游戏分辨率联动：进游戏自动切主屏、退出自动还原（应用的是临时模式，崩溃/重启会自动回原生）。rules 里 preset 是档位 id（设置页「游戏联动」区可选：CS2 8 档 / 无畏契约 7 档），w/h 是实际生效值；detach=true 表示进游戏时先禁用副屏（无畏契约在复制模式下切不动，须先禁用）。baseW/H/Hz 是退出游戏后的还原目标，换显示器后在设置页点「还原目标 = 当前主屏」对齐即可。",
+    "enable": true,
+    "baseW": 1920,
+    "baseH": 1080,
+    "baseHz": 165,
+    "rules": [
+      { "proc": "cs2", "w": 1440, "h": 1080, "hz": 165, "detach": false, "preset": "cs-1440x1080" },
+      { "proc": "VALORANT", "w": 1568, "h": 1080, "hz": 165, "detach": true, "preset": "val-1568x1080" }
+    ]
+  },
+  "scheduler": {
+    "_comment": "CPU 调度优化。win32PrioritySeparation: 38(即0x26,短量子+可变+前台增强2级，竞技游戏推荐) / 40(0x28,纯竞技) / 2(系统默认)。需重启生效。heteroPolicy: 设的是【异类短运行线程调度策略】(SHORTSCHEDPOLICY=bae08b81，12代+混合架构)=1 高性能处理器——注意这是【仅限 P 核】的硬限制，不是【首选高性能处理器】(=2，优先 P 核、忙时溢出到 E 核)。游戏线程属短运行线程，所以只调这一项；总开关「异类策略 HeteroPolicy」保持系统默认 0(所有核可调度) 即最优，不必改",
+    "enable": true,
+    "win32PrioritySeparation": 38,
+    "heteroPolicy": true
+  },
+  "hags": {
+    "_comment": "硬件加速 GPU 计划(HwSchMode=2)。RTX 30系+新驱动推荐开启，可降低帧生成时间波动。需重启生效",
+    "enable": true
+  },
+  "mmGames": {
+    "_comment": "多媒体类调度 Games 任务提升：GPU Priority=8 / Priority=6 / Scheduling=High / SFIO=High，前台游戏获得更多 CPU/GPU 时间片",
+    "enable": true
+  },
+  "nic": {
+    "_comment": "网卡节能优化：关闭节能以太网(EEE)/Green Ethernet/GigaLite/自适应降速，禁用系统挂起网卡（减少网络中断毛刺导致的帧时间尖峰）",
+    "enable": true,
+    "greenEthernetOff": true,
+    "powerManagementOff": true
+  },
+  "virtualization": {
+    "_comment": "【默认关闭——安全/兼容权衡项】关闭 Hyper-V 层（BCD 的 hypervisorlaunchtype=off），减少帧生成时间抖动。它治的是帧时间尾部，不治平均帧上限。⚠️ 开启后 WSL2 / Docker Desktop / Android 模拟器 / Windows 沙盒全部不可用。实现只改 BCD 一条值、不碰 Windows 功能，所以还原后 WSL2/Docker 不用重装。还原途径：「恢复备份」或 bcdedit /set hypervisorlaunchtype auto。需重启生效",
+    "enable": false
+  },
+  "dlss": {
+    "_comment": "【默认关闭】DLSS 模型覆盖（NVIDIA 驱动层 per-game 写入）：启用驱动的 DLL 覆盖 + 预设档=推荐 + 强制预设=使用推荐值，让 RTX 20/30 系也能用上 DLSS 4 的 Transformer 超分模型（MFG 多帧生成才是 50 系专属）。预设故意交给驱动的「推荐值」而不写死 K/L/M——L 只在超性能档、M 只在性能档才有意义，且 30 系跑 M 约有 20% 性能税。默认关闭的原因：与 0.3.x 帧生成代理存在潜在相互影响（两者都可能在 DXGI/DLL 层接管），确认不打架再开。还原：「恢复备份」或把本项改回 false 后重新优化",
+    "override": false
+  },
+
+  "timer": {
+    "_comment": "游戏运行期间自动把系统定时器分辨率压到 0.5ms（NtSetTimerResolution），游戏退出自动还原 15.6ms。降低输入延迟与帧时间抖动，仅游戏期间生效不常驻",
+    "enable": true,
+    "resolutionMs": 0.5
+  },
+  "services": {
+    "_comment": "优化时禁用的系统服务（启动类型改 Disabled 并停止，-Restore 可还原）。SSD 上禁用 SysMain(超级预取) 可减少后台 IO 抖动",
+    "enable": true,
+    "disable": [
+      "SysMain"
+    ]
+  },
+  "alerts": {
+    "_comment": "硬件告警：轮询中发现 GPU 温度 / CPU 占用 / 内存占用超阈值时托盘气泡+日志提醒（过热降频、内存换页是掉帧常见原因）。cooldownMin 为同一告警的最小重复间隔（防刷屏），单项阈值设 0 关闭该项",
+    "enable": true,
+    "gpuTempC": 83,
+    "cpuPct": 90,
+    "memPct": 90,
+    "cooldownMin": 5
+  },
+  "affinity": {
+    "_comment": "【v2.0 默认关闭】CPU 核心亲和性硬绑。关闭原因：Intel Thread Director 白皮书明确不建议在混合架构上手动钉核——硬绑会破坏动态调度决策，可能把后台线程留在 P 核、把游戏线程挤到 E 核。正确替代方案是 scheduler.heteroPolicy(异类线程调度策略)，由系统动态调度。保留本开关仅供对比测试：设 true 可强制把游戏进程绑定到 P 核",
+    "enable": false,
+    "pCoreOnly": false
+  },
+  "input": {
+    "_comment": "输入优化。mouseAccelOff 关闭系统'提高指针精确度'(鼠标加速，MouseSpeed/Threshold=0)——CS2/瓦走原始输入不受影响，对三角洲等读系统鼠标的更跟手。可逆",
+    "enable": true,
+    "mouseAccelOff": true
+  },
+  "memory": {
+    "_comment": "内存管理优化。disablePagingExecutive=1 禁止内核/驱动换页出内存，减少游戏期缺页卡顿（重启生效，占用少量内存）",
+    "enable": true,
+    "disablePagingExecutive": true
+  },
+  "defender": {
+    "_comment": "Windows Defender 游戏进程实时扫描排除（进程级 Add-MpPreference -ExclusionProcess，仅排除游戏 exe 本体不是整个目录）。注意：这是安全权衡项，默认关闭，自己权衡后开启；-Restore 可移除",
+    "enable": false
+  },
+  "gameProfiles": {
+    "_comment": "四档游戏档案+双场景。场景总开关(主窗口「场景」下拉)：游戏=正常档位体系；办公=整机不触发任何游戏联动。档位：fpsGames=FPS竞技(留空沿用 gameAware.gameProcesses)；mmoGames=网游MMO；aaaGames=3A大作(如极限竞速地平线456)；gachaGames=二游。列表=自动挡归类；勾「手动指定档位」后可按游戏(中文名)手动指定，存 gameProfiles.override.json。进程名不带.exe：原神国服=YuanShen 国际服=GenshinImpact，鸣潮=Client-Win64-Shipping，星铁=StarRail，绝区零=ZenlessZoneZero，极限竞速地平线=ForzaHorizon4/5/6",
+    "fpsGames": [],
+    "mmoGames": [],
+    "gachaGames": [
+      "YuanShen",
+      "GenshinImpact",
+      "Client-Win64-Shipping",
+      "StarRail",
+      "ZenlessZoneZero"
+    ],
+    "aaaGames": [
+      "ForzaHorizon4",
+      "ForzaHorizon5",
+      "ForzaHorizon6",
+      "Cyberpunk2077",
+      "EldenRing"
+    ]
+  },
+  "adaptive": {
+    "_comment": "硬件自适应（分享给别人用也适配）：启动时探测 CPU/GPU/笔记本或台式/系统盘 SSD 或 HDD/系统版本，自动调整——①笔记本：最小处理器状态降到 50% 防积热耗电 ②GPU/系统不支持 HAGS(需 NVIDIA GTX10系+/AMD RX5000+/Intel Arc + Win10 2004+)：跳过该项 ③系统盘是机械硬盘：保留 SysMain(HDD 上有益) ④启用全局定时器请求(修复 Win10 2004+/Win11 定时器只按进程生效的限制) ⑤未安装配置的远控软件：联动自动失效不报错。设 false 可强制用本文件写死的数值",
+    "enable": true
+  },
+  "dragFix": {
+    "_comment": "窗口拖拽流畅优化：关闭拖拽实时渲染(仅边框)/透明效果/动画。全部可逆(-Restore 还原)",
+    "enable": true,
+    "dragFullWindows": false,
+    "disableTransparency": true,
+    "disableAnimations": true
+  },
+  "dlssg": {
+    "_comment": "DLSSG 帧生成模块：为 RTX 20/30 系接入 dlssg_for_sm86 运行时（NVIDIA 官方只给 40 系开帧生成，本模块补齐 SM86/SM75 内核）。仅建议用于单机 3A；竞技射击（CS2/Valorant/三角洲）不要用。",
+    "enable": true,
+    "_comment_router": "router: SM86(RTX 30系) / SM75(RTX 20系)。kernelImage: PTX(驱动JIT，通用稳定) / Auto / Cubin(精确匹配)。hardwareBilinear: 0=精确(画质优先) 1=近似(省算力)",
+    "router": "SM86",
+    "kernelImage": "PTX",
+    "hardwareBilinear": 0,
+    "_comment_frames": "maxGeneratedFrames: 1/2/3 → 理论 2X/3X/4X。注意实测这是「最大生成帧数」上限，实际倍率由游戏请求决定；8GB 显存建议 2（即 3X 档），2X 场景填 1",
+    "maxGeneratedFrames": 2,
+    "_comment_log": "loggingLevel: 0=关闭 1=仅错误 2=诊断 3=详细。排错时临时调到 2~3，日志在游戏目录 dlssg_sm86\\logs\\*.jsonl",
+    "loggingLevel": 1,
+    "_comment_entry": "autoEntrypoint: 自动选择代理入口 DLL。实测 Cyberpunk 2077(2.31) 对 version.dll 只加载不调用其函数→代理永不激活，必须用 winmm.dll；本模块内置该映射并自动处理。一般保持 true",
+    "autoEntrypoint": true,
+    "_comment_d3d12": "antiCheatD3d12: 检测到内核反作弊游戏（绝区零/鸣潮/终末地等）时自动改用 d3d12.dll 入口。原因：这类反作弊会按【文件名】拦掉 version.dll / winmm.dll 等常规入口（上游 issue #111 实测），而 d3d12.dll 是 DX12 游戏必须加载的系统库，拦不掉。默认 true；关掉后对这类游戏退回常规入口（多半不生效）",
+    "antiCheatD3d12": true,
+    "_comment_src": "repo: 运行时下载源。国内网络直连 raw.githubusercontent.com 通常失败，建议 useProxy=true 配合本地代理（Clash/FlClash 默认 7890）",
+    "repo": "https://raw.githubusercontent.com/sdli1995/dlssg_for_sm86/main",
+    "useProxy": false,
+    "proxy": "",
+    "_comment_roots": "extraRoots: 额外的游戏根目录（非 Steam/Epic 默认路径的游戏放这里，扫描时会包含）",
+    "extraRoots": []
+  },
+  "ui": {
+    "_comment": "界面行为。closeAsk: 点右上角 X 时弹框询问「最小化到通知区域图标 / 退出程序」（系统关机、任务管理器结束时不会弹，直接收进托盘）；closeToTray: 用户勾选「记住我的选择」后记住的那一项，true=最小化到托盘 false=退出程序。老安装的 config.json 没有本节，程序首次保存时会自动补写进去",
+    "closeAsk": true,
+    "closeToTray": false,
+    "_comment_theme": "界面主题：light=浅色（默认）/ dark=沿用《游戏启动器》的深色配色与圆角。在「设置 → 界面主题」里切换，切换后立即生效（原地重建控件树，无需重启）",
+    "theme": "light",
+    "_comment_motion": "界面动效：auto=跟随系统（默认，读 Windows 的「为窗口内的控件和元素添加动画」开关，SPI_GETCLIENTAREAANIMATION）/ on=始终开启 / off=关闭。很多性能机上这个系统开关本身就是关的，此时 auto 等于完全没有过渡，可到这里选 on 强制开启。在「设置 → 界面动效」里切换，立即生效",
+    "motion": "auto"
+  },
+  "nv": {
+    "_comment": "【取值细调 · v3.6.0】这里每一条都对应体检表里带 ⚙ 的行（双击即可改），也对应「取值细调」对话框。默认值 = 旧的硬编码值，所以升级后行为不变。驱动层取值写入 nvdrsdb，重启游戏生效；改回默认不会自动撤销已写入系统的值，用「恢复备份」整体还原。",
+    "_comment_size": "shaderCacheSize: 12 档。0=关闭(禁用缓存) / 128=128MB / 256=256MB / 512=512MB / 1024=1GB / 4096=4GB / 5120=5GB / 8192=8GB / 10240=10GB / 16384=16GB / 102400=100GB / -1=无限制(0xFFFFFFFF)。别写成 4294967295 —— JSON 读回时 Convert.ToInt32 会溢出并静默取默认值。",
+    "_comment_preset": "dlssForcedPreset: 16777215=使用推荐值 / 10=Preset J / 11=Preset K(Gen1) / 12=Preset L(Gen2) / 13=Preset M(Gen2) / 0=不干预。30 系建议保持「推荐值」：L 只在 Ultra Performance 档起效、M 只在 Performance 档起效，且 Gen2 在 30 系有约 20% 性能税。",
+    "_comment_vsync": "compVsync / aaaVsync: 138504007(0x08416747)=强制关 / 1620202130(0x60925292)=跟随游戏 / 1199655232(0x47814940)=强制开 / 411601032(0x18888888)=快速同步。",
+    "_comment_bglimit": "backgroundFpsLimit: 0=不限制 / 其余=目标 FPS。只写进各游戏档（per-profile）。",
+    "shaderCacheOn": 1,
+    "shaderCacheSize": -1,
+    "dlssForcedPreset": 16777215,
+    "dlssPresetProfile": 1,
+    "compPrerenderedFrames": 1,
+    "compPowerMode": 1,
+    "compVsync": 138504007,
+    "aaaVsync": 1620202130,
+    "compTextureQuality": 20,
+    "backgroundFpsLimit": 0
+  }
+}
