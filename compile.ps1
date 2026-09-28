@@ -10,8 +10,8 @@ $srcs  = @(
     (Join-Path $root "src\Lib.cs"),
     (Join-Path $root "src\Ui.cs")
 )
-$out   = Join-Path $root "GameBoost-DLSSG.new.exe"
-$final = Join-Path $root "GameBoost-DLSSG.exe"
+$out   = Join-Path $root "Fluxion.new.exe"
+$final = Join-Path $root "Fluxion.exe"
 $ico   = Join-Path $root "icon\icon.ico"
 $resultFile = Join-Path $root "compile_result.txt"
 
@@ -52,7 +52,7 @@ try {
         "/r:System.Windows.Forms.dll", "/r:System.Drawing.dll",
         "/r:System.Web.Extensions.dll", "/r:System.Management.dll",
         "/r:System.ServiceProcess.dll",
-        # Pack.cs 解压作者发布的 zip 用（ZipArchive / ZipFile 分属这两个程序集）
+        # Pack.cs unzips author-released packs (ZipArchive / ZipFile live in these two assemblies).
         "/r:System.IO.Compression.dll", "/r:System.IO.Compression.FileSystem.dll"
     )
     if (Test-Path $ico) { $args += "/win32icon:`"$ico`"" }
