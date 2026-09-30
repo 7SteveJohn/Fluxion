@@ -1463,7 +1463,17 @@ namespace Fluxion
         // 2026-09-13 用户报「新下载的原神怎么都识别不出来」：扫描其实扫到了
         // （日志「识别 11 个游戏目录」→ 列表 10 个），只因为 G:\miHoYo Launcher\games\Genshin Impact Game
         // 躺在 ignored 里就静默消失，而清单既没有 UI 入口、文件又在 ProgramData（普通权限改不了）。
+        // 合并现在有后台调用方（界面的 MergeScanThen / 扫描 DoWork），加一把串行锁：
+        // 连点两次也按序合并。判定缓存 RecCat 是条目字段（引用原子写）、无共享容器，锁只为
+        // 保证 games/Library 的最终赋值先后不乱，不为内存安全（2026-09-30 体检）。
+        static object mergeLock = new object();
+
         public static List<DlssgGame> MergeScan(List<DlssgGame> scanned, out List<DlssgGame> ignoredHits)
+        {
+            lock (mergeLock) { return MergeScanInner(scanned, out ignoredHits); }
+        }
+
+        static List<DlssgGame> MergeScanInner(List<DlssgGame> scanned, out List<DlssgGame> ignoredHits)
         {
             var ignored = LoadIgnoredDirs();
             var customs = LoadCustomGames();
@@ -2622,12 +2632,13 @@ namespace Fluxion
                         }
                         if (len > 0 && (prev == null || t > prev.When))
                         {
+                            ParsedLog pl = ParseLog(f, len, t);
                             var p = new FgResult();
                             p.Dir = none.Dir;
                             p.File = Path.GetFileName(f);
                             p.When = t;
                             p.Bytes = len;
-                            ParseInto(f, p);
+                            p.MaxGen = pl.MaxGen; p.GenCount = pl.GenCount; p.Note = pl.Note;
                             prev = p;
                         }
                     }
@@ -2639,7 +2650,11 @@ namespace Fluxion
 
             if (latest.Bytes > 0)
             {
-                if (latestPath != null) ParseInto(latestPath, latest);
+                if (latestPath != null)
+                {
+                    ParsedLog pl = ParseLog(latestPath, latest.Bytes, latest.When);
+                    latest.MaxGen = pl.MaxGen; latest.GenCount = pl.GenCount; latest.Note = pl.Note;
+                }
                 return latest;
             }
 
@@ -2656,8 +2671,19 @@ namespace Fluxion
         }
 
         // 逐行扫 jsonl。只做子串定位 + 手写取整，避免引入 JSON 解析开销（这函数会被频繁调用）。
-        static void ParseInto(string path, FgResult r)
+        //  解析结论按（路径,大小,修改时间）缓存：同一份日志内容不变就不重读 —— Check 会把目录里
+        //  时间递增的每个历史 pid 日志全文解析一遍，Summary 又对全部游戏执行、每次进帧生成页都跑，
+        //  游戏一多这就是切页卡顿的大头（2026-09-30 体检 medium）。条目 256 封顶，满表即清。
+        class ParsedLog { public int MaxGen, GenCount; public string Note = ""; }
+        static readonly System.Collections.Generic.Dictionary<string, ParsedLog> parsedLogCache =
+            new System.Collections.Generic.Dictionary<string, ParsedLog>(StringComparer.OrdinalIgnoreCase);
+
+        static ParsedLog ParseLog(string path, long len, DateTime t)
         {
+            string key = path + "|" + len + "|" + t.Ticks;
+            ParsedLog pl;
+            if (parsedLogCache.TryGetValue(key, out pl)) return pl;
+            pl = new ParsedLog();
             try
             {
                 using (var sr = new StreamReader(path, Encoding.UTF8, true))
@@ -2670,19 +2696,22 @@ namespace Fluxion
                         if (++guard > 20000) break;      // 防御：异常大的日志不至于拖住界面
 
                         int i = line.IndexOf("\"max_generated\":", StringComparison.Ordinal);
-                        if (i >= 0) { int v = IntAfter(line, i + 16); if (v >= 0) r.MaxGen = v; }
+                        if (i >= 0) { int v = IntAfter(line, i + 16); if (v >= 0) pl.MaxGen = v; }
 
                         i = line.IndexOf("\"generated_count\":", StringComparison.Ordinal);
-                        if (i >= 0) { int v = IntAfter(line, i + 18); if (v >= 0 && v > r.GenCount) r.GenCount = v; }
+                        if (i >= 0) { int v = IntAfter(line, i + 18); if (v >= 0 && v > pl.GenCount) pl.GenCount = v; }
 
-                        if (r.Note.Length == 0 && line.IndexOf("configuration_error", StringComparison.Ordinal) >= 0)
-                            r.Note = line.IndexOf("Invalid INI integer", StringComparison.Ordinal) >= 0
+                        if (pl.Note.Length == 0 && line.IndexOf("configuration_error", StringComparison.Ordinal) >= 0)
+                            pl.Note = line.IndexOf("Invalid INI integer", StringComparison.Ordinal) >= 0
                                 ? "配置被拒（INI 里有代理不认的值，游戏可能卡在加载界面）"
                                 : "配置被拒（代理拒绝了 INI）";
                     }
                 }
             }
             catch { }
+            if (parsedLogCache.Count >= 256) parsedLogCache.Clear();
+            parsedLogCache[key] = pl;
+            return pl;
         }
 
         static int IntAfter(string s, int at)
@@ -4170,11 +4199,32 @@ namespace Fluxion
         }
 
         // 识别游戏类型
+        //  Detect 每次都对两个 exe 名各做一次深度 3 全子树递归，而一次帧生成页刷新会对同一目录
+        //  重复调 10+ 次（RefreshFgSummary / PatrolLine / BuildRec 各自调），全部变成反复列目录
+        //  （2026-09-30 体检）。结果只随"游戏装没装"变化，加一个短 TTL 记忆化：同目录 15 秒内
+        //  直接复用；游戏更新/卸载造成的误判最多活 15 秒，下次刷新自动纠正。
+        class DetEntry { public string Kind; public int At; }
+        static readonly System.Collections.Generic.Dictionary<string, DetEntry> detCache =
+            new System.Collections.Generic.Dictionary<string, DetEntry>(StringComparer.OrdinalIgnoreCase);
+        const int DetTtlMs = 15000;
+
         public static string Detect(string gameDir)
         {
-            if (FindExeDir(gameDir, "ZenlessZoneZero.exe", 3) != null) return "zzz";
-            if (FindExeDir(gameDir, "Client-Win64-Shipping.exe", 3) != null) return "wuwa";
-            return "";
+            if (gameDir == null || gameDir.Length == 0) return "";
+            string key = gameDir.TrimEnd('\\', '/').ToLowerInvariant();
+            DetEntry e;
+            int now = Environment.TickCount;
+            if (detCache.TryGetValue(key, out e) && e != null && unchecked(now - e.At) < DetTtlMs)
+                return e.Kind;
+            string kind = "";
+            try
+            {
+                if (FindExeDir(gameDir, "ZenlessZoneZero.exe", 3) != null) kind = "zzz";
+                else if (FindExeDir(gameDir, "Client-Win64-Shipping.exe", 3) != null) kind = "wuwa";
+            }
+            catch { }
+            detCache[key] = new DetEntry { Kind = kind, At = now };
+            return kind;
         }
 
         // 实际落地目录（exe 所在处）

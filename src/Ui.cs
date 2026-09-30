@@ -826,27 +826,66 @@ namespace Fluxion
                 {
                     scrollWatch = new Timer();
                     scrollWatch.Interval = 50;
-                    scrollWatch.Tick += delegate
-                    {
-                        for (int i = 0; i < scrollWatched.Count; i++)
-                        {
-                            ListView l = scrollWatched[i];
-                            try
-                            {
-                                if (l == null || l.IsDisposed) continue;
-                                IntPtr hh = l.Handle;
-                                int top = (int)SendMessage(hh, LVM_GETTOPINDEX, IntPtr.Zero, IntPtr.Zero);
-                                int old;
-                                if (scrollTopIdx.TryGetValue(hh, out old) && old != top) l.Invalidate(false);
-                                scrollTopIdx[hh] = top;
-                            }
-                            catch { }
-                        }
-                    };
+                    scrollWatch.Tick += delegate { ScrollWatchTick(); };
                     scrollWatch.Start();
                 }
+                else if (!scrollWatch.Enabled) scrollWatch.Start();   // 空表自停后，下一个列表打补丁时重启
             }
             catch { }
+        }
+
+        // 巡检内容抽成方法：Tick 里顺带做周期修剪与空表自停（2026-09-30 体检：
+        // scrollWatched/cellMask 等只增不减，换主题整树重建后旧引用与每句柄 4KB 掩码无限累积）
+        static int watchTickN;
+        static void ScrollWatchTick()
+        {
+            if (++watchTickN % 20 == 0) PruneScrollWatch();                 // ~1s 一次
+            if (scrollWatched.Count == 0) { scrollWatch.Stop(); return; }   // 没有要管的列表就停表
+            for (int i = 0; i < scrollWatched.Count; i++)
+            {
+                ListView l = scrollWatched[i];
+                try
+                {
+                    if (l == null || l.IsDisposed) continue;
+                    IntPtr hh = l.Handle;
+                    int top = (int)SendMessage(hh, LVM_GETTOPINDEX, IntPtr.Zero, IntPtr.Zero);
+                    int old;
+                    if (scrollTopIdx.TryGetValue(hh, out old) && old != top) l.Invalidate(false);
+                    scrollTopIdx[hh] = top;
+                }
+                catch { }
+            }
+        }
+
+        // 修剪已销毁列表的引用与句柄键（句柄可能被系统复用，陈旧掩码还会造成一次误判）
+        static void PruneScrollWatch()
+        {
+            try
+            {
+                for (int i = scrollWatched.Count - 1; i >= 0; i--)
+                {
+                    ListView l = scrollWatched[i];
+                    if (l == null || l.IsDisposed || !l.IsHandleCreated) scrollWatched.RemoveAt(i);
+                }
+                var live = new HashSet<IntPtr>();
+                foreach (ListView l in scrollWatched) { try { live.Add(l.Handle); } catch { } }
+                if (live.Count == 0) { scrollTopIdx.Clear(); cellMask.Clear(); cellFixAt.Clear(); return; }
+                PruneHandleKeys(scrollTopIdx, live);
+                PruneHandleKeys(cellFixAt, live);
+                List<IntPtr> dead = new List<IntPtr>();
+                foreach (KeyValuePair<IntPtr, int[]> kv in cellMask)
+                    if (!live.Contains(kv.Key)) dead.Add(kv.Key);
+                foreach (IntPtr h in dead) cellMask.Remove(h);
+            }
+            catch { }
+        }
+
+        static void PruneHandleKeys(Dictionary<IntPtr, int> d, HashSet<IntPtr> live)
+        {
+            List<IntPtr> dead = new List<IntPtr>();
+            foreach (KeyValuePair<IntPtr, int> kv in d)
+                if (!live.Contains(kv.Key)) dead.Add(kv.Key);
+            foreach (IntPtr h in dead) d.Remove(h);
         }
 
         static void ApplyScroll(Control c)
@@ -2258,6 +2297,15 @@ namespace Fluxion
             return Theme.TextFaint;
         }
 
+        // 卡面状态按卡缓存：PaintCard 每次重绘都各调一遍 StateShort/StateColor，底下是
+        // 十几回 File.Exists/FileInfo（通用卡 ~12 次、二游最坏 ~20 次），悬停/滚动重绘成倍放大
+        //（2026-09-30 体检）。所有改状态的入口（开启/关闭/换入口/扫描/导入）都会整表重建卡片，
+        // 缓存随卡生灭不会过期；换主题整树重建同理。
+        string shortCache;
+        Color? colorCache;
+        string StateShortCached() { if (shortCache == null) shortCache = StateShort(Game); return shortCache; }
+        Color StateColorCached() { if (colorCache == null) colorCache = StateColor(Game); return colorCache.Value; }
+
         // 绘制失败绝不允许把卡片留成"白块打叉"：.NET 对 OnPaint 抛异常的控件就是这个表现
         // （2026-09-15 用户截图实测 16 张白框+红叉）。任何异常都退化成一块纯底色，至少不难看。
         static bool paintErrLogged;      // 绘制异常只记一条，避免刷屏
@@ -2279,7 +2327,15 @@ namespace Fluxion
         // 卡片自带一份封面副本（见 CoverArt.Own）：窗口销毁时一并释放，避免 GDI 句柄泄漏
         protected override void Dispose(bool disposing)
         {
-            if (disposing) { try { if (cover != null) cover.Dispose(); } catch { } }
+            if (disposing)
+            {
+                try { if (cover != null) cover.Dispose(); } catch { }
+                // 解除 static ToolTip 对本卡片的强引用：不清的话旧卡片整棵树永远不可回收，
+                // 逐键/逐次重建在会话内无上限累积（2026-09-30 体检）。右键菜单一并释放。
+                try { Tip().SetToolTip(this, null); } catch { }
+                var m = ContextMenuStrip; ContextMenuStrip = null;
+                try { if (m != null) m.Dispose(); } catch { }
+            }
             base.Dispose(disposing);
         }
 
@@ -2313,9 +2369,9 @@ namespace Fluxion
 
             // 平台 · 状态（状态用颜色点示意）
             int dot = Theme.S(5);
-            using (var b = new SolidBrush(StateColor(Game)))
+            using (var b = new SolidBrush(StateColorCached()))
                 g.FillEllipse(b, pad, Theme.S(32), dot, dot);
-            TextRenderer.DrawText(g, Lib.PlatformLabel(Game.Platform) + "  ·  " + StateShort(Game), MetaFont(),
+            TextRenderer.DrawText(g, Lib.PlatformLabel(Game.Platform) + "  ·  " + StateShortCached(), MetaFont(),
                 new Rectangle(pad + dot + Theme.S(6), Theme.S(26), Width - pad * 2 - dot - Theme.S(6), Theme.S(15)),
                 Theme.TextDim,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter
@@ -2438,11 +2494,11 @@ namespace Fluxion
             int stX = pad + pW + Theme.S(6);
             int stDotSz = Theme.S(5);
             int stDotY = my + (pH - stDotSz) / 2 + 1;
-            Color sc = StateColor(Game);
+            Color sc = StateColorCached();
             using (var b = new SolidBrush(sc))
                 g.FillEllipse(b, stX, stDotY, stDotSz, stDotSz);
 
-            TextRenderer.DrawText(g, StateShort(Game),
+            TextRenderer.DrawText(g, StateShortCached(),
                 MetaFont(), new Rectangle(stX + stDotSz + Theme.S(4), my, Width - stX - stDotSz - pad, Theme.S(16)),
                 Color.FromArgb(220, 226, 235),
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter
@@ -3080,7 +3136,7 @@ namespace Fluxion
 
         static void EnsureWheelTimer()
         {
-            if (wheelTimer != null) return;
+            if (wheelTimer != null) { if (!wheelTimer.Enabled) wheelTimer.Start(); return; }   // 空表自停后由滚轮重启
             wheelTimer = new Timer();
             wheelTimer.Interval = 15;
             wheelTimer.Tick += delegate
@@ -3103,6 +3159,9 @@ namespace Fluxion
                     }
                     catch { try { wheelPending.RemoveAt(i); } catch { } }
                 }
+                // 所有页面都停手收尾后停表（与动效泵"没有动画就立刻停表"同一约束，2026-09-30 体检：
+                // 此前 15ms 定时器首滚后永久 66 次/秒空转）；下一次滚轮 EnsureWheelTimer 会重启
+                if (wheelPending.Count == 0) wheelTimer.Stop();
             };
             wheelTimer.Start();
         }
@@ -3392,6 +3451,7 @@ namespace Fluxion
         TextBox txtSearch;
         RoundField rfSearch;
         bool webCoverRunning;
+        bool redownloadRunning;          // 「重新获取官方封面」进行中（下载链已放后台，防重入）
         RoundCombo cbPlat, cbSort, cbTarget, cbTheme;
         RoundCombo cbMotion;                                 // 设置页「界面动效」三态
         CheckBox chkFavOnly, chkShowHidden;
@@ -3533,7 +3593,10 @@ namespace Fluxion
             //   → 最上面那 31px 是一条**什么内容都没有的白条**，用户截图问"FLUXION 上面空一块是啥意思"。
             //   填上名字后标题栏有字，一眼能看出那是系统标题栏（也顺带让 Alt+Tab / 任务栏有正常标签）。
             Text = "Fluxion";
-            ShowIcon = false;
+            // ★ ShowIcon 必须为 true（2026-09-29）：设 false 时 WinForms 不向窗口发 WM_SETICON，
+            //   窗口最小化后任务栏改取窗口类图标（从未设置）→ 任务栏/悬停预览退回系统默认图标，
+            //   看起来就是"最小化后 Fluxion 图标消失"。标题栏会多出一个小图标，属正常系统行为。
+            ShowIcon = true;
             AutoScaleMode = AutoScaleMode.None;      // 缩放统一由 Theme.S() 负责，避免两套缩放叠加
             Font = Theme.F(9f);                      // 原生控件继承这个字体
             ForeColor = Theme.Text;
@@ -4409,7 +4472,7 @@ namespace Fluxion
             var s1 = new Sec("");                       // 空标题 = 工具条模式
             rfSearch = new RoundField(Theme.S(320), "搜索游戏名 / 目录（按 / 聚焦）");  // 宽度由工具条拉伸
             txtSearch = rfSearch.Box;
-            txtSearch.TextChanged += delegate { FillGameList(); };
+            txtSearch.TextChanged += delegate { SearchDebounce(); };
             cbPlat = new RoundCombo();
             cbPlat.DropDownStyle = ComboBoxStyle.DropDownList;
             cbPlat.Items.AddRange(PlatNames);
@@ -5716,7 +5779,8 @@ namespace Fluxion
                     int c = Program.GetCpu(), m = Program.GetMem(), g = Program.GetGpuPct(), t = Program.GetGpuTemp();
                     if (!closing && barCpu != null)
                     {
-                        barCpu.Invoke((Action)(delegate
+                        // BeginInvoke：UI 线程被同步 IO 钉住时池线程不必陪着等（2026-09-30 体检）
+                        barCpu.BeginInvoke((Action)(delegate
                         {
                             barCpu.Value = c; barCpu.RightText = c + "%";
                             barMem.Value = m; barMem.RightText = m + "%";
@@ -5835,8 +5899,13 @@ namespace Fluxion
                     resPreAt = DateTime.MinValue;
                     if (ResLink.Active)
                     {
-                        Log("启动后 120 秒仍未检测到游戏进程，已还原显示设置（分辨率与显示器都恢复原状）");
-                        foreach (string l in ResLink.Restore()) Log("[分辨率联动] " + l);
+                        Log("启动后 120 秒仍未检测到游戏进程，正在还原显示设置（分辨率与显示器都恢复原状）");
+                        // 显示器设备启停是秒级同步 IO，不能卡 UI tick（同 LinkGameExit 的收尾）
+                        System.Threading.ThreadPool.QueueUserWorkItem(delegate
+                        {
+                            try { foreach (string l in ResLink.Restore()) Program.Log("[分辨率联动] " + l); }
+                            catch (Exception ex) { Program.Log("[分辨率联动] 后台还原异常: " + ex.Message); }
+                        });
                     }
                 }
             }
@@ -5869,39 +5938,38 @@ namespace Fluxion
             }
             linkActive = true;
             resPreAt = DateTime.MinValue;   // 预应用转正：显示状态交给常规的退出收尾流程
-            var parts = new List<string>();
             // ★ 分辨率联动（v3.7.0）：进游戏按规则切主屏（瓦罗兰特附带禁用副屏）。
-            //   必须放在远控暂停**之前**：ChangeDisplaySettingsEx 毫秒级完成，
-            //   且 PauseAllRemote 侧对 ResLink.Active 有让位逻辑（不记快照、不抢装回）。
-            if (Cfg.ResLinkEnable)
-            {
-                ResLinkRule rr = ResLink.RuleFor(game);
-                if (rr != null)
-                {
-                    string resLog = ResLink.Apply(rr);
-                    if (resLog.Length > 0) { parts.Add(resLog); Program.Log("[分辨率联动] " + resLog); }
-                }
-            }
+            //   必须放在远控暂停**之前**：PauseAllRemote 侧对 ResLink.Active 有让位逻辑（不记快照、不抢装回）。
+            ResLinkRule rr = Cfg.ResLinkEnable ? ResLink.RuleFor(game) : null;
             // ★ 远控只对「竞技」档暂停。
             //   用户实测反馈：启动鸣潮（二游）也把 UU远程 杀了，而界面文案一直写"只对竞技网游生效"
             //   —— 因为这里原先只看总开关、从不看档位，而鸣潮在 gachaGames 里同样会被识别为"游戏"。
             bool fpsCat = string.Equals(cat, "fps", StringComparison.OrdinalIgnoreCase);
-            if (Cfg.AwareOnlyFps && !fpsCat)
+            bool doPause = !(Cfg.AwareOnlyFps && !fpsCat);
+            var parts = new List<string>();
+            if (rr != null) parts.Add("切换分辨率");
+            if (!doPause) parts.Add("档位「" + (cat.Length > 0 ? cat : "自动") + "」→ 按设置不动远控");
+            else parts.Add("暂停远控");
+            if (Cfg.PowerGameSwitch) parts.Add(Cfg.PowerScheme == "ultimate" ? "临时切卓越性能" : "临时切高性能");
+            if (Cfg.GbEnable) parts.Add("加速包");
+            // 慢活整条链投进**同一个**后台线程按原顺序串行执行：显示器 PnP 设备启停带 400ms 强制等待、
+            // GamePowerOn 要起 2~4 个 powercfg 子进程（每个最长等 5s），同步跑在 UI 线程会让进游戏
+            // 冻结 1~3 秒（2026-09-30 体检）。顺序不能乱：分辨率要先于远控暂停完成（见上让位逻辑）。
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
             {
-                parts.Add("档位「" + (cat.Length > 0 ? cat : "自动") + "」→ 按设置不动远控");
-            }
-            else
-            {
-                // 远控暂停放后台线程：StopService 最长可耗时 20s+，绝不能卡 UI
-                Program.PauseAllRemoteAsync();
-                parts.Add("暂停远控");
-            }
-            if (Cfg.PowerGameSwitch)
-            {
-                Program.GamePowerOn();
-                parts.Add(Cfg.PowerScheme == "ultimate" ? "临时切卓越性能" : "临时切高性能");
-            }
-            if (Cfg.GbEnable) { Program.GameBoostStartAsync(); parts.Add("加速包"); }
+                try
+                {
+                    if (rr != null)
+                    {
+                        string resLog = ResLink.Apply(rr);
+                        if (resLog.Length > 0) Program.Log("[分辨率联动] " + resLog);
+                    }
+                    if (doPause) Program.PauseAllRemoteAsync();
+                    if (Cfg.PowerGameSwitch) Program.GamePowerOn();
+                    if (Cfg.GbEnable) Program.GameBoostStartAsync();
+                }
+                catch (Exception ex) { Program.Log("[联动] 后台执行异常: " + ex.Message); }
+            });
             Program.ApplyGameTimer();
             if (Program.IsTimerApplied()) parts.Add("定时器 " + Cfg.TimerMs + "ms");
             Program.ApplyGameAffinity();
@@ -5928,15 +5996,21 @@ namespace Fluxion
                 if (secs > 5) Program.PlayTimeAdd(gameStartKey, secs);
             }
             // ★ 分辨率联动收尾：先把主屏还原、副屏接回来，**再**放行远控恢复
-            //   （远控被拉起时显卡会重新协商，ResLink 先把模式摆正，远控那边的显示守卫也就无快照可抢）
-            bool resRestored = false;
-            if (ResLink.Active)
+            //   （远控被拉起时显卡会重新协商，ResLink 先把模式摆正，远控那边的显示守卫也就无快照可抢）。
+            //   设备启停 + powercfg 同步跑要 1~3 秒，整条链按原顺序投进同一个后台线程（同 LinkGameEnter）。
+            bool resRestored = ResLink.Active;
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
             {
-                foreach (string l in ResLink.Restore()) { Program.Log("[分辨率联动] " + l); resRestored = true; }
-            }
-            Program.ResumeAllRemoteIfPausedAsync();
-            Program.GamePowerOff();
-            Program.GameBoostStopAsync();
+                try
+                {
+                    if (ResLink.Active)
+                        foreach (string l in ResLink.Restore()) Program.Log("[分辨率联动] " + l);
+                    Program.ResumeAllRemoteIfPausedAsync();
+                    Program.GamePowerOff();
+                    Program.GameBoostStopAsync();
+                }
+                catch (Exception ex) { Program.Log("[联动] 后台收尾异常: " + ex.Message); }
+            });
             Program.RevertGameTimer();
             string done = "联动收尾：远控已恢复 · 电源/定时器/挂起进程已还原"
                         + (resRestored ? " · 分辨率已还原 " + Cfg.BaseW + "x" + Cfg.BaseH + "@" + Cfg.BaseHz : "");
@@ -6334,7 +6408,13 @@ namespace Fluxion
                 // 不清的话卡片会把"别人的文件"当成本工具装的，还会让「关闭选中」删错东西
                 int pruned = Dlssg.PruneStale();
                 if (pruned > 0) Log("  已清理 " + pruned + " 条失效的安装记录");
-                e.Result = Lib.ScanAll(manual ? (Action<string>)(delegate(string m) { Log("  " + m); }) : null);
+                List<DlssgGame> scanned = Lib.ScanAll(manual ? (Action<string>)(delegate(string m) { Log("  " + m); }) : null);
+                // 合并（含每条目 Inspect 重探，整条扫描链里最重的一步）也留在后台线程做完 ——
+                // 此前它在 RunWorkerCompleted（UI 线程）同步跑，扫描完成后界面还要再冻一截
+                //（2026-09-30 体检：MergeScan 全库重探压 UI 线程）。被合并的是新扫出的条目对象，
+                // 此刻 games 还没被触碰，后台重探与界面读取互不相干。
+                List<DlssgGame> igHits;
+                e.Result = new object[] { Dlssg.MergeScan(scanned, out igHits), igHits };
             };
             bw.RunWorkerCompleted += delegate(object s, RunWorkerCompletedEventArgs e)
             {
@@ -6344,9 +6424,10 @@ namespace Fluxion
                 if (e.Error != null) { if (manual) Log("扫描失败: " + e.Error.Message); return; }
                 var old = new List<string>();
                 foreach (var o in games) old.Add(o.Dir.ToLowerInvariant());
-                // 合并层会滤掉忽略清单 + 追加 games.json 里的自定义游戏
-                List<DlssgGame> igHits;
-                games = Dlssg.MergeScan(e.Result as List<DlssgGame>, out igHits);
+                // 合并层会滤掉忽略清单 + 追加 games.json 里的自定义游戏（合并本身已在后台 DoWork 完成）
+                object[] mr = e.Result as object[];
+                List<DlssgGame> igHits = (mr != null && mr.Length > 1) ? mr[1] as List<DlssgGame> : null;
+                games = (mr != null && mr.Length > 0) ? mr[0] as List<DlssgGame> : null;
                 if (games == null) games = new List<DlssgGame>();
                 if (igHits == null) igHits = new List<DlssgGame>();
                 FillGameList();
@@ -6388,6 +6469,25 @@ namespace Fluxion
         }
 
         // 列表填充：筛选 + 排序 + 生成卡片 + 按行数定高（整页单滚动条，无内层滚动）
+        Timer searchDebounce;
+        // 搜索框逐键触发 FillGameList：整页卡片重建（含封面解码与位图复制），连打会闪且 GC 压力大。
+        // 300ms 防抖：停手才真正重建（2026-09-30 体检）。
+        void SearchDebounce()
+        {
+            if (searchDebounce == null)
+            {
+                searchDebounce = new Timer();
+                searchDebounce.Interval = 300;
+                searchDebounce.Tick += delegate
+                {
+                    searchDebounce.Stop();
+                    FillGameList();
+                };
+            }
+            searchDebounce.Stop();
+            searchDebounce.Start();
+        }
+
         void FillGameList()
         {
             if (flGames == null) return;
@@ -6399,7 +6499,12 @@ namespace Fluxion
             { keepScroll = pages[P_LIB].ScrollY; }
             try
             {
-                foreach (Control c in flGames.Controls) c.Dispose();
+                // 先快照再 Dispose：Control.Dispose() 会把自己从父集合移除，边遍历边改集合
+                // 会静默跳过约一半控件（2026-09-30 体检实测，不抛异常所以从未暴露）——
+                // 漏掉的卡片连树带右键菜单都不释放
+                Control[] olds = new Control[flGames.Controls.Count];
+                flGames.Controls.CopyTo(olds, 0);
+                for (int i = 0; i < olds.Length; i++) olds[i].Dispose();
                 flGames.Controls.Clear();
 
                 // 读 Query 而不是 Text：占位文案不能被当成搜索词
@@ -6732,24 +6837,46 @@ namespace Fluxion
         }
 
         // 重新下载官方封面（先删掉现有官方封面，绕开"已有就不重下"的判据）
+        //  整条下载链放后台：Steam 全部尺寸 ×2 尝试 + 联网搜图几十个请求且未设超时，
+        //  此前在 UI 线程同步跑，断网时要卡数分钟、期间游戏轮询联动停摆（2026-09-30 体检）。
         void DoRedownloadCover()
         {
             if (selected == null) { Log("  请先选中游戏"); return; }
+            if (redownloadRunning) { Log("  封面重取正在进行中…"); return; }
             if (selected.Id == null || selected.Id.Length == 0) selected.Id = Lib.IdOf(selected);
             try { if (File.Exists(CoverArt.CardFile(selected.Id))) File.Delete(CoverArt.CardFile(selected.Id)); } catch { }
             try { if (File.Exists(CoverArt.CardFilePng(selected.Id))) File.Delete(CoverArt.CardFilePng(selected.Id)); } catch { }
-            string appid = selected.AppId == null ? "" : selected.AppId;
-            bool ok = appid.Length > 0 && CoverArt.DownloadSteam(appid, selected.Id);
-            if (!ok)
+            DlssgGame g = selected;
+            redownloadRunning = true;
+            Log(">>> 重新获取官方封面：" + g.Title);
+            var bw = new BackgroundWorker();
+            bw.DoWork += delegate(object s, DoWorkEventArgs e)
             {
-                string alt = CoverArt.SearchAppId(selected.Title);
-                if (alt.Length > 0 && alt != appid) { ok = CoverArt.DownloadSteam(alt, selected.Id); if (ok) Lib.RememberAppId(selected, alt); }
-            }
-            if (!ok) ok = CoverArt.SearchWebCover(selected).Length == 0;      // 再退一步：联网搜图
-            CoverArt.ClearCache();
-            Log(ok ? "  已获取封面：" + selected.Title
-                   : "  没找到合适封面（Steam 全部尺寸 + 联网搜图都试过）—— 可用右键「设置封面…」指定本地图片");
-            FillGameList();
+                bool ok = false;
+                try
+                {
+                    string appid = g.AppId == null ? "" : g.AppId;
+                    ok = appid.Length > 0 && CoverArt.DownloadSteam(appid, g.Id);
+                    if (!ok)
+                    {
+                        string alt = CoverArt.SearchAppId(g.Title);
+                        if (alt.Length > 0 && alt != appid) { ok = CoverArt.DownloadSteam(alt, g.Id); if (ok) Lib.RememberAppId(g, alt); }
+                    }
+                    if (!ok) ok = CoverArt.SearchWebCover(g).Length == 0;      // 再退一步：联网搜图
+                }
+                catch (Exception ex) { Log("  封面重取异常：" + ex.Message); }
+                e.Result = ok;
+            };
+            bw.RunWorkerCompleted += delegate(object s, RunWorkerCompletedEventArgs e)
+            {
+                redownloadRunning = false;
+                CoverArt.ClearCache();
+                bool ok = e.Result is bool && (bool)e.Result;
+                Log(ok ? "  已获取封面：" + g.Title
+                       : "  没找到合适封面（Steam 全部尺寸 + 联网搜图都试过）—— 可用右键「设置封面…」指定本地图片");
+                FillGameList();
+            };
+            bw.RunWorkerAsync();
         }
 
         void DoOpenCoversDir()
@@ -6892,6 +7019,21 @@ namespace Fluxion
             bw.RunWorkerAsync();
         }
 
+        // MergeScan 放后台：它对库里每个条目重跑 Inspect（深度 3 目录递归找帧生成组件），
+        // 游戏多/盘慢时在 UI 线程同步跑会冻数百毫秒到秒级（2026-09-30 体检）。
+        // Dlssg.MergeScan 内部有串行锁，连点几次也按序合并；完成后回 UI 线程换列表并执行收尾。
+        void MergeScanThen(List<DlssgGame> scanned, Action after)
+        {
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                List<DlssgGame> merged = scanned;
+                try { merged = Dlssg.MergeScan(scanned); }
+                catch (Exception ex) { Program.Log("游戏库合并异常: " + ex.Message); }
+                try { BeginInvoke((Action)(delegate { games = merged; if (after != null) after(); })); }
+                catch { }
+            });
+        }
+
         void DoAddGame()
         {
             using (var dlg = new OpenFileDialog())
@@ -6903,9 +7045,7 @@ namespace Fluxion
                 try { lastAddDir = Path.GetDirectoryName(dlg.FileName); } catch { }
                 Log(">>> 添加自定义游戏：" + Dlssg.AddCustomGame(dlg.FileName));
             }
-            games = Dlssg.MergeScan(games);
-            FillGameList();
-            RefreshFgSummary();
+            MergeScanThen(games, delegate { FillGameList(); RefreshFgSummary(); });
         }
 
         // 移除：自定义条目 → 删记录；自动扫描条目 → 加入忽略清单（下次扫描不再出现）
@@ -6922,9 +7062,7 @@ namespace Fluxion
                 "移除游戏", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
             if (okr != DialogResult.OK) { Log("已取消移除：" + selected.Title); return; }
             Log(">>> 移除：" + Dlssg.RemoveGame(selected));
-            games = Dlssg.MergeScan(games);
-            FillGameList();
-            RefreshFgSummary();
+            MergeScanThen(games, delegate { FillGameList(); RefreshFgSummary(); });
         }
 
         // 忽略清单管理：点「移除选中」会把游戏目录记进 games.json 的 ignored（下次扫描不再收录），
@@ -7268,20 +7406,32 @@ namespace Fluxion
             {
                 Log(">>> 恢复收录：" + selected.Title);
                 Log("  " + Dlssg.UnignoreDirs(new List<string> { selDir }));
-                games = Dlssg.MergeScan(games);
-                FillGameList();
-                selected = null;
-                foreach (var g in games)
-                    if (string.Equals(g.Dir, selDir, StringComparison.OrdinalIgnoreCase)) { selected = g; break; }
-                if (selected == null) { Log("  ⚠ 恢复后没能在列表里找回该条目，请点「扫描游戏」重试"); return; }
-                if (selected.Ignored)
+                // 全库合并（含每条目 Inspect 重探）在后台跑，完成后再找回该条目并继续开启流程
+                MergeScanThen(games, delegate
                 {
-                    Log("  ⚠ 忽略清单写入被拒绝（games.json 在 ProgramData，普通权限改不了）—— 请以管理员身份运行本工具后重试");
-                    return;
-                }
-                Log("  已恢复收录，继续执行开启流程");
+                    selected = null;
+                    if (games != null)
+                        foreach (var g in games)
+                            if (string.Equals(g.Dir, selDir, StringComparison.OrdinalIgnoreCase)) { selected = g; break; }
+                    if (selected == null) { Log("  ⚠ 恢复后没能在列表里找回该条目，请点「扫描游戏」重试"); return; }
+                    if (selected.Ignored)
+                    {
+                        Log("  ⚠ 忽略清单写入被拒绝（games.json 在 ProgramData，普通权限改不了）—— 请以管理员身份运行本工具后重试");
+                        return;
+                    }
+                    Log("  已恢复收录，继续执行开启流程");
+                    FinishFgInstall();
+                });
+                return;
             }
 
+            FinishFgInstall();
+        }
+
+        // DoFgInstall 的开启执行段（"恢复收录"路径在后台合并完成后也走这里）。
+        void FinishFgInstall()
+        {
+            if (selected == null) return;
             if (!selected.HasFrameGen)
             {
                 Log("[" + selected.Title + "] 该游戏目录里没有 nvngx_dlssg.dll / sl.dlss_g.dll，代理没有可接管的调用" +
@@ -8299,8 +8449,8 @@ namespace Fluxion
                         probes.Add(bad);
                     }
                 }
-                try { Invoke((Action)(delegate { packBusy = false; ShowPackDialog(probes); })); }
-                catch { }
+                try { Invoke((Action)(delegate { ShowPackDialog(probes); })); }
+                catch { packBusy = false; }
             });
         }
 
@@ -8337,7 +8487,10 @@ namespace Fluxion
 
         void ShowPackDialog(List<PackProbe> probes)
         {
-            int imported = 0;
+            // 交互决策（识别报告/签名确认/要不要重抄）先在 UI 线程做完并收集成任务表，
+            // 最重的归位+重抄整段投进后台执行：Import 要备份+复制约 250MB 再逐件 SHA256、
+            // DeployTo 逐游戏重抄，此前同步压在 UI 线程，导入期间整窗白屏无响应（2026-09-30 体检）。
+            var jobs = new List<object[]>();   // { PackProbe, int 模式(0=只归位 1=归位+重抄), List<DlssgGame> targets }
             foreach (PackProbe p in probes)
             {
                 Log("--- 识别 ————————————————————————————");
@@ -8381,22 +8534,43 @@ namespace Fluxion
                 DialogResult r = MessageBox.Show(ask, "插件包导入 · " + Path.GetFileName(p.Input),
                     MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (r == DialogResult.Cancel) { Log("  → 已取消"); continue; }
-
-                Log(">>> 归位到资源包");
-                Log("  " + Pack.Import(p, delegate(string s) { Log(s); }));
-                imported++;
-                try
-                {
-                    if (p.TempDir.Length > 0 && Directory.Exists(p.TempDir))
-                    { Directory.Delete(p.TempDir, true); Log("  已清理解压临时目录"); }
-                }
-                catch { }
-
-                if (r != DialogResult.Yes) continue;
-                Log(">>> 重新部署（强制重抄资源包里的新文件）");
-                Log("  " + Pack.DeployTo(targets, delegate(string s) { Log(s); }));
+                jobs.Add(new object[] { p, r == DialogResult.Yes ? 1 : 0, targets });
             }
-            if (imported > 0) { FillGameList(); RefreshFgSummary(); }
+            if (jobs.Count == 0) { packBusy = false; return; }
+
+            packBusy = true;   // 归位+重抄期间不许再拖新包（此前在弹框前就放开了）
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                int imported = 0;
+                foreach (object[] job in jobs)
+                {
+                    PackProbe p = (PackProbe)job[0];
+                    int mode = (int)job[1];
+                    List<DlssgGame> targets = (List<DlssgGame>)job[2];
+                    try
+                    {
+                        Log(">>> 归位到资源包：" + Path.GetFileName(p.Input));
+                        Log("  " + Pack.Import(p, delegate(string s) { Log(s); }));
+                        imported++;
+                        try
+                        {
+                            if (p.TempDir.Length > 0 && Directory.Exists(p.TempDir))
+                            { Directory.Delete(p.TempDir, true); Log("  已清理解压临时目录"); }
+                        }
+                        catch { }
+
+                        if (mode == 1)
+                        {
+                            Log(">>> 重新部署（强制重抄资源包里的新文件）");
+                            Log("  " + Pack.DeployTo(targets, delegate(string s) { Log(s); }));
+                        }
+                    }
+                    catch (Exception ex) { Log("  导入执行异常：" + ex.Message); }
+                }
+                bool any = imported > 0;
+                try { Invoke((Action)(delegate { packBusy = false; if (any) { FillGameList(); RefreshFgSummary(); } })); }
+                catch { packBusy = false; }
+            });
         }
 
         static string GameNames(List<DlssgGame> gs)

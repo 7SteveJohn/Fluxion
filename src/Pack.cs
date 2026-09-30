@@ -90,6 +90,9 @@ namespace Fluxion
         static readonly System.Collections.Generic.Dictionary<string, CertInfo> Cache =
             new System.Collections.Generic.Dictionary<string, CertInfo>(StringComparer.OrdinalIgnoreCase);
         const int CacheMax = 256;
+        // Cache 在识别线程池（Classify 写缓存）与 UI 线程（PackActual/OwnerOf/TrustGateFile 读）并发访问：
+        // .NET Framework 的 Dictionary 并发写可致内部桶损坏（死循环 = 整程序挂死），全部读写都要过这把锁。
+        static readonly object cacheLock = new object();
 
         // 只从 PE 的签名表里取证书，不做链校验（自签名本来就过不了链校验）。
         //  未签名的文件 CreateFromSignedFile 会抛 CryptographicException —— 那就是 unsigned。
@@ -104,15 +107,18 @@ namespace Fluxion
                 if (!fi.Exists) return OfUncached(path);        // 不存在：直接走原路径报 missing
                 key = fi.FullName + "|" + fi.Length + "|" + fi.LastWriteTime.Ticks;
                 CertInfo hit;
-                if (Cache.TryGetValue(key, out hit)) return hit;
+                lock (cacheLock) { if (Cache.TryGetValue(key, out hit)) return hit; }
             }
             catch { return OfUncached(path); }
 
             CertInfo c = OfUncached(path);
             try
             {
-                if (Cache.Count >= CacheMax) Cache.Clear();     // 换包是一次性的，不需要 LRU
-                Cache[key] = c;
+                lock (cacheLock)
+                {
+                    if (Cache.Count >= CacheMax) Cache.Clear();     // 换包是一次性的，不需要 LRU
+                    Cache[key] = c;
+                }
             }
             catch { }
             return c;

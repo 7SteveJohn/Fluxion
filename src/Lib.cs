@@ -60,15 +60,40 @@ namespace Fluxion
             catch { return p.TrimEnd('\\', '/').ToLowerInvariant(); }
         }
 
+        // 最近一次成功解析的全量数据：library.json 一旦损坏（截断/写坏），直接拿空表去 Save
+        // 会把整库静默重写成单条 —— 收藏/隐藏/重命名/指认的启动 exe 全部丢失（2026-09-30 体检 high）。
+        // 规则：解析失败 → 先试 .bak（SaveAll 的 File.Replace 留下的上一版），再退这里，绝不用空表覆盖旧库。
+        static Dictionary<string, GameMeta> lastGood;
+        // library.json 的读-改-写有 UI 线程（收藏/启动）与后台线程（扫描/批量封面）并发，
+        // 无锁时后写者会用旧快照覆盖先写者（2026-09-30 体检）。lock 可重入，Save 里套 Load/SaveAll 没问题。
+        static readonly object ioLock = new object();
+
         public static Dictionary<string, GameMeta> Load()
         {
-            var map = new Dictionary<string, GameMeta>();
+            lock (ioLock)
+            {
+                var map = TryRead(MetaPath);
+                if (map == null && File.Exists(MetaPath))
+                {
+                    Program.Log("library.json 解析失败，尝试上一版备份 library.json.bak");
+                    map = TryRead(MetaPath + ".bak");
+                }
+                if (map != null) lastGood = map;
+                else map = lastGood;
+                return map ?? new Dictionary<string, GameMeta>();
+            }
+        }
+
+        // 读一个 json 并反序列化。文件不存在返回 null（首次运行是常态，不算错）；坏了/被占用也返回 null（留日志）。
+        static Dictionary<string, GameMeta> TryRead(string path)
+        {
             try
             {
-                if (!File.Exists(MetaPath)) return map;
+                if (!File.Exists(path)) return null;
                 var ser = new JavaScriptSerializer();
-                var root = ser.Deserialize<Dictionary<string, object>>(File.ReadAllText(MetaPath, Encoding.UTF8));
-                if (root == null) return map;
+                var root = ser.Deserialize<Dictionary<string, object>>(File.ReadAllText(path, Encoding.UTF8));
+                if (root == null) return null;
+                var map = new Dictionary<string, GameMeta>();
                 foreach (var kv in root)
                 {
                     var d = kv.Value as Dictionary<string, object>;   // 注意：JavaScriptSerializer 的嵌套对象是 Dictionary
@@ -86,31 +111,40 @@ namespace Fluxion
                     m.LaunchExe = S(d, "launchExe");
                     map[kv.Key] = m;
                 }
+                return map;
             }
-            catch { }
-            return map;
+            catch (Exception ex) { Program.Log("library.json 读取失败(" + Path.GetFileName(path) + "): " + ex.Message); return null; }
         }
 
         public static void SaveAll(Dictionary<string, GameMeta> map)
         {
-            try
+            lock (ioLock)
             {
-                var root = new Dictionary<string, object>();
-                foreach (var kv in map)
+                try
                 {
-                    var m = kv.Value;
-                    var d = new Dictionary<string, object>();
-                    d["name"] = m.Name; d["platform"] = m.Platform; d["appid"] = m.AppId;
-                    d["favorite"] = m.Favorite; d["private"] = m.Private; d["hidden"] = m.Hidden;
-                    d["lastPlayed"] = m.LastPlayed;
-                    d["launchArgs"] = m.LaunchArgs;
-                    d["launchExe"] = m.LaunchExe;
-                    root[kv.Key] = d;
+                    var root = new Dictionary<string, object>();
+                    foreach (var kv in map)
+                    {
+                        var m = kv.Value;
+                        var d = new Dictionary<string, object>();
+                        d["name"] = m.Name; d["platform"] = m.Platform; d["appid"] = m.AppId;
+                        d["favorite"] = m.Favorite; d["private"] = m.Private; d["hidden"] = m.Hidden;
+                        d["lastPlayed"] = m.LastPlayed;
+                        d["launchArgs"] = m.LaunchArgs;
+                        d["launchExe"] = m.LaunchExe;
+                        root[kv.Key] = d;
+                    }
+                    Directory.CreateDirectory(Program.DataDir);
+                    // 原子写：先写临时文件再 File.Replace（原子替换并自动留下 .bak 上一版）。
+                    // 直接 WriteAllText 在崩溃/断电/磁盘满时会留下截断 JSON，并发读方也可能读到坏文件
+                    //（2026-09-30 体检 high）。失败时原文件原样保留，不存在"写了一半"的中间态。
+                    string tmp = MetaPath + ".tmp";
+                    File.WriteAllText(tmp, new JavaScriptSerializer().Serialize(root), new UTF8Encoding(false));
+                    if (File.Exists(MetaPath)) File.Replace(tmp, MetaPath, MetaPath + ".bak");
+                    else File.Move(tmp, MetaPath);
                 }
-                Directory.CreateDirectory(Program.DataDir);
-                File.WriteAllText(MetaPath, new JavaScriptSerializer().Serialize(root), new UTF8Encoding(false));
+                catch (Exception ex) { Program.Log("library.json 写入失败: " + ex.Message); }
             }
-            catch (Exception ex) { Program.Log("library.json 写入失败: " + ex.Message); }
         }
 
         public static GameMeta GetOrCreate(string key)
@@ -126,9 +160,12 @@ namespace Fluxion
         public static void Save(GameMeta m)
         {
             if (m == null || m.Key.Length == 0) return;
-            var map = Load();
-            map[m.Key] = m;
-            SaveAll(map);
+            lock (ioLock)
+            {
+                var map = Load();
+                map[m.Key] = m;
+                SaveAll(map);
+            }
         }
 
         public static long Now() { return (long)(DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds; }
@@ -690,11 +727,18 @@ namespace Fluxion
         public static string CoversDir { get { return Path.Combine(Program.DataDir, "covers"); } }
 
         static readonly Dictionary<string, Image> mem = new Dictionary<string, Image>();
+        // mem 在 UI 线程（卡片绘制）与后台线程（批量封面 ClearCache）并发访问，无锁时
+        // Dictionary 内部桶可能被并发写坏（2026-09-15 白框事故的近亲，2026-09-30 体检）。
+        // Own() 的位图复制也一并锁内完成：保证复制期间源图绝不会被 ClearCache Dispose 掉。
+        static readonly object memLock = new object();
 
         public static void ClearCache()
         {
-            foreach (KeyValuePair<string, Image> kv in mem) { try { kv.Value.Dispose(); } catch { } }
-            mem.Clear();
+            lock (memLock)
+            {
+                foreach (KeyValuePair<string, Image> kv in mem) { try { kv.Value.Dispose(); } catch { } }
+                mem.Clear();
+            }
         }
 
         public static bool Allowed(string url)
@@ -1258,7 +1302,7 @@ namespace Fluxion
             // 两个不同游戏会共用同一张图（2026-09-14 探针实测踩到）
             string key = id + "|" + SafeName(g.Title) + "|" + w + "x" + h;
             Image cached;
-            if (mem.TryGetValue(key, out cached)) return Own(cached);
+            lock (memLock) { if (mem.TryGetValue(key, out cached)) return Own(cached); }
 
             Image img = null;
             try
@@ -1300,8 +1344,10 @@ namespace Fluxion
                 }
             }
             catch { }
-            if (img != null) mem[key] = img;
-            return img == null ? null : Own(img);
+            // 加进缓存后当场在锁内复制出调用方的独占副本：Own 若放到锁外，
+            // 中间可能被并发 ClearCache 把源图 Dispose 掉（0915 白框事故同款）
+            if (img != null) lock (memLock) { mem[key] = img; return Own(img); }
+            return null;
         }
 
         // 交给调用方一份**独占副本**。

@@ -2698,12 +2698,14 @@ namespace Fluxion
         }
     }
         static string LogFile;
+        static readonly object logLock = new object();   // 并发写同一日志文件时 AppendAllText 共享冲突会整行丢失，全过这把锁
+        static bool logDead = false;                     // 日志目录建不出来（磁盘满/ACL/杀软）：置位后 Log 直接放弃，绝不拖垮进程
         static string BackupFile;
         public static Config Cfg = new Config();
         // v1.0.0 = Fluxion 品牌首发（2026-09-20 由 GameBoost-DLSSG 全套改名而来）。
         // ⚠ 版本号在这里重开：改名换了安装包的 AppId，Windows 视作全新产品，
         //   旧的 3.6.x 线不再有升级关系（旧版需手动卸载）。两处版本号必须一起改（build.py --pkg 会校验）。
-        public const string AppVersion = "1.0.9";
+        public const string AppVersion = "1.1.0";
         public const string ShareVersion = "1.0.0";
         // ⚠ 必须用 #if 直接选常量（不能用运行时三元）：这样每个二进制里只留自己那条版本串，
         //   交付后可以直接在 exe 里搜 "SHARE-BUILD" 来证明「这份到底是不是分享构建」。
@@ -3067,24 +3069,33 @@ namespace Fluxion
         // ============ 工具函数 ============
         public static void EnsureLog()
         {
-            if (LogFile != null) return;
-            string dir = Path.Combine(DataDir, "logs");
-            Directory.CreateDirectory(dir);
-            // 日志自清理：超 14 天的旧日志删除（防无限膨胀）
+            if (LogFile != null || logDead) return;
+            // 目录创建会抛（磁盘满/ACL/杀软锁定），而 LogFile 只在首次成功才缓存 ——
+            // 以前没包 try，首次失败后每次 Log 都重抛一遍（2026-09-30 体检）。建不出来就本次进程内永久放弃。
             try
             {
-                foreach (var f in new DirectoryInfo(dir).GetFiles())
-                    if ((DateTime.Now - f.LastWriteTime).TotalDays > 14)
-                        try { f.Delete(); } catch { }
+                string dir = Path.Combine(DataDir, "logs");
+                Directory.CreateDirectory(dir);
+                // 日志自清理：超 14 天的旧日志删除（防无限膨胀）
+                try
+                {
+                    foreach (var f in new DirectoryInfo(dir).GetFiles())
+                        if ((DateTime.Now - f.LastWriteTime).TotalDays > 14)
+                            try { f.Delete(); } catch { }
+                }
+                catch { }
+                LogFile = Path.Combine(dir, "fluxion_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".log");
             }
-            catch { }
-            LogFile = Path.Combine(dir, "fluxion_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".log");
+            catch { logDead = true; }
         }
         public static void Log(string msg)
         {
             EnsureLog();
+            if (LogFile == null) return;
             string line = "[" + DateTime.Now.ToString("HH:mm:ss") + "] " + msg;
-            try { File.AppendAllText(LogFile, line + "\r\n", Encoding.UTF8); } catch { }
+            // 无锁时两个并发写者必有一个打开失败（AppendAllText 内部 FileShare.Read），整行被空 catch 吞掉 ——
+            // GuardTick/联动 tick/扫描进度并发打日志是常态（2026-09-30 体检实测复现）。
+            try { lock (logLock) File.AppendAllText(LogFile, line + "\r\n", Encoding.UTF8); } catch { }
         }
 
         // 取异常堆栈里第一帧属于**本程序**的方法（跳过 System.Drawing / System.Windows.Forms 的包装帧）。
@@ -4721,11 +4732,21 @@ namespace Fluxion
         static object gbLock = new object();
         public static void GameBoostStartAsync()
         {
-            System.Threading.ThreadPool.QueueUserWorkItem(delegate { lock (gbLock) GameBoostStart(); });
+            // 委托里任何一处抛出 = 线程池未处理异常 = 进程直接终止（全程序仅有的两个没包 try 的池入口，
+            // 2026-09-30 体检）—— 且挂起的可能是正在运行的游戏，不能冒这个险。
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                try { lock (gbLock) GameBoostStart(); }
+                catch (Exception ex) { Program.Log("[游戏加速包] 后台执行异常: " + ex.Message); }
+            });
         }
         public static void GameBoostStopAsync()
         {
-            System.Threading.ThreadPool.QueueUserWorkItem(delegate { lock (gbLock) GameBoostStop(); });
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                try { lock (gbLock) GameBoostStop(); }
+                catch (Exception ex) { Program.Log("[游戏加速包] 后台恢复异常: " + ex.Message); }
+            });
         }
 
         public static void ReloadCfg(Config c) { Cfg = c; }
