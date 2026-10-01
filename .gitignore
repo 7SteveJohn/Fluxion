@@ -31,6 +31,8 @@ tools/_scan_dlssfg_result.json
 config.json
 library.json
 
+rebuild.bat
+
 # 私密/内部文件（不上传）
 # 打包与安装包相关（自用定制，不入库）
 installer/
@@ -39,7 +41,8 @@ compile_share.ps1
 tools/build.py
 tools/iss_check.py
 covers/
-docs/
+docs/*
+!docs/README-完整开发日志.md   # 开发日志是要对外发布的，单独放行
 .share_build/
 check.bat
 Cleanup-Old-DataDir.bat

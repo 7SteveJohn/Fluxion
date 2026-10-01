@@ -46,18 +46,18 @@
 - 是否真正激活以「运行诊断」读日志为准（`runtime_redirect` / `evaluate` 事件）；代理加载了没日志 → 「换入口重试」。实测经验已内置（如 CP2077 必须走 winmm 入口，实测 135 → 190 帧）
 - 游戏更新覆盖代理文件后需重新开启；代理只放 1~2 个文件（d3d12 入口 3 个 + ini），删除即还原
 
-## 编译与打包
+## 编译
 
 | 动作 | 命令 |
 |---|---|
-| 编译 | `compile.ps1`（或 `rebuild.bat`：编译 → 停旧实例 → 部署到 `D:\Fluxion`） |
-| 静态预检 | `check.bat`（30 秒，提前抓大多数低级编译错误；不能替代编译器） |
-| 安装包 | `ISCC.exe /Qp installer\Fluxion.iss`（ISCC 在 `%LocalAppData%\Programs\Inno Setup 6\`，产物在 `installer_out\`） |
+| 编译 | `powershell -NoProfile -ExecutionPolicy Bypass -File compile.ps1`（产出根目录 `Fluxion.exe`；报告写 `compile_result.txt`，`COMPILE_OK` 才算通过） |
+| 静态预检 | `python tools/static_check.py src`（项目根执行，30 秒抓大多数低级错误，不能替代编译器） |
 
-- 升版本同步两处：`src/Core.cs` 的 `AppVersion` + `installer/Fluxion.iss` 的 `AppVersion` / `VersionInfoVersion`
+- 升版本改 `src/Core.cs` 的 `AppVersion`（`DisplayVersion` 跟随它）
 - `compile.ps1` 保持 ASCII-only 注释：PS5.1 读无 BOM 文件按 ANSI，中文注释会导致假编译成功
 - 程序带 `requireAdministrator` 清单，启动弹一次 UAC；配置文件已存在时升级不覆盖
 - 便携 / 安装版同一 exe 自动判定：exe 同目录有 `config.json` = 便携（数据在旁），否则数据在 `%ProgramData%\Fluxion\`（config / logs / backup / dlssg）
+- 打包脚本（Inno Setup / 分发版）属自用定制，不随仓库发布；仓库只维护源码与校验工具
 
 ## 目录结构
 
@@ -67,7 +67,9 @@ src/Dlssg.cs    帧生成模块：扫描、代理装卸、方案切换、诊断�
 src/Lib.cs      游戏库：平台扫描、启动解析、封面管线
 src/Pack.cs     资源包导入（拖入 dlssg030-pack）、备份回收
 src/Ui.cs       全部 WinForms UI（自绘主题引擎）
-installer/      Inno Setup 脚本；tools/ 静态校验脚本；legacy/ 旧源码存档
+tools/          静态校验脚本与探针（static_check / member_check / orphan_check 等）
+icon/           程序图标与候选稿
+docs/           完整开发日志
 ```
 
 ## 风险声明

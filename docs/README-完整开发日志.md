@@ -28,7 +28,7 @@ Fluxion/
 │   ├── Ui.cs        界面层：简约浅色 UI（系统标题栏 + 侧栏导航 + 白色分区 + 原生控件）
 │   └── app.manifest UAC 清单：requireAdministrator（安装版必需）
 ├── compile.ps1      csc 编译脚本（三文件 + icon + manifest）
-├── rebuild.bat      一键：编译 → 停旧实例 → 部署到 D:\Fluxion（便携版）
+├── rebuild.bat      一键：编译 → 停旧实例 → 部署到 <部署目录>（便携版）
 ├── make_installer.bat  一键：构建安装包 Setup.exe（需 Inno Setup 6）
 ├── installer/       Inno Setup 安装脚本（Fluxion.iss）
 ├── check.bat        静态预检（不依赖编译器，编译前先跑这个）
@@ -54,7 +54,7 @@ Fluxion/
 双击 rebuild.bat
 ```
 
-它会做四件事：编译 → 停掉正在运行的实例 → 部署到 `D:\Fluxion\` → 提示完成（首次部署时同时复制 config.json）。
+它会做四件事：编译 → 停掉正在运行的实例 → 部署到 `<部署目录>\` → 提示完成（首次部署时同时复制 config.json）。
 
 - 编译失败会在 `compile_result.txt` 里留下完整 csc 报错，把这个文件发给助手即可定位。
 - 启动需要管理员权限（要改注册表/电源/网卡）。编译产物带 UAC 清单（`src/app.manifest`，`requireAdministrator`），由系统在进程创建时弹一次提权确认、快捷方式显示盾牌；代码里原有的自提升逻辑现在只作兜底（已提权则自动跳过）。
@@ -142,7 +142,7 @@ Fluxion/
 python tools/iss_check.py installer/Fluxion.iss .
 ```
 
-> ⚠️ **不要把安装目录改成 `rebuild.bat` 的部署目录**（`D:\Fluxion`）。那是便携版/开发的输出目录：装进去会得到「已安装 + 便携」混合状态 —— 目录里同时有 `unins000.exe` 和便携版 `config.json`，程序会按便携版模式就地读写，而下次 `rebuild.bat` 部署又会覆盖已安装的 exe。安装包保持默认的 `C:\Program Files\Fluxion` 即可。
+> ⚠️ **不要把安装目录改成 `rebuild.bat` 的部署目录**（`<部署目录>`）。那是便携版/开发的输出目录：装进去会得到「已安装 + 便携」混合状态 —— 目录里同时有 `unins000.exe` 和便携版 `config.json`，程序会按便携版模式就地读写，而下次 `rebuild.bat` 部署又会覆盖已安装的 exe。安装包保持默认的 `C:\Program Files\Fluxion` 即可。
 
 
 
@@ -381,10 +381,10 @@ WinForms 对 `UserPaint` 自绘控件绘制失败的兜底，是把该控件区�
 | 环节 | 事实 |
 |---|---|
 | 启动项 | `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\GameBoostGuard.vbs`（登录时静默拉起 `Guard.ps1`） |
-| 判据 | 每 30 秒检查一次「进程名 = `GameBoost`」，不在就 `Start-Process `D:\GameBoost\GameBoost.exe --minimized`` |
+| 判据 | 每 30 秒检查一次「进程名 = `GameBoost`」，不在就 `Start-Process `<旧版部署目录>\GameBoost.exe --minimized`` |
 | 实况 | 19:07:53 旧版被退出 → 19:07:58 / 19:08:29 / 19:08:59 被看门狗**连拉 3 次** |
 
-**处置（已做，全部可逆）**：`D:\GameBoost\guard.config.json` 的 `keepAlive.enable` 改为 `false`
+**处置（已做，全部可逆）**：`<旧版部署目录>\guard.config.json` 的 `keepAlive.enable` 改为 `false`
 （原文件备份为 `guard.config.json.bak-20260911`）；启动项先改名 `GameBoostGuard.vbs.disabled`，
 2026-09-12 又从启动文件夹**移出**至 `backup\GameBoostGuard.vbs.disabled`（`.disabled` 扩展名会导致
 Windows 登录时每次弹「选择应用」对话框，故必须移走，未删除可随时放回）。
@@ -396,7 +396,7 @@ v2.0 自带同等的看门狗模块（黑屏取证 / 磁盘守护 / 网络哨兵
 ### ③ `rebuild.bat` 对安装版会误判成便携版
 
 `rebuild.bat` 原来无条件把 `config.json` 复制到部署目录。若该目录正是**安装版**
-（存在 `unins000.exe`，例如你现在的 `D:\Fluxion`），这一步会让程序下次判定为「便携版」，
+（存在 `unins000.exe`，例如你现在的 `<部署目录>`），这一步会让程序下次判定为「便携版」，
 把配置/日志/备份从 `%ProgramData%` 挪进程序目录。已加判断：检测到 `unins000.exe` 就跳过复制。
 
 ### ④ 界面「色彩与美观」问题：深色分层失效（已修复）
@@ -589,7 +589,7 @@ Bash 通道会被安全策略拦下（`csc.exe` 被视同"可编译任意代码"
 所以流程调整为一句话：**改完源码 → `check.bat` 六项预检 → 真编译一次 → 才敢说"改好了"。**
 静态检查的定位是"提前预警、缩小范围"，**它永远是编译器的补充，不是替代品**。
 
-另外 `rebuild.bat` 的第 2~4 步（停进程 → 拷到 `D:\Fluxion` → 拷图标）不需要编译器，可单独执行。
+另外 `rebuild.bat` 的第 2~4 步（停进程 → 拷到 `<部署目录>` → 拷图标）不需要编译器，可单独执行。
 
 ---
 
@@ -652,7 +652,7 @@ Bash 通道会被安全策略拦下（`csc.exe` 被视同"可编译任意代码"
 #### 根因一：`Scan()` 注释承诺了"注册表卸载项"，代码里从来没有这一路
 
 扫描根只有 Steam 库 + 写死的常见目录，而二游全走自家启动器、装在自定义路径：
-绝区零在 `G:\miHoYo Launcher`、鸣潮在 `G:\Wuthering Waves` —— 任何一个扫描根都覆盖不到。
+绝区零在 `<启动器安装目录>`、鸣潮在 `<游戏安装目录>\Wuthering Waves` —— 任何一个扫描根都覆盖不到。
 （排查姿势：`reg.exe` 被安全中心拉黑，改用 Python `winreg` 枚举卸载表 `InstallLocation`，5 分钟实锤。）
 
 #### 修复：注册表卸载项扫描（`ScanRegistryUninstalls` + `ScanLauncherRoot`）
@@ -690,9 +690,9 @@ CP2077 根目录**只有** `REDprelauncher.exe`（真身在 `bin\x64`，但那�
 ```
 == Steam 根（Inspect 直扫）==
    Cyberpunk 2077            (REDprelauncher.exe)        score=10  DLSS 帧生成 √ · DLSS 超分 √ · FSR3 帧生成 √ [启动器降级]
-== 启动器根: G:\Wuthering Waves ==
+== 启动器根: <游戏安装目录>\Wuthering Waves ==
    Wuthering Waves Game      (Client-Win64-Shipping.exe) depth=4 score=13  DLSS 帧生成 √ · DLSS 超分 √ · FSR3 帧生成 √
-== 启动器根: G:\miHoYo Launcher ==
+== 启动器根: <启动器安装目录> ==
    ZenlessZoneZero Game      (ZenlessZoneZero.exe)       depth=2 score=6   DLSS 帧生成 √ · DLSS 超分 √
 ```
 
@@ -703,7 +703,7 @@ CP2077 根目录**只有** `REDprelauncher.exe`（真身在 `bin\x64`，但那�
 | CP2077 | Cyberpunk 2077（REDprelauncher.exe） | DLSS 帧生成 ✓ · 超分 ✓ · FSR3 ✓ | 代理（winmm.dll）仍装着，条目恢复显示 |
 | 米哈游启动器根 | — | — | 不再被收录（启动器根 + 注入残留已清理） |
 
-> 注：`G:\SKY\SkyrimSE` 是已删游戏，忽略清单同步清理。
+> 注：`<游戏安装目录>\SkyrimSE` 是已删游戏，忽略清单同步清理。
 
 ---
 
@@ -734,18 +734,18 @@ CP2077 根目录**只有** `REDprelauncher.exe`（真身在 `bin\x64`，但那�
 
 #### 修复四：禁止把代理装进启动器根目录
 
-`G:\miHoYo Launcher` 这类目录是**装游戏的容器**（下挂 `games\`，内含原神/绝区零/星铁）。
+`<启动器安装目录>` 这类目录是**装游戏的容器**（下挂 `games\`，内含原神/绝区零/星铁）。
 此前被误注入 —— 一次注入同时作用于容器下所有游戏，且它们全是内核反作弊。现在 `Install()` 直接拒绝并提示改选游戏本体。
 
 #### 实测（`tools/scan_mirror_check.py`）
 
 ```
-== 启动器根: G:\miHoYo Launcher ==
+== 启动器根: <启动器安装目录> ==
    ZenlessZoneZero Game      (ZenlessZoneZero.exe)  depth=2 score=10  DLSS 帧生成 √ · DLSS 超分 √ · FSR3 帧生成 √
    Genshin Impact Game       (YuanShen.exe)         depth=2 score=0   无帧生成组件
 == 期望命中自检 ==
-    OK   G:\miHoYo Launcher\games\Genshin Impact Game
-    OK   G:\miHoYo Launcher\games\ZenlessZoneZero Game
+    OK   <启动器安装目录>\games\Genshin Impact Game
+    OK   <启动器安装目录>\games\ZenlessZoneZero Game
     OK   启动器根未被收录（应无）: 无
 ```
 
@@ -771,7 +771,7 @@ CP2077 根目录**只有** `REDprelauncher.exe`（真身在 `bin\x64`，但那�
 
 ```
 C:\ProgramData\Fluxion\games.json
-ignored: ["G:\\SKY\\SkyrimSE", "G:\\miHoYo Launcher\\games\\Genshin Impact Game"]
+ignored: ["<游戏安装目录>\SkyrimSE", "<启动器安装目录>\\games\\Genshin Impact Game"]
 ```
 
 扫描**扫到了**原神，合并层按 `ignored` 把它滤掉了。而这份清单：
@@ -847,7 +847,7 @@ RESULT: PASS
 ```
 [11:56:35] 扫描完成：识别 11 个游戏目录
 [11:56:35] >>> 扫描完成：游戏目录 10 个，其中集成 DLSS 帧生成 4 个
-[11:56:35] >>> 注意：有 1 个已扫到的游戏目录在忽略清单里、未显示：Genshin Impact Game（G:\miHoYo Launcher\games\Genshin Impact Game）  → 点「忽略清单」可放行
+[11:56:35] >>> 注意：有 1 个已扫到的游戏目录在忽略清单里、未显示：Genshin Impact Game（<启动器安装目录>\games\Genshin Impact Game）  → 点「忽略清单」可放行
 ```
 
 但 `Ui.cs` 里这一行：
@@ -1108,8 +1108,8 @@ dinput8.dll  15,666,496 B   载体 = 上游 altnative/dinput8.dll（一个字节
 - 封面优先取 `%ProgramData%\Fluxion\covers\<游戏名>.png`（自己放图即自动使用，GamesDeck 式个人封面库），没有则用 exe 图标
 
 **全电脑游戏识别**：
-- 新增「添加目录…」按钮：把任意目录（如 `F:\黄油`）加入扫描根，写入 config 的 `dlssg.extraRoots`，下次扫描自动包含
-- **自定义目录采用宽松收录**：跳过游戏性判定（RPG Maker / Ren'Py 这类引擎特征不在名单里，但用户指定了目录就是要它进库），只保留工具名黑名单与安装器排除。实测 `F:\黄油` 16 套里收录 14 套（另 2 套是存档目录/无 exe）
+- 新增「添加目录…」按钮：把任意目录（如 `<个人目录>`）加入扫描根，写入 config 的 `dlssg.extraRoots`，下次扫描自动包含
+- **自定义目录采用宽松收录**：跳过游戏性判定（RPG Maker / Ren'Py 这类引擎特征不在名单里，但用户指定了目录就是要它进库），只保留工具名黑名单与安装器排除。实测 `<个人目录>` 16 套里收录 14 套（另 2 套是存档目录/无 exe）
 
 **技术说明重写（帧生成页常驻文案）**：写明实际技术栈与三层链路 ——
 OptiScaler（github.com/optiscaler/OptiScaler）+ dlss-unlocked（ShyVortex）+ dlssg_for_sm86（sdli1995）+ fakenvapi + Intel XeSS-FG；
@@ -1123,7 +1123,7 @@ OptiScaler（github.com/optiscaler/OptiScaler）+ dlss-unlocked（ShyVortex）+ 
 
 | 反馈 | 根因 | 修法 |
 |---|---|---|
-| 卡片图**好糊** | 取图标用的是 `Icon.ExtractAssociatedIcon()`，它只返回 **32×32**，拉到 132 的卡片上就是一团糊 | 改 `PrivateExtractIcons` 主动要 **256×256**，在多个候选尺寸里取实际像素最大的一张；缩放统一走 `GameIcon.Scale()`（HighQualityBicubic + TileFlipXY）。实测：鸣潮/绝区零/2077/极限竞速 + F:\黄油 全部游戏 32×32 → **256×256** |
+| 卡片图**好糊** | 取图标用的是 `Icon.ExtractAssociatedIcon()`，它只返回 **32×32**，拉到 132 的卡片上就是一团糊 | 改 `PrivateExtractIcons` 主动要 **256×256**，在多个候选尺寸里取实际像素最大的一张；缩放统一走 `GameIcon.Scale()`（HighQualityBicubic + TileFlipXY）。实测：鸣潮/绝区零/2077/极限竞速 + <个人目录> 全部游戏 32×32 → **256×256** |
 | 页面**中部整片空白**、只显示底下一个分区、还多出横向滚动条 | ① `Pg` 容器没开双缓冲，而子控件全开了 —— AutoScroll 滚动是位图位移，父子缓冲不同步就留空白带；② `Reflow()` 在忙时把再入请求**直接丢弃**，尺寸变化永久丢失，布局停在半成品；③ 没给竖向滚动条预留宽度，竖条一出现就把内容挤出横条 | `Pg` 开双缓冲 + 重排改「挂起标记 + 迭代到收敛」+ 按竖条可见性预留宽度；`OnScroll` 强制整页重绘；封面网格换双缓冲子类 `BufferedFlow` |
 | 鸣潮「可接入」到底是哪个插件 / 绝区零用的什么方案 | 卡片状态只写了泛化词：`可接入` = 目录里**有 DLSS 帧生成组件**（不代表装了任何插件）；绝区零那条 `已开启（d3d12.dll）` 是 **state.json 里的旧记录**在作祟（15:34 装的 3.5 KB 代理早被 XeSS 套件的 25.6 MB `d3d12.dll` 取代） | 卡片状态改为读**实际方案**：`XeSS 多帧生成（d3d12）` / `XeSS 多帧生成（dxgi）`；新增 `PruneStale()` 扫描前清理失效记录（判据是体积，不是「文件在不在」）；统计口径不再用「可接入 N 个」而按方案分列 |
 
@@ -1349,7 +1349,7 @@ v2.6.0 的生成卡是**亮青色渐变 + 浮在中间的小图标**，跟真实
 ### ㉕ 2.7.0：界面语言全面对齐《游戏启动器》（2026-09-14）
 
 用户四条反馈：**封面明显不适合做封面**、**左右不居中**、**边缘与字体锯齿严重**、**多处衔接割裂**，
-并要求继续参照 `D:\杂项\GameLauncher`。这一版按它的 CSS 逐条对齐。
+并要求继续参照 `<个人目录>\GameLauncher`。这一版按它的 CSS 逐条对齐。
 
 #### ① 卡片改成「单面设计」（这是"割裂"的主要来源）
 
@@ -2071,7 +2071,7 @@ if (it.B != null) { it.B.Left = (it.A == null) ? padX : padX + labelW; ... }   /
 （0.3.x 不做伪装，游戏看到 3060 Ti 就不会显示帧生成选项）。
 
 已执行：方案A 全套移入隔离区（可恢复）；部署签名版 d3d12.dll（17,529,632 B）+ 出厂 ini；
-生成 `D:\youhua\绝区零-显卡名伪装\`（开启/还原 .reg + README）。
+生成 `<个人目录>\绝区零-显卡名伪装\`（开启/还原 .reg + README）。
 此前"绝区零必须用方案A"的判断**正式推翻**。
 
 #### ③ FH6 启动不了的根因：被写坏的 261B ini
