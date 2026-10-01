@@ -1,8 +1,18 @@
 # Fluxion
 
+![Version](https://img.shields.io/badge/version-1.1.0-blue) ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-lightgrey) ![Tech](https://img.shields.io/badge/C%23_WinForms-.NET-orange)
+
 **Windows 游戏优化 + DLSS 帧生成管理**（本地自用工具，当前 v1.1.0）
 
 一句话：**一键把系统调到适合游戏的状态，并给 RTX 20/30 系游戏接上 NVIDIA 只给 40 系开的帧生成。**
+
+## 这是什么
+
+一款独立开发的桌面级游戏优化工具，源码完全公开。它把散落在系统各处的游戏相关设置收敛成一键可切换的优化档，并配套完整的备份/还原体系；同时用 DLL 代理方式为 RTX 20/30 系补上 NVIDIA 官方只给 40 系开的 DLSS Frame Generation。
+
+- **适合谁**：想在 8GB 显存 / 老卡上榨出更多帧数的玩家；想了解每一项 Windows 游戏优化到底改了什么的开发者
+- **怎么做的**：全部走系统公开接口（powercfg / 注册表 / NVAPI / 网卡配置），不注入游戏、不改游戏本体文件
+- **安全边界**：每项优化都记录默认值、支持一键还原；VBS / 内存完整性等敏感项只检测不代改
 
 ## 功能
 
