@@ -2,11 +2,12 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.3.0-blue?style=flat-square)
-![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-0078D6?style=flat-square&logo=windows)
-![Framework](https://img.shields.io/badge/.NET%20Framework-4.8%20%2F%20WinForms-512BD4?style=flat-square)
-![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
-![Release](https://img.shields.io/badge/release-v1.3.0-brightgreen?style=flat-square)
+[![Release](https://img.shields.io/github/v/release/7SteveJohn/Fluxion?style=flat-square&color=0078D6&label=release&logo=github)](https://github.com/7SteveJohn/Fluxion/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-0078D6?style=flat-square&logo=windows)](https://github.com/7SteveJohn/Fluxion/releases)
+[![Framework](https://img.shields.io/badge/.NET%20Framework-4.8%20%2F%20WinForms-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/download/dotnet-framework/net48)
+[![License](https://img.shields.io/github/license/7SteveJohn/Fluxion?style=flat-square&color=2ea44f)](LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/7SteveJohn/Fluxion/total?style=flat-square&color=success&logo=github)](https://github.com/7SteveJohn/Fluxion/releases)
+[![Stars](https://img.shields.io/github/stars/7SteveJohn/Fluxion?style=flat-square&color=yellow&logo=github)](https://github.com/7SteveJohn/Fluxion/stargazers)
 
 **专为 PC 玩家打造的现代全景 Windows 系统调优工作台与智能帧生成管理中心**
 
