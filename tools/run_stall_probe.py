@@ -25,7 +25,7 @@ def build():
     pv = env.get('Path') or env.get('PATH') or ''
     env.pop('PATH', None)
     env['Path'] = pv
-    srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Lib.cs', 'Ui.cs')]
+    srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Dlssg040.cs', 'MfgBridge.cs', 'Lib.cs', 'Ui.cs')]
     srcs.append(os.path.join(ROOT, 'tools', 'ui_stall_probe.cs'))
     args = [CSC, '/nologo', '/target:winexe', '/main:StallProbe', '/out:' + EXE,
             '/platform:x64', '/optimize+', '/unsafe+',

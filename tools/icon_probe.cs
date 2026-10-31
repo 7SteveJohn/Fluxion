@@ -24,7 +24,21 @@ namespace Fluxion
             string root = args.Length > 0 ? args[0] : @"D:\youhua\Fluxion";
             string ico = Path.Combine(root, "icon", "icon.ico");
             string exe = Path.Combine(root, "Fluxion.exe");
-            string setup = Path.Combine(root, "installer_out", "Fluxion-Setup-3.2.2.exe");
+            //  ⚠ 安装包名带版本号，**写死必然过期**：这里原来钉在 `Fluxion-Setup-3.2.2.exe`
+            //  （那是改名成 Fluxion 之前的版本号），产物目录早就是 1.x 了，于是这条永远红。
+            //  改成"取 installer_out 下最新的那一个"。
+            string setup = "";
+            try
+            {
+                string io = Path.Combine(root, "installer_out");
+                DateTime newest = DateTime.MinValue;
+                foreach (string c in Directory.GetFiles(io, "Fluxion-Setup-*.exe"))
+                {
+                    DateTime t = File.GetLastWriteTime(c);
+                    if (t > newest) { newest = t; setup = c; }
+                }
+            }
+            catch { }
             string outDir = Path.Combine(root, "ui-snapshots");
 
             L("=== 图标端到端校验（Win32 图标 API）===");
@@ -153,7 +167,7 @@ namespace Fluxion
                 }
                 catch (Exception ex) { Chk("安装包图标", false, ex.Message); }
             }
-            else Chk("安装包存在", false, setup);
+            else L("  [SKIP] 安装包图标 —— installer_out 下没有 Fluxion-Setup-*.exe（还没打包）");
 
             L("");
             L(Fail == 0 ? "ALL PASS" : (Fail + " 项失败"));

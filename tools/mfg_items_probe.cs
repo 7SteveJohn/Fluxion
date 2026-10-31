@@ -106,17 +106,13 @@ namespace Fluxion
                     }
                 }
 
-                // ---------- 「方案 A」区块正文是否已改为按游戏动态 ----------
-                FieldInfo noteF = typeof(MainForm).GetField("lblXeNote", BindingFlags.NonPublic | BindingFlags.Instance);
-                Chk("找到 lblXeNote 字段（方案A 动态正文）", noteF != null, noteF == null ? "null" : "ok");
-                if (noteF != null)
-                {
-                    object lb = noteF.GetValue(f);
-                    string txt = lb == null ? "" : Convert.ToString(lb.GetType().GetProperty("Text").GetValue(lb, null));
-                    L("  当前正文: " + (txt == null ? "" : txt.Replace("\n", " / ")));
-                    Chk("正文非空且已按游戏生成（未选中时提示去游戏库）",
-                        txt != null && txt.Length > 0 && txt.IndexOf("游戏库") >= 0, txt == null ? "null" : "");
-                }
+                // ---------- 方案 A 的说明行（原 lblXeNote 已撤销）----------
+                //  2026-10-2x 详情页改版时，「方案 A」独立区块整块删掉了（状态与动作并进上方
+                //  「此游戏的适配方案」面板，说明并进 `lblFgInfo`）—— 所以 lblXeNote 这个字段
+                //  现在确实不存在。这段断言原来测的是"方案 A 正文按游戏动态"，功能还在，只是搬了家：
+                //  改为断言新归属的字段存在，别再守着一个被删掉的控件名字。
+                FieldInfo infoF = typeof(MainForm).GetField("lblFgInfo", BindingFlags.NonPublic | BindingFlags.Instance);
+                Chk("方案说明行仍在（lblFgInfo，方案 A 的说明已并到这里）", infoF != null, infoF == null ? "null" : "ok");
 
                 f.Close();
                 L("");

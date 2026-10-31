@@ -12,7 +12,7 @@
 //             python tools\ui_snapshot.py light covers      # 封面多路径下载实测
 //  输出：Fluxion\ui-snapshots\*.png
 //
-//  页面索引：0 仪表盘 1 性能优化 2 帧生成 3 游戏库 4 实时监控 5 说明 6 设置
+//  页面索引（P_DASH..P_SET，只有 6 页）：0 仪表盘 1 性能优化 2 游戏库(帧生成) 3 实时监控 4 说明 5 设置
 // ============================================================================
 using System;
 using System.Collections.Generic;
@@ -26,6 +26,14 @@ using Fluxion;
 
 class StyleProbe
 {
+    // 有实测读数的游戏数（[fgself] 用）
+    static int CountGen(List<DlssgGame> gs)
+    {
+        int n = 0;
+        if (gs == null) return 0;
+        foreach (DlssgGame g in gs) if (g != null && FgVerify.MeasuredGen(g) >= 0) n++;
+        return n;
+    }
     static string OUT = @"D:\youhua\Fluxion\ui-snapshots";
 
     static DlssgGame G(string title, string id)
@@ -41,14 +49,16 @@ class StyleProbe
 
     static void Shot(Form f, string file)
     {
+        //  ⚠ 自绘标题栏（2026-10-23）之后**不能再用 DrawToBitmap**：WM_PRINT 会照着
+        //    "系统标题栏还在"的旧几何把一张假标题栏画进图里，客户区还会被上移裁掉一截。
+        //    改成"挪到屏幕原点 + GetDC 抓客户区"（Grab）—— 抓到的才是用户真正看到的样子。
+        Point old = f.Location;
+        f.StartPosition = FormStartPosition.Manual;
+        f.Location = new Point(0, 0);          // GetDC 只对真正在桌面上的窗口有效
         f.Show();
         for (int i = 0; i < 25; i++) { Application.DoEvents(); Thread.Sleep(40); }
-        using (var bmp = new Bitmap(f.Width, f.Height))
-        {
-            f.DrawToBitmap(bmp, new Rectangle(0, 0, f.Width, f.Height));
-            bmp.Save(Path.Combine(OUT, file), ImageFormat.Png);
-        }
-        Console.WriteLine("saved " + file);
+        Grab(f, file);
+        f.Location = old;
     }
 
     // 合成「样式表」：把改动过的每一种控件都摆出来，肉眼核对圆角与配色
@@ -85,16 +95,13 @@ class StyleProbe
         brand2.Location = new Point(Theme.S(18), Theme.S(42));
         side.Controls.Add(brand2);
 
-        string[] nav = new string[] { "仪表盘", "性能优化", "帧生成", "游戏库", "实时监控", "说明", "设置" };
-        for (int i = 0; i < nav.Length; i++)
-        {
-            var nb = new NavBtn();
-            nb.Text = nav[i];
-            nb.SetBounds(0, Theme.S(74) + i * Theme.S(40), 188, Theme.S(38));
-            nb.Active = (i == 3);
-            nb.Font = nb.Active ? Theme.FB(9.5f) : Theme.F(9.5f);
-            side.Controls.Add(nb);
-        }
+        //  导航已改成 Apple 分段控件（2026-10-21）：样式表里不再画假的竖向导航项，
+        //  直接放真的那个控件（188px 宽只排得下 3 段，这里只做形态展示）。
+        var segDemo = new Segmented();
+        segDemo.SetItems(new string[] { "仪表盘", "性能优化", "游戏库" }, null);
+        segDemo.SetSelected(1);
+        segDemo.SetBounds(0, Theme.S(74), 188, Theme.S(34));
+        side.Controls.Add(segDemo);
 
         int X = Theme.S(214);
         int W = 1060 - X - Theme.S(24);
@@ -131,20 +138,7 @@ class StyleProbe
         s.Location = new Point(X, Theme.S(84));
         f.Controls.Add(s);
 
-        // 卡片网格：真封面 + 生成卡
         int ch = s.Height + Theme.S(84) + Theme.S(18);
-        var cards = new DlssgGame[] {
-            G("Cyberpunk 2077", ""),
-            G("尸姬之梦", ""),
-            G("Wannabe Galgame", "steam_4262610") };
-        for (int i = 0; i < cards.Length; i++)
-        {
-            var c = new GameCard(cards[i], Theme.S(132), Theme.S(198));
-            c.Location = new Point(X + i * (Theme.S(132) + Theme.S(28)), ch);
-            f.Controls.Add(c);
-        }
-        // 选中态
-        Console.WriteLine("card height = " + ch + " + 266 = " + (ch + Theme.S(266)));
 
         f.Height = Math.Min(740, ch + Theme.S(280));
         f.ClientSize = new Size(f.ClientSize.Width, f.Height);
@@ -153,14 +147,114 @@ class StyleProbe
     }
 
     // 真实主窗体：渲染指定页（验证标题头/卡片没把布局搞坏）
-    static void RealPage(string mode, int page, string file, int hgt, int scrollTo)
+    //  winW（2026-10-29 第 155 轮）：窗口客户区宽度，默认 1180。窄窗用例（16.2-D）用它 ——
+    //  MetaLine 窄窗丢量纲段、lblLink 右对齐省略号，这些降级行为此前没有任何自动化判据。
+    //  库详情滚到底验证（2026-10-30 第 169 轮）：ContentHeight 单列分支漏过滤隐藏分区，
+    //  库页选中游戏后库墙 Sec 隐藏但高度仍计入滚动范围 → 滚到底一大片空白。
+    //  判据（量数字）：滚到底后"最后可见 Sec 底部 − ScrollY"落在 [视口高−80, 视口高] 内
+    //  （贴近底部，不再有几百像素空白）；并打印 ContentHeight 供前后对比。
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern bool GetWindowRect(IntPtr h, out RECTNC r);
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern bool GetClientRect(IntPtr h, out RECTNC r);
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern bool ClientToScreen(IntPtr h, ref POINTNC p);
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    struct RECTNC { public int L, T, R, B; }
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    struct POINTNC { public int X, Y; }
+
+    //  量"窗口顶 vs 客户区顶"的差：0 = 无边框（自绘标题栏贴窗口顶），>0 = 系统标题栏还在（双层）
+    static void NcTop(Form f, string tag)
     {
+        RECTNC rw, rc;
+        if (!GetWindowRect(f.Handle, out rw)) { Console.WriteLine("[nctop] GetWindowRect 失败"); return; }
+        GetClientRect(f.Handle, out rc);
+        POINTNC pt = new POINTNC { X = 0, Y = 0 };
+        ClientToScreen(f.Handle, ref pt);
+        int ncTop = pt.Y - rw.T;
+        Console.WriteLine("[nctop] " + tag + " 窗口顶=" + rw.T + " 客户区顶=" + pt.Y + " 顶部非客户区=" + ncTop
+            + " -> " + (ncTop == 0 ? "PASS 只有一层（自绘顶栏）" : "FAIL 系统标题栏残留 " + ncTop + "px"));
+    }
+
+    static void LibSBottom(string mode, int winW, int page)
+    {
+        var cfg = Config.Load(Program.ConfigPath); cfg.UiTheme = mode;
+        var f = new MainForm(cfg, false);
+        f.StartPosition = FormStartPosition.Manual;
+        f.Location = new Point(-6000, -6000);
+        f.Size = new Size(winW, 632);
+        f.Show();
+        for (int i = 0; i < 30; i++) { Application.DoEvents(); Thread.Sleep(50); }
+        NcTop(f, "启动");
+        try { typeof(MainForm).GetMethod("Switch", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(f, new object[] { page }); } catch (Exception ex) { Console.WriteLine("switch err: " + ex.Message); }
+        for (int i = 0; i < 40; i++) { Application.DoEvents(); Thread.Sleep(50); }
+        var gf = typeof(MainForm).GetField("games", BindingFlags.NonPublic | BindingFlags.Instance);
+        var gs = gf.GetValue(f) as List<DlssgGame>;
+        if (page == 2 && (gs == null || gs.Count == 0)) { Console.WriteLine("[libsbot] 没有游戏"); f.Close(); return; }
+        MethodInfo sg = typeof(MainForm).GetMethod("SelectGame", BindingFlags.NonPublic | BindingFlags.Instance,
+            null, new Type[] { typeof(DlssgGame) }, null);
+        if (page == 2 && sg != null) sg.Invoke(f, new object[] { gs[0] });
+        for (int i = 0; i < 20; i++) { Application.DoEvents(); Thread.Sleep(50); }
+        var pages = typeof(MainForm).GetField("pages", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(f) as System.Array;
+        var pg = pages.GetValue(page);
+        long ch = Convert.ToInt64(pg.GetType().GetMethod("ContentHeightPublic").Invoke(pg, null));
+        MethodInfo setY = null;
+        foreach (var m in pg.GetType().GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance))
+            if (m.Name == "SetScrollY") { setY = m; break; }
+        if (setY == null) { Console.WriteLine("[libsbot] 没有 SetScrollY"); f.Close(); return; }
+        int viewH = f.ClientSize.Height;
+        //  ① 不滚（sy=0，Sec.Top 即布局坐标）：比对"布局底 vs ContentHeight"
+        var secs = pg.GetType().GetField("secs", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(pg) as System.Collections.IEnumerable;
+        int layoutBottom = 0, visN = 0;
+        foreach (object sx in secs)
+        {
+            var c = sx as Control;
+            if (c == null) continue;
+            string ttl = "";
+            try { ttl = (string)c.GetType().GetProperty("TitleText").GetValue(c, null); } catch { }
+            Console.WriteLine("[libsbot]   Sec \"" + ttl + "\" Visible=" + c.Visible + " Top=" + c.Top + " H=" + c.Height);
+            if (!c.Visible) continue;
+            visN++;
+            int b = c.Top + c.Height;
+            if (b > layoutBottom) layoutBottom = b;
+        }
+        long ch0 = Convert.ToInt64(pg.GetType().GetMethod("ContentHeightPublic").Invoke(pg, null));
+        Console.WriteLine("[libsbot] 1) 布局底=" + layoutBottom + " ContentHeight=" + ch0 + " 可见Sec=" + visN
+            + " -> " + (Math.Abs(layoutBottom - ch0) <= 2 ? "PASS 滚动范围=内容底" : "FAIL 差 " + (ch0 - layoutBottom) + "px"));
+        int legal = (int)Math.Max(0, ch0 - viewH);
+        setY.Invoke(pg, new object[] { legal });
+        for (int i = 0; i < 20; i++) { Application.DoEvents(); Thread.Sleep(50); }
+        var sbObj2 = pg.GetType().GetField("sb", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(pg);
+        int sy2 = sbObj2 != null ? Convert.ToInt32(sbObj2.GetType().GetProperty("Value").GetValue(sbObj2, null)) : -1;
+        int screenBottom = 0;
+        foreach (object s2 in secs)
+        {
+            var c = s2 as Control;
+            if (c == null || !c.Visible) continue;
+            int b = c.Top + c.Height;
+            if (b > screenBottom) screenBottom = b;
+        }
+        int blank = viewH - screenBottom;
+        Console.WriteLine("[libsbot] 2) 滚 " + legal + "（实滚 " + sy2 + "）后屏上内容底=" + screenBottom + " 视口=" + viewH
+            + " → " + (blank <= 8 && blank >= -8 ? "PASS：滚到底贴底" : "FAIL：空白/溢出 " + blank + "px"));
+        try
+        {
+            string outp = Path.Combine(OUT, "libsbot_" + mode + "_w" + winW + ".png");
+            Shot(f, outp);
+            Console.WriteLine("[libsbot] 截图: " + outp);
+        }
+        catch (Exception ex) { Console.WriteLine("shot err: " + ex.Message); }
+        f.Close();
+    }
+
+    static void RealPage(string mode, int page, string file, int hgt, int scrollTo, bool pick, int winW = 1180)    {
         var cfg = Config.Load(Program.ConfigPath);
         cfg.UiTheme = mode;
         var f = new MainForm(cfg, false);
         f.StartPosition = FormStartPosition.Manual;
         f.Location = new Point(-6000, -6000);
-        f.Size = new Size(1180, hgt);
+        f.Size = new Size(winW, hgt);
         f.Show();
         for (int i = 0; i < 30; i++) { Application.DoEvents(); Thread.Sleep(50); }
         try
@@ -170,6 +264,23 @@ class StyleProbe
         }
         catch (Exception ex) { Console.WriteLine("switch err: " + ex.Message); }
         for (int i = 0; i < 40; i++) { Application.DoEvents(); Thread.Sleep(50); }
+        // 截图专用：帧生成页要有"当前游戏"才会画 hero 大横幅，这里替用户选第一个。
+        // 截图专用：帧生成页有两种形态 —— 未选中 = 库墙，选中 = 该游戏详情。
+        //  以前无条件替用户选第一个，现在默认截库墙，要详情就多传一个 sel。
+        //  一律走产品入口 SelectGame()，否则截图里的高亮/视图会和真实点选不一致。
+        if (page == 2 && pick)
+        {
+            FieldInfo gf2 = typeof(MainForm).GetField("games", BindingFlags.NonPublic | BindingFlags.Instance);
+            var gs = gf2 == null ? null : gf2.GetValue(f) as List<DlssgGame>;
+            if (gs != null && gs.Count > 0)
+            {
+                MethodInfo sg = typeof(MainForm).GetMethod("SelectGame",
+                    BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(DlssgGame) }, null);
+                if (sg != null) if (page == 2 && sg != null) sg.Invoke(f, new object[] { gs[0] });
+                Console.WriteLine("snap 选中: " + gs[0].Title);
+                for (int i = 0; i < 10; i++) { Application.DoEvents(); Thread.Sleep(50); }
+            }
+        }
         // 可选：把体检表滚到第 N 行再截图 —— 否则第 20 行之后的问题（比如 HAGS 那一行）
         // 永远落在可视区外，只能靠探针断言看，看不到实际长相。
         if (scrollTo >= 0)
@@ -181,9 +292,155 @@ class StyleProbe
             else { lv.EnsureVisible(scrollTo); lv.Refresh(); Console.WriteLine("scroll -> " + lv.Items[scrollTo].Text); }
             for (int i = 0; i < 20; i++) { Application.DoEvents(); Thread.Sleep(30); }
         }
-        using (var bmp = new Bitmap(f.Width, f.Height))
+        // 体检表转储（只读）：第 143 轮把「DPC / 中断分布」拆成第二趟补行，
+        //  这条转储用来确认"补行真的落到了 ListView 上"，而不是永远停在「🟡 读取中」。
+        //  光看截图不行 —— 那一行在第 30 行开外，可视区外。
+        if (page == 1)
         {
-            f.DrawToBitmap(bmp, new Rectangle(0, 0, f.Width, f.Height));
+            FieldInfo lf3 = typeof(MainForm).GetField("lvOpt", BindingFlags.NonPublic | BindingFlags.Instance);
+            ListView lv3 = lf3 == null ? null : lf3.GetValue(f) as ListView;
+            if (lv3 == null) Console.WriteLine("[status] 找不到 lvOpt");
+            else
+            {
+                var sbS = new System.Text.StringBuilder();
+                string dpcSt = "(缺行)";
+                foreach (ListViewItem x in lv3.Items)
+                {
+                    string line = x.Text + " | " + (x.SubItems.Count > 1 ? x.SubItems[1].Text : "") + " | "
+                                + (x.SubItems.Count > 2 ? x.SubItems[2].Text : "");
+                    sbS.AppendLine(line);
+                    if (x.Text.StartsWith("DPC / 中断分布")) dpcSt = x.SubItems.Count > 1 ? x.SubItems[1].Text : "?";
+                }
+                Console.WriteLine("[status] 行数=" + lv3.Items.Count + "  DPC 行状态=" + dpcSt);
+                try { System.IO.File.WriteAllText(System.IO.Path.Combine(OUT, "_status.txt"), sbS.ToString(), System.Text.Encoding.UTF8); } catch { }
+
+                //  列宽 vs 文字实际需要：截断只靠肉眼判断会看错，这里直接量。
+                var sbW = new System.Text.StringBuilder();
+                sbW.AppendLine("表格客户区宽 = " + lv3.ClientSize.Width);
+                for (int ci = 0; ci < lv3.Columns.Count; ci++)
+                {
+                    int need = 0; string worst = "";
+                    foreach (ListViewItem x in lv3.Items)
+                    {
+                        if (ci >= x.SubItems.Count) continue;
+                        string t = x.SubItems[ci].Text ?? "";
+                        TextRenderer.MeasureText(t, lv3.Font);      // 预热字体
+                        int w = TextRenderer.MeasureText(t, lv3.Font).Width + Theme.S(16);
+                        if (w > need) { need = w; worst = t; }
+                    }
+                    sbW.AppendLine(string.Format("列{0} [{1}] 宽={2} 需要={3} {4}",
+                        ci, lv3.Columns[ci].Text, lv3.Columns[ci].Width, need,
+                        need > lv3.Columns[ci].Width ? "← 截断：" + worst : "ok"));
+                }
+                Console.WriteLine("[colw] " + sbW.ToString().Replace("\r\n", " / "));
+                try { System.IO.File.WriteAllText(System.IO.Path.Combine(OUT, "_colw.txt"), sbW.ToString(), System.Text.Encoding.UTF8); } catch { }
+            }
+        }
+        // 网格几何自检（只读，不改行为）：列宽/卡片宽/行列数，肉眼数不清就直接打出来
+        {
+            FieldInfo pf0 = typeof(MainForm).GetField("pages", BindingFlags.NonPublic | BindingFlags.Instance);
+            Pg[] arr0 = pf0 == null ? null : (Pg[])pf0.GetValue(f);
+            if (arr0 != null && page < arr0.Length && arr0[page] != null)
+            {
+                Pg pgo = arr0[page];
+                string s2 = "pg.page=" + page + " Client=" + pgo.ClientSize + " MaxSecW=" + pgo.MaxSecW
+                          + " GapSize=" + pgo.GapSize + " LeftWidth=" + pgo.LeftWidth
+                          + " controls=" + pgo.Controls.Count;
+                int k = 0;
+                foreach (Control cc in pgo.Controls)
+                {
+                    if (k++ >= 4) break;
+                    s2 += "  [" + cc.GetType().Name + " " + cc.Bounds + " vis=" + cc.Visible + "]";
+                }
+                Console.WriteLine("[geom2] " + s2);
+                try { System.IO.File.AppendAllText(System.IO.Path.Combine(OUT, "_geom2.txt"), s2 + "\r\n"); } catch { }
+            }
+        }
+        if (page == 2)
+        {
+            // 帧生成自检：逐游戏打印缓存里的实测倍率（-1 = 没读数 → 卡上不显示徽章）。
+            //  这是"徽章到底有没有数据"的唯一可靠判据 —— 缩略图里那几个小字看不清。
+            FieldInfo gf3 = typeof(MainForm).GetField("games", BindingFlags.NonPublic | BindingFlags.Instance);
+            var gs3 = gf3 == null ? null : gf3.GetValue(f) as List<DlssgGame>;
+            if (gs3 != null)
+            {
+                var sbF = new System.Text.StringBuilder();
+                foreach (DlssgGame gg in gs3)
+                {
+                    if (gg == null) continue;
+                    int gen = FgVerify.MeasuredGen(gg);
+                    sbF.AppendLine(gg.Title + " | 实测=" + (gen < 0 ? "-" : (gen + 1) + "X")
+                                 + " | " + FgVerify.MeasuredWhen(gg).ToString("MM-dd HH:mm"));
+                }
+                Console.WriteLine("[fgself] 有读数的游戏 " + CountGen(gs3) + " / " + gs3.Count);
+                try { System.IO.File.WriteAllText(System.IO.Path.Combine(OUT, "_fgself.txt"), sbF.ToString(), System.Text.Encoding.UTF8); } catch { }
+            }
+            FieldInfo rf0 = typeof(MainForm).GetField("libGrid", BindingFlags.NonPublic | BindingFlags.Instance);
+            CoverGrid gv0 = rf0 == null ? null : (CoverGrid)rf0.GetValue(f);
+            if (gv0 != null)
+            {
+                string geo = "grid.Width=" + gv0.Width + " ClientW=" + gv0.ClientSize.Width
+                           + " CellW=" + gv0.CellW + " CellH=" + gv0.CellH
+                           + " CardW=" + gv0.CardW + " CardH=" + gv0.CardH
+                           + " count=" + gv0.Controls.Count + " grid.H=" + gv0.Height;
+                if (gv0.Controls.Count > 0)
+                    geo += "  first=" + gv0.Controls[0].Size + " @" + gv0.Controls[0].Location
+                         + "  last=" + gv0.Controls[gv0.Controls.Count - 1].Size
+                         + " @" + gv0.Controls[gv0.Controls.Count - 1].Location;
+                Console.WriteLine("[geom] " + geo);
+                try { System.IO.File.AppendAllText(System.IO.Path.Combine(OUT, "_geom.txt"), geo + "\r\n"); } catch { }
+            }
+        }
+        if (page == 0)
+        {
+            //  窄窗降级判据（16.2-D，2026-10-29）：此前 MetaLine「丢量纲段保结论段」与
+            //  lblLink「右对齐 + AutoEllipsis」都没有任何自动化观测点，窄窗行为只靠猜。
+            //  只读转储：配合 real <mode> 0 800 -1 "" <width> 的截图一起看。
+            FieldInfo mf = typeof(MainForm).GetField("lblDashSub", BindingFlags.NonPublic | BindingFlags.Instance);
+            var meta = mf == null ? null : mf.GetValue(f) as MetaLine;
+            if (meta == null) Console.WriteLine("[narrow] 找不到 lblDashSub");
+            else
+            {
+                int need = TextRenderer.MeasureText(meta.Head + meta.Tail, meta.Font,
+                            new Size(int.MaxValue, int.MaxValue),
+                            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
+                Console.WriteLine("[narrow] MetaLine 可见=" + meta.Visible + " 宽=" + meta.Width
+                                + " 整句需=" + need + " Head='" + meta.Head + "' Tail='"
+                                + (meta.Tail.Length > 0 ? meta.Tail : "(已丢)") + "'");
+            }
+            FieldInfo lf0 = typeof(MainForm).GetField("lblLink", BindingFlags.NonPublic | BindingFlags.Instance);
+            var ll = lf0 == null ? null : lf0.GetValue(f) as Label;
+            if (ll == null) Console.WriteLine("[narrow] 找不到 lblLink");
+            else Console.WriteLine("[narrow] lblLink 可见=" + ll.Visible + " 宽=" + ll.Width
+                                + " AutoEllipsis=" + ll.AutoEllipsis + " 文字='" + ll.Text + "'");
+        }
+        //  重排闸判据（16.2-A）：几何自检与 LayoutOnce 同源之后，内容没变的 Reflow
+        //  必须命中缓存 —— LayoutRuns 不再增长。修好前这里恒为 +1（每次都强制重排）。
+        //  对本次渲染的页面跑（p2 带选中 = hero 路径，自检的 +mg 偏移分支也要过一遍）。
+        {
+            FieldInfo pf1 = typeof(MainForm).GetField("pages", BindingFlags.NonPublic | BindingFlags.Instance);
+            Pg[] arr1 = pf1 == null ? null : (Pg[])pf1.GetValue(f);
+            Pg pgCur = arr1 != null && page >= 0 && page < arr1.Length ? arr1[page] : null;
+            if (pgCur != null)
+            {
+                int r1 = pgCur.LayoutRuns;
+                pgCur.Reflow();
+                int r2 = pgCur.LayoutRuns;
+                Console.WriteLine("[reflow] p" + page + " LayoutRuns " + r1 + " -> " + r2 + (r1 == r2 ? "  cache-hit" : "  FORCED-RELAYOUT"));
+            }
+        }
+        using (var bmp = new Bitmap(f.ClientSize.Width, f.ClientSize.Height))
+        {
+            //  ★ 用 PrintWindow(PW_CLIENTONLY) 而不是 DrawToBitmap：
+            //  DrawToBitmap 走 WM_PRINT，会连**非客户区**一起画 —— 自绘标题栏（客户区顶部）
+            //  被系统标题栏（蓝条）盖在上面，验收图永远多一条蓝带，看起来像"顶部配色坏了"。
+            //  PW_CLIENTONLY 只要客户区，正好是用户真正看到的那块。
+            using (var g = Graphics.FromImage(bmp))
+            {
+                IntPtr hdc = g.GetHdc();
+                try { PrintWindow(f.Handle, hdc, 1u); }
+                finally { g.ReleaseHdc(hdc); }
+            }
             bmp.Save(Path.Combine(OUT, file), ImageFormat.Png);
         }
         Console.WriteLine("saved " + file);
@@ -222,38 +479,6 @@ class StyleProbe
     }
 
     // 打印卡片网格真实几何：用于核对"行内居中"到底有没有生效（比看截图靠谱）
-    static void Geom(string mode, int page)
-    {
-        var cfg = Config.Load(Program.ConfigPath);
-        cfg.UiTheme = mode;
-        var f = new MainForm(cfg, false);
-        f.StartPosition = FormStartPosition.Manual;
-        f.Location = new Point(-6000, -6000);
-        f.Size = new Size(1180, 1000);
-        f.Show();
-        for (int i = 0; i < 30; i++) { Application.DoEvents(); Thread.Sleep(50); }
-        MethodInfo mi = typeof(MainForm).GetMethod("Switch", BindingFlags.NonPublic | BindingFlags.Instance);
-        if (mi != null) mi.Invoke(f, new object[] { page });
-        for (int i = 0; i < 40; i++) { Application.DoEvents(); Thread.Sleep(50); }
-
-        CardGrid grid = FindGrid(f);
-        if (grid == null) { Console.WriteLine("找不到 CardGrid"); f.Close(); return; }
-        Console.WriteLine("form        W=" + f.ClientSize.Width);
-        Console.WriteLine("grid  Left=" + grid.Left + "  Width=" + grid.Width
-                          + "  ClientW=" + grid.ClientSize.Width + "  DisplayW=" + grid.DisplayRectangle.Width);
-        Console.WriteLine("grid  Padding=" + grid.Padding + "  CellW=" + grid.CellW + "  CellH=" + grid.CellH
-                          + "  Count=" + grid.Controls.Count + "  Height=" + grid.Height);
-        int perRow = Math.Max(1, grid.ClientSize.Width / grid.CellW);
-        Console.WriteLine("perRow=" + perRow + "  leftover=" + (grid.ClientSize.Width - perRow * grid.CellW)
-                          + "  期望 Padding.Left=" + Math.Max(0, (grid.ClientSize.Width - perRow * grid.CellW) / 2));
-        for (int i = 0; i < Math.Min(6, grid.Controls.Count); i++)
-        {
-            Control c = grid.Controls[i];
-            Console.WriteLine("  card[" + i + "] Left=" + c.Left + " Top=" + c.Top
-                              + " W=" + c.Width + " H=" + c.Height + " Margin=" + c.Margin);
-        }
-        f.Close();
-    }
 
     // 原地换主题实测：浅色起 → 调 DoSwitchTheme(true) → 再渲染同样的页面
     static void ThemeSwap(int page)
@@ -291,43 +516,6 @@ class StyleProbe
     // 关键在"先按窗口尺寸布局、再改成全屏尺寸"——这才是用户的操作顺序；
     // 一开始就用全屏尺寸启动，走的不是同一条布局路径。
     // 每张卡只在**可见部分**的中心探针（整张卡都在视口外时不算失败）。
-    static void Hit(int page, int w0, int h0, int w1, int h1)
-    {
-        var cfg = Config.Load(Program.ConfigPath);
-        var f = new MainForm(cfg, false);
-        f.StartPosition = FormStartPosition.Manual;
-        f.Location = new Point(-6000, -6000);
-        f.Size = new Size(w0, h0);
-        f.Show();
-        Pump(30);
-        MethodInfo mi = typeof(MainForm).GetMethod("Switch", BindingFlags.NonPublic | BindingFlags.Instance);
-        if (mi != null) mi.Invoke(f, new object[] { page });
-        Pump(50);
-
-        FieldInfo pf = typeof(MainForm).GetField("pages", BindingFlags.NonPublic | BindingFlags.Instance);
-        Pg[] arr = pf == null ? null : (Pg[])pf.GetValue(f);
-        if (arr == null || page >= arr.Length) { Console.WriteLine("取 pages 失败"); f.Close(); return; }
-        Pg pg = arr[page];
-        CardGrid grid = FindGrid(pg);
-        if (grid == null) { Console.WriteLine("找不到 CardGrid"); f.Close(); return; }
-
-        Report("① 窗口 " + w0 + "x" + h0, f, pg, grid);
-
-        f.Size = new Size(w1, h1);                       // ← 用户"切全屏"
-        Pump(60);
-        Report("② 改成 " + w1 + "x" + h1 + "（切全屏）", f, pg, grid);
-
-        ScrollTo(pg, int.MaxValue);
-        Report("③ 全屏下滚到底", f, pg, grid);
-
-        f.Size = new Size(w0, h0);                       // 退回窗口尺寸
-        Pump(60);
-        Report("④ 退回 " + w0 + "x" + h0, f, pg, grid);
-
-        ScrollTo(pg, int.MaxValue);
-        Report("⑤ 窗口下滚到底", f, pg, grid);
-        f.Close();
-    }
 
     static void Pump(int loops) { for (int i = 0; i < loops; i++) { Application.DoEvents(); Thread.Sleep(40); } }
 
@@ -350,43 +538,10 @@ class StyleProbe
 
     static void ScrollTo(Pg pg, int v) { pg.SetScrollY(v); Pump(25); }
 
-    static void Report(string label, Form f, Pg pg, CardGrid grid)
-    {
-        int content = 0;
-        foreach (Control c in pg.Controls) if (c.Bottom > content) content = c.Bottom;
-        Console.WriteLine("== " + label);
-        Console.WriteLine("   Pg " + pg.ClientSize + "  子控件最大Bottom=" + content
-            + "  ScrollY=" + pg.ScrollY + "  AutoScroll=" + pg.AutoScroll);
-        Console.WriteLine("   可见滚动条=" + ScrollVisible(pg) + "  " + SbState(pg));
-        Console.WriteLine("   CardGrid " + grid.Bounds + "  Count=" + grid.Controls.Count);
-        int miss = 0, inv = 0, shown = 0;
-        foreach (Control c in grid.Controls)
-        {
-            GameCard gc = c as GameCard;
-            if (gc == null) continue;
-            if (shown++ >= 16) break;
-            string r = ProbeCard(f, pg, gc);
-            if (r == "不可见") { inv++; continue; }
-            if (r != "OK") { miss++; Console.WriteLine("      " + Pad(gc.Game.Title) + " → " + r); }
-        }
-        Console.WriteLine("   命中失败 " + miss + " 张 · 视口外 " + inv + " 张");
-    }
 
     static string Pad(string s) { s = s == null ? "?" : s; return s.Length >= 22 ? s.Substring(0, 22) : s + new string(' ', 22 - s.Length); }
 
     // 只探"卡片与视口的交集"的中心：整张卡在视口外时返回"不可见"，不算命中失败
-    static string ProbeCard(Form f, Pg pg, GameCard gc)
-    {
-        Rectangle scr = gc.RectangleToScreen(gc.ClientRectangle);
-        Rectangle pgScr = pg.RectangleToScreen(pg.ClientRectangle);
-        Rectangle vis = Rectangle.Intersect(scr, pgScr);
-        if (vis.Width <= 3 || vis.Height <= 3) return "不可见";
-        Point pt = new Point(vis.Left + vis.Width / 2, vis.Top + Math.Min(24, vis.Height / 2));
-        Control hit = Deepest(f, pt);
-        if (hit == gc) return "OK";
-        return "MISS → " + (hit == null ? "null（没控件）" : hit.GetType().Name
-               + (hit is GameCard ? "「" + ((GameCard)hit).Game.Title + "」" : ""));
-    }
 
     // 从窗体逐层往下问"这个点最深处是谁"，与 WinForms/WM_NCHITTEST 的判定一致
     static Control Deepest(Control root, Point screenPt)
@@ -404,6 +559,9 @@ class StyleProbe
 
     // 真实窗口表面捕获：DrawToBitmap 会强制整棵树重绘，看不见"没被重绘的残影"，
     // 所以这里直接 GetDC + BitBlt 读窗口表面（残影会原样出现），用来复现"全屏后顶部一条卡片残影"。
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern bool PrintWindow(IntPtr hwnd, IntPtr hdcBlt, uint nFlags);
+
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     static extern IntPtr GetDC(IntPtr hWnd);
     [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -625,68 +783,7 @@ class StyleProbe
     // 卡片摆放检查：用户截图里那条"被压到 11px 高的封面带"横在标题与搜索框之间。
     //  它不是残影（差分测试抓不到），而更像**真实控件被摆到错误的 Y / 高度塌陷**。
     //  所以这里直接量：网格在页面里的 Y 与高度、卡片有没有跑到搜索框上方。
-    static void GhostMatrix()
-    {
-        Console.WriteLine("=== 卡片摆放矩阵（每种尺寸：窗口 → 切游戏库页 → 最大化，然后量几何）===");
-        int[,] sizes = new int[,] {
-            {1752, 566}, {1744, 537}, {1180, 1000}, {1056, 739}, {1500, 600}, {1900, 560},
-        };
-        for (int i = 0; i < sizes.GetLength(0); i++)
-            ProbeSize(sizes[i, 0], sizes[i, 1]);
-    }
 
-    static void ProbeSize(int w0, int h0)
-    {
-        var cfg = Config.Load(Program.ConfigPath);
-        cfg.UiTheme = "light";
-        Theme.SetMode("light");
-        var f = new MainForm(cfg, false);
-        f.StartPosition = FormStartPosition.Manual;
-        f.Location = new Point(0, 0);
-        f.Size = new Size(w0, h0);
-        f.Show();
-        Pump(25);
-        Switch(f, 3);
-        Pump(45);
-        f.WindowState = FormWindowState.Maximized;
-        Pump(45);
-
-        FieldInfo pf = typeof(MainForm).GetField("pages", BindingFlags.NonPublic | BindingFlags.Instance);
-        Pg[] arr = pf == null ? null : (Pg[])pf.GetValue(f);
-        Pg pg = (arr != null && arr.Length > 3) ? arr[3] : null;
-        Console.WriteLine();
-        Console.WriteLine("--- 窗口 " + w0 + "x" + h0 + "  →  最大化后 client=" + f.ClientSize);
-        if (pg == null) { Console.WriteLine("  取不到 Pg[3]"); f.Close(); return; }
-
-        CardGrid grid = FindGrid(pg);
-        if (grid == null) { Console.WriteLine("  找不到 CardGrid"); f.Close(); return; }
-        Point gp = pg.PointToClient(grid.PointToScreen(Point.Empty));
-        Console.WriteLine("  Pg      : " + pg.ClientSize + "  ScrollY=" + pg.ScrollY);
-        Console.WriteLine("  CardGrid: Bounds=" + grid.Bounds + "  → Pg 坐标 Y=" + gp.Y + " H=" + grid.Height
-                          + "  卡片数=" + grid.Controls.Count);
-
-        // 找出搜索框（工具条里的输入框）的 Y，任何卡片跑到它上面就是异常
-        int searchTop = int.MaxValue;
-        foreach (Control c in AllControls(pg))
-            if (c is RoundField || c.GetType().Name == "RoundField")
-                searchTop = Math.Min(searchTop, pg.PointToClient(c.PointToScreen(Point.Empty)).Y);
-        Console.WriteLine("  搜索框  : Pg 坐标 Y=" + searchTop);
-
-        int above = 0, aboveGrid = 0;
-        foreach (Control c in AllControls(pg))
-        {
-            GameCard gc = c as GameCard;
-            if (gc == null) continue;
-            int y = pg.PointToClient(gc.PointToScreen(Point.Empty)).Y;
-            if (y < searchTop) above++;
-            Rectangle gsr = pg.RectangleToClient(gc.RectangleToScreen(gc.ClientRectangle));
-            if (gsr.Bottom <= gp.Y + 2 || gsr.Top >= gp.Y + grid.Height - 2) aboveGrid++;
-        }
-        Console.WriteLine("  卡片跑到搜索框上方: " + above + " 张   卡片落在网格矩形之外: " + aboveGrid + " 张"
-                          + (above > 0 || aboveGrid > 0 ? "   ★ 异常" : "   正常"));
-        f.Close();
-        Pump(10);
-    }
 
     static List<Control> AllControls(Control root)
     {
@@ -709,92 +806,24 @@ class StyleProbe
     //   A) 只把分区搬走（高度不变 → 三个缓存数全都一致）→ 旧代码会命中早退闸，永久卡住；
     //      新代码的几何自检会发现"位置没落到算出来的地方"并强制重排。
     //   B) 把分区高度压成 11px（高度变了 → 缓存不一致，本来就会重排）→ 验证 LayoutOnce 的塌陷纠正。
-    static void SelfHeal()
-    {
-        var cfg = Config.Load(Program.ConfigPath);
-        cfg.UiTheme = "light";
-        Theme.SetMode("light");
-        var f = new MainForm(cfg, false);
-        f.StartPosition = FormStartPosition.Manual;
-        f.Location = new Point(0, 0);
-        f.Size = new Size(1180, 1000);
-        f.Show();
-        Pump(25);
-        Switch(f, 3);
-        Pump(45);
-        f.WindowState = FormWindowState.Maximized;
-        Pump(45);
-
-        FieldInfo pf = typeof(MainForm).GetField("pages", BindingFlags.NonPublic | BindingFlags.Instance);
-        Pg[] arr = pf == null ? null : (Pg[])pf.GetValue(f);
-        Pg pg = (arr != null && arr.Length > 3) ? arr[3] : null;
-        if (pg == null) { Console.WriteLine("取不到 Pg[3]"); f.Close(); return; }
-
-        // 找到"装着卡片网格的那个分区"
-        Sec host = null; CardGrid grid = null;
-        foreach (Control c in AllControls(pg))
-        {
-            Sec s = c as Sec;
-            if (s == null) continue;
-            foreach (Control k in s.Controls)
-                if (k is CardGrid) { host = s; grid = (CardGrid)k; break; }
-            if (host != null) break;
-        }
-        Console.WriteLine("=== 自愈回归测试 ===");
-        if (host == null || grid == null) { Console.WriteLine("  找不到卡片网格所属分区"); f.Close(); return; }
-        Console.WriteLine("  起始：分区 Top=" + host.Top + " H=" + host.Height
-                          + "  网格 Top=" + grid.Top + " H=" + grid.Height);
-
-        // ---- A) 只搬位置，不动高度（缓存三数保持一致）----
-        int expTop = host.Top;
-        int expGridTop = grid.Top;
-        host.Location = new Point(host.Left, Theme.S(18));
-        grid.Location = new Point(grid.Left, Theme.S(4));
-        Pump(6);
-        int brokenTop = host.Top;
-        pg.Reflow();
-        Pump(6);
-        Console.WriteLine("  A) 只搬位置：破坏后 分区Top=" + brokenTop + " → Reflow 后 Top=" + host.Top
-                          + "（期望 " + expTop + "）  网格 Top=" + grid.Top + "（期望 " + expGridTop + "）");
-        Console.WriteLine((host.Top == expTop && grid.Top == expGridTop)
-            ? "     [PASS] 位置型坏布局已自愈" : "     [FAIL] 没有自愈");
-
-        // ---- B) 把分区高度压成 11px ----
-        int expH = host.Height;
-        host.Height = 11;
-        Pump(6);
-        pg.Reflow();
-        Pump(6);
-        Console.WriteLine("  B) 压扁到 11px：Reflow 后 H=" + host.Height + "（期望 >= " + Theme.S(30) + "）");
-        Console.WriteLine((host.Height >= Theme.S(30) && Math.Abs(host.Height - expH) <= 2)
-            ? "     [PASS] 塌陷高度已自愈" : "     [FAIL] 高度没有恢复");
-
-        // ---- C) 再整体校验一次：卡片有没有在网格之外 ----
-        int above = 0;
-        foreach (Control c in AllControls(grid))
-        {
-            if (!(c is GameCard)) continue;
-            Point p = pg.PointToClient(c.PointToScreen(Point.Empty));
-            Point gp = pg.PointToClient(grid.PointToScreen(Point.Empty));
-            if (p.Y < gp.Y - 2 || p.Y > gp.Y + grid.Height) above++;
-        }
-        Console.WriteLine("  C) 越位卡片 " + above + " 张" + (above == 0 ? "   [PASS]" : "   [FAIL]"));
-        f.Close();
-        Pump(10);
-    }
 
     // 方案推荐验证：选中指定游戏 → 刷新帧生成页 → 渲染
-    //  用法：StyleProbe.exe light recgame 2 绝区零
-    static void RecGame(string mode, int page, string needle)
+    //  用法：StyleProbe.exe light recgame 2 绝区零 [滚动y]
+    static void RecGame(string mode, int page, string needle, int scrollY, int schemeIdx, int tabIdx)
     {
+        int args5 = schemeIdx;   // <0 = 不动下拉（跟随"自动"）
         var cfg = Config.Load(Program.ConfigPath);
+        //  MainForm 的构造函数会用 cfg.UiTheme 覆盖主题 —— 不先改配置，传 dark 也只会截到浅色。
+        if (mode == "dark" || mode == "light") cfg.UiTheme = mode;
         Theme.SetMode(mode);
         var f = new MainForm(cfg, false);
         f.StartPosition = FormStartPosition.Manual;
-        f.Location = new Point(-6000, -6000);
+        f.Location = new Point(0, 0);   // 屏幕外 GetDC 抓不到真实表面，未重绘区域会是旧帧
         f.Size = new Size(1180, 1000);
         f.Show();
-        Pump(30);
+        //  ⚠ 自动扫描要 2~3 秒（≈60~80 次 Pump），等 30 次时 games 还是空的 →
+        //  下面按标题找游戏会返回 null → 截出来的是库页而不是详情页（2026-10-24 实测）。
+        Pump(90);
 
         FieldInfo gf = typeof(MainForm).GetField("games", BindingFlags.NonPublic | BindingFlags.Instance);
         FieldInfo sf = typeof(MainForm).GetField("selected", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -805,7 +834,10 @@ class StyleProbe
                 if (g != null && g.Title != null
                     && g.Title.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0) { hit = g; break; }
         Console.WriteLine("选中的游戏: " + (hit == null ? ("未找到含「" + needle + "」的（列表 " + (list == null ? 0 : list.Count) + " 款）") : hit.Title));
-        if (hit != null) sf.SetValue(f, hit);
+        //  走产品入口：直接设 selected 不会切换「库墙 ↔ 详情」，截出来两层叠在一起
+        MethodInfo sg = typeof(MainForm).GetMethod("SelectGame", BindingFlags.NonPublic | BindingFlags.Instance,
+            null, new Type[] { typeof(DlssgGame) }, null);
+        if (hit != null && sg != null) sg.Invoke(f, new object[] { hit });
 
         MethodInfo rf = typeof(MainForm).GetMethod("RefreshFgSummary", BindingFlags.NonPublic | BindingFlags.Instance);
         MethodInfo sw = typeof(MainForm).GetMethod("Switch", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -814,13 +846,35 @@ class StyleProbe
         if (rf != null) rf.Invoke(f, null);
         Pump(15);
 
-        string outp = Path.Combine(OUT, "rec_" + mode + "_" + needle + ".png");
-        using (var b = new Bitmap(f.Width, f.Height))
+        //  可选：手动指定「显示方案」下拉的档位（0 自动 / 1 方案A / 2 0.3.x / 3 0.4.x / 4 方案B / 5 Smooth）
+        //  —— 否则 0.3.x / 0.4.x 这两个区块在"自动"下多数游戏根本不显示，截不到它们的样子。
+        if (args5 >= 0)
         {
-            f.DrawToBitmap(b, new Rectangle(0, 0, f.Width, f.Height));
-            b.Save(outp, ImageFormat.Png);
+            FieldInfo cf = typeof(MainForm).GetField("cbScheme", BindingFlags.NonPublic | BindingFlags.Instance);
+            RoundCombo cb = cf == null ? null : cf.GetValue(f) as RoundCombo;
+            if (cb != null) { cb.SelectedIndex = args5; Pump(25); }
         }
-        Console.WriteLine("saved " + outp);
+
+        //  可选：切到指定页签（0 概览 / 1 参数 / 2 诊断）—— 页签现在是真的切显示，不切就截不到后两页
+        if (tabIdx > 0)
+        {
+            FieldInfo tf = typeof(MainForm).GetField("tabsFg", BindingFlags.NonPublic | BindingFlags.Instance);
+            TabBar tb = tf == null ? null : tf.GetValue(f) as TabBar;
+            if (tb != null) { tb.SelectTab(tabIdx); Pump(25); }
+        }
+
+        //  滚动必须在切页签**之后**：切页签会把滚动位置复位到 0（ShowLibView/SelectTab 都会调 SetScrollY(0)）。
+        if (scrollY > 0)
+        {
+            FieldInfo pf = typeof(MainForm).GetField("pages", BindingFlags.NonPublic | BindingFlags.Instance);
+            Pg[] arr = pf == null ? null : pf.GetValue(f) as Pg[];
+            if (arr != null && page < arr.Length) { arr[page].SetScrollY(scrollY); Pump(20); }
+        }
+
+        //  自绘标题栏之后同样改走屏幕抓取（DrawToBitmap 会画假标题栏）
+        string fn = "rec_" + mode + "_" + needle + (tabIdx > 0 ? "_tab" + tabIdx : "") + ".png";
+        Grab(f, fn);
+        Console.WriteLine("saved " + Path.Combine(OUT, fn));
         f.Close();
     }
 
@@ -836,7 +890,9 @@ class StyleProbe
         f.Location = new Point(-6000, -6000);
         f.Size = new Size(1180, 1000);
         f.Show();
-        Pump(30);
+        //  ⚠ 自动扫描要 2~3 秒（≈60~80 次 Pump），等 30 次时 games 还是空的 →
+        //  下面按标题找游戏会返回 null → 截出来的是库页而不是详情页（2026-10-24 实测）。
+        Pump(90);
 
         FieldInfo gf = typeof(MainForm).GetField("games", BindingFlags.NonPublic | BindingFlags.Instance);
         List<DlssgGame> list = gf == null ? null : gf.GetValue(f) as List<DlssgGame>;
@@ -859,6 +915,462 @@ class StyleProbe
         File.WriteAllText(outp, sb.ToString(), new System.Text.UTF8Encoding(false));
         Console.WriteLine("saved " + outp);
         f.Close();
+    }
+
+    //  ------------------------------------------------------------------
+    //  rectext —— 把「① 方案推荐」卡四个层级的实际文案全量打出来
+    //  为什么单独做一个：推荐卡改版之后，真正要验收的是**文案**（结论够不够短、
+    //  依据有没有摊开），像素验收只能看排版。这里一次遍历库里所有游戏。
+    //  用法：StyleProbe.exe light rectext
+    //  ------------------------------------------------------------------
+    static void RecText(string mode)
+    {
+        var cfg = Config.Load(Program.ConfigPath);
+        Program.Cfg = cfg;
+        Theme.SetMode(mode);
+        var f = new MainForm(cfg, false);
+        f.StartPosition = FormStartPosition.Manual;
+        f.Location = new Point(-6000, -6000);
+        f.Size = new Size(1180, 1000);
+        f.Show();
+        Pump(30);
+
+        MethodInfo sg = typeof(MainForm).GetMethod("SelectGame", BindingFlags.NonPublic | BindingFlags.Instance,
+            null, new Type[] { typeof(DlssgGame) }, null);
+        MethodInfo rf = typeof(MainForm).GetMethod("RefreshFgSummary", BindingFlags.NonPublic | BindingFlags.Instance);
+        FieldInfo gf = typeof(MainForm).GetField("games", BindingFlags.NonPublic | BindingFlags.Instance);
+        string[] names = { "lblRecBig", "lblRecStars", "lblRecWhy", "lblRecNote" };
+        FieldInfo[] fs = new FieldInfo[4];
+        for (int i = 0; i < 4; i++)
+            fs[i] = typeof(MainForm).GetField(names[i], BindingFlags.NonPublic | BindingFlags.Instance);
+        if (sg == null || rf == null || gf == null || fs[0] == null)
+        { Console.WriteLine("[FAIL] 反射取不到 SelectGame / RefreshFgSummary / lblRec*"); f.Close(); return; }
+
+        List<DlssgGame> list = gf.GetValue(f) as List<DlssgGame>;
+        var sb = new System.Text.StringBuilder();
+        if (list != null)
+        {
+            for (int gi = 0; gi < list.Count; gi++)
+            {
+                DlssgGame g = list[gi];
+                if (g == null) continue;
+                sg.Invoke(f, new object[] { g });
+                Pump(6);
+                try { rf.Invoke(f, null); } catch { }
+                Pump(6);
+                sb.AppendLine("════════════════════════════════════════════════");
+                sb.AppendLine("[" + (gi + 1) + "/" + list.Count + "] " + g.Title + "   (" + Lib.PlatformLabel(g.Platform) + ")");
+                for (int i = 0; i < 4; i++)
+                {
+                    Label lb = fs[i] == null ? null : fs[i].GetValue(f) as Label;
+                    string tag = i == 0 ? "结论" : i == 1 ? "评星" : i == 2 ? "理由" : "依据";
+                    string t = lb == null ? "<null>" : (lb.Text ?? "");
+                    int chars = t.Length;
+                    int lines = t.Length == 0 ? 0 : t.Split('\n').Length;
+                    foreach (string ln in t.Split('\n'))
+                        sb.AppendLine("  " + (ReferenceEquals(ln, null) ? "" : ln));
+                    sb.AppendLine("  ── " + tag + "： " + lines + " 行 / " + chars + " 字");
+                    if (lb != null && lb.Height > 0 && t.Length == 0)
+                        sb.AppendLine("  ⚠ 文本为空但 Height=" + lb.Height + "（应当被折叠成 0）");
+                }
+            }
+        }
+        string outp = Path.Combine(OUT, "rectext.txt");
+        File.WriteAllText(outp, sb.ToString(), new System.Text.UTF8Encoding(false));
+        Console.WriteLine("saved " + outp + "   " + sb.Length + " 字节");
+        f.Close();
+    }
+
+    //  ------------------------------------------------------------------
+    //  tilefg —— 卡面「实测 NX」角标的排版验收（第 144 轮）
+    //  为什么需要单独一个模式：这枚角标只在"真读到代理日志里的倍率"时出现，
+    //  而本机现在没有任何游戏留着代理日志 —— 正常截图永远看不到它，等于没验收。
+    //  这里在 %TEMP% 下造一份 jsonl（**绝不碰真实游戏目录**），让 FgVerify 真解析一次，
+    //  再用真实 CoverTile 画到 2 倍图上（走 OnPaint 的反射调用，不需要窗口句柄）。
+    static void TileFg(string mode, bool withPlay)
+    {
+        string tmp = Path.Combine(Path.GetTempPath(), "gb_tilefg");
+        try { if (Directory.Exists(tmp)) Directory.Delete(tmp, true); } catch { }
+        string logs = Path.Combine(tmp, "dlssg_sm86", "logs");
+        Directory.CreateDirectory(logs);
+        File.WriteAllText(Path.Combine(logs, "native_1.jsonl"),
+            "{\"event\":\"configuration\",\"max_generated\":5,\"pid\":1}\r\n" +
+            "{\"event\":\"evaluate\",\"generated_count\":5,\"pid\":1}\r\n",
+            new System.Text.UTF8Encoding(false));
+        FgVerify.Check(tmp);                  // 填进缓存（界面就是从这儿读的）
+
+        var g = new DlssgGame { Title = "鸣潮", Dir = tmp, Exe = "Client-Win64-Shipping.exe", Favorite = true };
+        int w = Theme.S(174), h = Theme.S(261);
+        var tile = new CoverTile(g, w, h);
+        var bmp = new Bitmap(w * 2, h * 2);
+        using (var gr = Graphics.FromImage(bmp))
+        {
+            gr.ScaleTransform(2f, 2f);
+            var mi = typeof(Control).GetMethod("OnPaint", BindingFlags.NonPublic | BindingFlags.Instance);
+            mi.Invoke(tile, new object[] { new PaintEventArgs(gr, new Rectangle(0, 0, w, h)) });
+        }
+        string outp = Path.Combine(OUT, "tile_fg_" + (withPlay ? "play" : "plain") + ".png");
+        bmp.Save(outp, ImageFormat.Png);
+        Console.WriteLine("saved " + outp + "  实测=" + FgVerify.MeasuredGen(g) + "(应 = 5，即 6X)");
+        tile.Dispose();
+    }
+
+
+    //  launchcfg —— 把「启动参数与环境变量」对话框弹出来截一张（第 148 轮）
+    //  为什么要自动化：这条硬规则栽过两次 —— Pg 在 Show 之前 Reflow 会留下假缓存，
+    //  弹出来永久坍缩，而 static_check / 编译都看不出。**必须真弹一次**。
+    //  做法：ShowDialog 会阻塞，所以用 Forms.Timer 在 UI 消息循环里定时截图 + Close。
+    static void LaunchCfgShot(string mode)
+    {
+        var cfg = Config.Load(Program.ConfigPath);
+        if (mode == "dark" || mode == "light") cfg.UiTheme = mode;   // 存盘的主题会盖掉参数，这里显式对齐
+        Program.Cfg = cfg;
+        Theme.SetMode(mode);
+        var f = new MainForm(cfg, false);
+        f.Show();
+        for (int i = 0; i < 40; i++) { Application.DoEvents(); Thread.Sleep(50); }
+
+        var gs = typeof(MainForm).GetField("games", BindingFlags.NonPublic | BindingFlags.Instance)
+                     .GetValue(f) as List<DlssgGame>;
+        if (gs == null || gs.Count == 0) { Console.WriteLine("[launchcfg] 库里没有游戏，无法选中"); f.Close(); return; }
+        typeof(MainForm).GetMethod("SelectGame", BindingFlags.NonPublic | BindingFlags.Instance,
+            null, new Type[] { typeof(DlssgGame), typeof(bool) }, null)
+            .Invoke(f, new object[] { gs[0], false });
+        for (int i = 0; i < 10; i++) { Application.DoEvents(); Thread.Sleep(50); }
+
+        var t = new System.Windows.Forms.Timer();
+        t.Interval = 1500;
+        t.Tick += delegate(object s, EventArgs e)
+        {
+            t.Stop();
+            Form dlg = null;
+            foreach (Form fm in Application.OpenForms) if (!ReferenceEquals(fm, f) && fm.Visible) { dlg = fm; break; }
+            if (dlg == null) { Console.WriteLine("[launchcfg] 没找到对话框"); return; }
+            try
+            {
+                using (Bitmap b = GrabBmp(dlg))
+                    b.Save(Path.Combine(OUT, "dlg_launchcfg.png"), ImageFormat.Png);
+                Console.WriteLine("[launchcfg] 对话框 " + dlg.ClientSize + "，分区 "
+                    + dlg.Controls.Count + " 个 → dlg_launchcfg.png");
+            }
+            catch (Exception ex) { Console.WriteLine("[launchcfg] 截图失败: " + ex.Message); }
+            dlg.Close();
+        };
+        t.Start();
+
+        try
+        {
+            typeof(MainForm).GetMethod("ShowLaunchConfigDialog", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(f, null);
+        }
+        catch (Exception ex) { Console.WriteLine("[launchcfg] 调用失败: " + ex); }
+        f.Close();
+    }
+
+    //  fgcfg —— 「帧生成参数」对话框真弹一次（第 160 轮）。
+    //  硬规则：新对话框必须真弹验证（Pg 在 Show 前 Reflow 会坍缩）。
+    //  与 LaunchCfgShot 同一套骨架：选中第一个游戏 → 反射调 ShowFgConfigDialog → 抓对话框。
+    static void FgCfgShot(string mode)
+    {
+        var cfg = Config.Load(Program.ConfigPath);
+        if (mode == "dark" || mode == "light") cfg.UiTheme = mode;
+        Program.Cfg = cfg;
+        Theme.SetMode(mode);
+        var f = new MainForm(cfg, false);
+        f.Show();
+        for (int i = 0; i < 40; i++) { Application.DoEvents(); Thread.Sleep(50); }
+
+        var gs = typeof(MainForm).GetField("games", BindingFlags.NonPublic | BindingFlags.Instance)
+                     .GetValue(f) as List<DlssgGame>;
+        if (gs == null || gs.Count == 0) { Console.WriteLine("[fgcfg] 库里没有游戏，无法选中"); f.Close(); return; }
+        typeof(MainForm).GetMethod("SelectGame", BindingFlags.NonPublic | BindingFlags.Instance,
+            null, new Type[] { typeof(DlssgGame), typeof(bool) }, null)
+            .Invoke(f, new object[] { gs[0], false });
+        for (int i = 0; i < 10; i++) { Application.DoEvents(); Thread.Sleep(50); }
+
+        var t = new System.Windows.Forms.Timer();
+        t.Interval = 1500;
+        t.Tick += delegate(object s, EventArgs e)
+        {
+            t.Stop();
+            Form dlg = null;
+            foreach (Form fm in Application.OpenForms) if (!ReferenceEquals(fm, f) && fm.Visible) { dlg = fm; break; }
+            if (dlg == null) { Console.WriteLine("[fgcfg] 没找到对话框"); return; }
+            try
+            {
+                using (Bitmap b = GrabBmp(dlg))
+                    b.Save(Path.Combine(OUT, "dlg_fgcfg.png"), ImageFormat.Png);
+                Console.WriteLine("[fgcfg] 对话框 " + dlg.ClientSize + " → dlg_fgcfg.png");
+            }
+            catch (Exception ex) { Console.WriteLine("[fgcfg] 截图失败: " + ex.Message); }
+            dlg.Close();
+        };
+        t.Start();
+
+        try
+        {
+            typeof(MainForm).GetMethod("ShowFgConfigDialog", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(f, null);
+        }
+        catch (Exception ex) { Console.WriteLine("[fgcfg] 调用失败: " + ex); }
+        f.Close();
+    }
+
+    //  bgtrim —— 后台休眠瘦身量化（第 161 轮）：显示→让封面缓存长起来→隐藏→等 3s 瘦身
+    //  →量 Private/WS 前后差。断言：Private 至少降 4MB（缓存大头 + GC + 归还物理页）。
+    static void BgTrimProbe(string mode)
+    {
+        var cfg = Config.Load(Program.ConfigPath);
+        if (mode == "dark" || mode == "light") cfg.UiTheme = mode;
+        Program.Cfg = cfg;
+        Theme.SetMode(mode);
+        var f = new MainForm(cfg, false);
+        f.StartPosition = FormStartPosition.Manual;
+        f.Location = new Point(-6000, -6000);
+        f.Size = new Size(1180, 800);
+        f.Show();
+        for (int i = 0; i < 60; i++) { Application.DoEvents(); Thread.Sleep(50); }   // 3s：首屏 + 封面解码
+        var proc = System.Diagnostics.Process.GetCurrentProcess();
+        long wsB = proc.WorkingSet64, privB = proc.PrivateMemorySize64;
+
+        typeof(MainForm).GetMethod("SetVisibleCore", BindingFlags.NonPublic | BindingFlags.Instance)
+            .Invoke(f, new object[] { false });
+        for (int i = 0; i < 90; i++) { Application.DoEvents(); Thread.Sleep(50); }   // 4.5s：3s 定时器 + GC 余量
+        proc.Refresh();
+        long wsA = proc.WorkingSet64, privA = proc.PrivateMemorySize64;
+        Console.WriteLine("[bgtrim] Private " + (privB / 1048576) + "MB -> " + (privA / 1048576)
+                        + "MB   WS " + (wsB / 1048576) + "MB -> " + (wsA / 1048576) + "MB"
+                        + (privB - privA >= 4 * 1048576 ? "  PASS" : "  FAIL（降幅不足 4MB）"));
+
+        //  恢复显示：不崩、窗口回来（缓存会按需重解码）
+        typeof(MainForm).GetMethod("SetVisibleCore", BindingFlags.NonPublic | BindingFlags.Instance)
+            .Invoke(f, new object[] { true });
+        for (int i = 0; i < 20; i++) { Application.DoEvents(); Thread.Sleep(50); }
+        Console.WriteLine("[bgtrim] 恢复显示 " + (f.Visible ? "OK" : "FAIL"));
+        f.Close();
+    }
+
+    //  hover —— 侧栏导航悬停态截图（第 161 轮）：hover 底原来是比 Bg 还亮 3 个点的 #F5F5F7，
+    //  完全隐形。反射把 NavMenu.hot 指到第二行，抓侧栏区域给"修前/修后"对比用。
+    static void HoverShot(string mode)
+    {
+        var cfg = Config.Load(Program.ConfigPath);
+        if (mode == "dark" || mode == "light") cfg.UiTheme = mode;
+        Program.Cfg = cfg;
+        Theme.SetMode(mode);
+        var f = new MainForm(cfg, false);
+        f.StartPosition = FormStartPosition.Manual;
+        f.Location = new Point(-6000, -6000);
+        f.Size = new Size(1180, 800);
+        f.Show();
+        for (int i = 0; i < 40; i++) { Application.DoEvents(); Thread.Sleep(50); }
+        var nav = typeof(MainForm).GetField("navMenu", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(f) as NavMenu;
+        if (nav == null) { Console.WriteLine("[hover] 找不到 navMenu"); f.Close(); return; }
+        typeof(NavMenu).GetField("hot", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(nav, 1);
+        nav.Invalidate();
+        for (int i = 0; i < 10; i++) { Application.DoEvents(); Thread.Sleep(30); }
+        using (var bmp = new Bitmap(f.ClientSize.Width, f.ClientSize.Height))
+        {
+            using (var g = Graphics.FromImage(bmp))
+            {
+                IntPtr hdc = g.GetHdc();
+                try { PrintWindow(f.Handle, hdc, 1u); }
+                finally { g.ReleaseHdc(hdc); }
+            }
+            Rectangle side = new Rectangle(0, 60, 260, 320);
+            using (var crop = bmp.Clone(side, bmp.PixelFormat))
+                crop.Save(Path.Combine(OUT, "hover_" + mode + "_side.png"), ImageFormat.Png);
+            //  顺带量 hover 行的底色（选中行下面那行的中心点）：与 Bg 的亮度差 ≥0.02 = 可见
+            Color c = bmp.GetPixel(120, 60 + 64 + 40 + 20);
+            Console.WriteLine("[hover] 行底色 R" + c.R + " G" + c.G + " B" + c.B
+                            + "  Bg=R" + Theme.Bg.R + " G" + Theme.Bg.G + " B" + Theme.Bg.B
+                            + (Math.Abs(Theme.Bg.GetBrightness() - c.GetBrightness()) > 0.02 ? "  可见 PASS" : "  FAIL"));
+        }
+        f.Close();
+    }
+
+    //  ------------------------------------------------------------------
+    //  reccard —— 把「① 方案推荐」卡**单独**截出来
+    //  为什么需要：整页截图上这张卡只占中间一小条，肉眼核对排版要放大；
+    //  而且卡片 y 坐标随上面各区块的高度浮动，手写裁剪框每次都对不上。
+    //  这里直接用 Sec 的屏幕矩形当裁剪框，导出贴边的小图。
+    //  用法：StyleProbe.exe light reccard 鸣潮
+    //  ------------------------------------------------------------------
+    static void RecCard(string mode, string needle)
+    {
+        var cfg = Config.Load(Program.ConfigPath);
+        Program.Cfg = cfg;
+        Theme.SetMode(mode);
+        var f = new MainForm(cfg, false);
+        f.StartPosition = FormStartPosition.Manual;
+        f.Location = new Point(-6000, -6000);
+        f.Size = new Size(1180, 1000);
+        f.Show();
+        //  ⚠ 自动扫描要 2~3 秒（≈60~80 次 Pump），等 30 次时 games 还是空的 →
+        //  下面按标题找游戏会返回 null → 截出来的是库页而不是详情页（2026-10-24 实测）。
+        Pump(90);
+
+        FieldInfo gf = typeof(MainForm).GetField("games", BindingFlags.NonPublic | BindingFlags.Instance);
+        List<DlssgGame> list = gf == null ? null : gf.GetValue(f) as List<DlssgGame>;
+        DlssgGame hit = list == null ? null : list.Find(delegate (DlssgGame g)
+        { return g != null && g.Title != null && g.Title.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0; });
+        Console.WriteLine("游戏: " + (hit == null ? "未找到「" + needle + "」" : hit.Title));
+        if (hit == null) { f.Close(); return; }
+
+        MethodInfo sg = typeof(MainForm).GetMethod("SelectGame", BindingFlags.NonPublic | BindingFlags.Instance,
+            null, new Type[] { typeof(DlssgGame) }, null);
+        MethodInfo rf = typeof(MainForm).GetMethod("RefreshFgSummary", BindingFlags.NonPublic | BindingFlags.Instance);
+        MethodInfo sw = typeof(MainForm).GetMethod("Switch", BindingFlags.NonPublic | BindingFlags.Instance);
+        if (sg != null) sg.Invoke(f, new object[] { hit });
+        if (sw != null) sw.Invoke(f, new object[] { 2 });
+        Pump(30);
+        if (rf != null) rf.Invoke(f, null);
+        Pump(20);
+
+        FieldInfo fb = typeof(MainForm).GetField("lblRecBig", BindingFlags.NonPublic | BindingFlags.Instance);
+        Label big = fb == null ? null : fb.GetValue(f) as Label;
+        if (big == null) { Console.WriteLine("[FAIL] 取不到 lblRecBig"); f.Close(); return; }
+        Sec sec = FindSec(big);
+        if (sec == null) { Console.WriteLine("[FAIL] 找不到包裹 lblRecBig 的 Sec"); f.Close(); return; }
+
+        Point origin = f.PointToClient(sec.PointToScreen(Point.Empty));
+        Rectangle r = new Rectangle(origin.X, origin.Y, sec.Width, sec.Height);
+        Console.WriteLine("Sec 矩形（窗体坐标）: " + r + "   Height=" + sec.Height);
+        int inner = 0;
+        foreach (Control c in sec.Controls) if (c.Bottom > inner) inner = c.Bottom;
+        Console.WriteLine("内容底边 = " + inner + "   内部空白 = " + (sec.Height - inner) + " px");
+
+        //  逐行几何：卡片内部每个子控件的 y / 高 / 文字 —— 判"行距匀不匀"要看这个，
+        //  在截图上量像素会被抗锯齿边缘带偏。
+        var geo = new System.Text.StringBuilder();
+        geo.AppendLine("Sec " + r + "  H=" + sec.Height + "  内容底=" + inner + "  内部空白=" + (sec.Height - inner));
+        var kids = new List<Control>();
+        foreach (Control c in sec.Controls) kids.Add(c);
+        kids.Sort(delegate (Control a, Control b) { return a.Top.CompareTo(b.Top); });
+        int prevBottom = -1;
+        foreach (Control c in kids)
+        {
+            string t = c.Text == null ? "" : c.Text.Replace("\n", "¶");
+            if (t.Length > 34) t = t.Substring(0, 34) + "…";
+            geo.AppendLine(string.Format("  y={0,4} h={1,3} bottom={2,4} gap={3,3}  {4,-6} {5,4}pt  «{6}»",
+                c.Top, c.Height, c.Bottom, prevBottom < 0 ? 0 : c.Top - prevBottom,
+                c.GetType().Name, c.Font == null ? 0 : c.Font.SizeInPoints, t));
+            prevBottom = c.Bottom;
+        }
+        string gp = Path.Combine(OUT, "reccard_" + mode + "_" + needle + ".txt");
+        File.WriteAllText(gp, geo.ToString(), new System.Text.UTF8Encoding(false));
+        Console.WriteLine("saved " + gp);
+
+        using (var bmp = new Bitmap(f.Width, f.Height))
+        {
+            f.DrawToBitmap(bmp, new Rectangle(0, 0, f.Width, f.Height));
+            int mx = 10;
+            Rectangle crop = new Rectangle(Math.Max(0, r.X - mx), Math.Max(0, r.Y - mx),
+                                           Math.Min(bmp.Width - Math.Max(0, r.X - mx), r.Width + mx * 2),
+                                           Math.Min(bmp.Height - Math.Max(0, r.Y - mx), r.Height + mx * 2));
+            using (var cut = bmp.Clone(crop, bmp.PixelFormat))
+            {
+                string outp = Path.Combine(OUT, "reccard_" + mode + "_" + needle + ".png");
+                cut.Save(outp, ImageFormat.Png);
+                Console.WriteLine("saved " + outp + "  " + cut.Width + "x" + cut.Height);
+            }
+        }
+        f.Close();
+    }
+
+    //  向上找到最近的 Sec 祖先（中间可能隔着 panel）
+    static Sec FindSec(Control c)
+    {
+        Control p = c;
+        while (p != null) { Sec s = p as Sec; if (s != null) return s; p = p.Parent; }
+        return null;
+    }
+
+    //  ------------------------------------------------------------------
+    //  secdump —— 帧生成页每个可见分区的 y / 高度 / 内部空白
+    //  为什么需要："精简"是相对量，没有每张卡的实际高度就只能靠感觉。
+    //  改了 UI 之后跑一次，看总数掉没掉，比看截图靠谱。
+    //  用法：StyleProbe.exe light secdump 鸣潮
+    //  ------------------------------------------------------------------
+    static void SecDump(string mode, string needle, int schemeIdx)
+    {
+        var cfg = Config.Load(Program.ConfigPath);
+        Program.Cfg = cfg;
+        Theme.SetMode(mode);
+        var f = new MainForm(cfg, false);
+        f.StartPosition = FormStartPosition.Manual;
+        f.Location = new Point(-6000, -6000);
+        f.Size = new Size(1180, 1000);
+        f.Show();
+        //  ⚠ 自动扫描要 2~3 秒（≈60~80 次 Pump），等 30 次时 games 还是空的 →
+        //  下面按标题找游戏会返回 null → 截出来的是库页而不是详情页（2026-10-24 实测）。
+        Pump(90);
+
+        FieldInfo gf = typeof(MainForm).GetField("games", BindingFlags.NonPublic | BindingFlags.Instance);
+        List<DlssgGame> list = gf == null ? null : gf.GetValue(f) as List<DlssgGame>;
+        DlssgGame hit = list == null ? null : list.Find(delegate (DlssgGame g)
+        { return g != null && g.Title != null && g.Title.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0; });
+        MethodInfo sg = typeof(MainForm).GetMethod("SelectGame", BindingFlags.NonPublic | BindingFlags.Instance,
+            null, new Type[] { typeof(DlssgGame) }, null);
+        if (hit != null && sg != null) sg.Invoke(f, new object[] { hit });
+        Pump(25);
+        if (schemeIdx >= 0)
+        {
+            FieldInfo cf = typeof(MainForm).GetField("cbScheme", BindingFlags.NonPublic | BindingFlags.Instance);
+            RoundCombo cb = cf == null ? null : cf.GetValue(f) as RoundCombo;
+            if (cb != null) { cb.SelectedIndex = schemeIdx; Pump(25); }
+        }
+        MethodInfo rf = typeof(MainForm).GetMethod("RefreshFgSummary", BindingFlags.NonPublic | BindingFlags.Instance);
+        if (rf != null) rf.Invoke(f, null);
+        Pump(20);
+
+        FieldInfo pf = typeof(MainForm).GetField("pages", BindingFlags.NonPublic | BindingFlags.Instance);
+        Pg[] arr = pf == null ? null : pf.GetValue(f) as Pg[];
+        Pg pg = (arr != null && arr.Length > 2) ? arr[2] : null;
+        if (pg == null) { Console.WriteLine("取不到 Pg"); f.Close(); return; }
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("游戏：" + (hit == null ? "未找到" : hit.Title) + "   显示方案档位=" + schemeIdx);
+        var rows = new List<Control>();
+        foreach (Control c in pg.Controls) if (c is Sec) rows.Add(c);
+        rows.Sort(delegate (Control a, Control b) { return a.Top.CompareTo(b.Top); });
+        int total = 0, visible = 0;
+        foreach (Control c in rows)
+        {
+            Sec s = (Sec)c;
+            int inner = 0;
+            foreach (Control ch in s.Controls) if (ch.Bottom > inner) inner = ch.Bottom;
+            sb.AppendLine(string.Format("  {0,-28} top={1,5} h={2,4} 内容底={3,4} 空白={4,3} {5}",
+                s.TitleText.Length == 0 ? "(工具条)" : s.TitleText,
+                s.Top, s.Height, inner, s.Height - inner, s.Visible ? "" : "[隐藏]"));
+            total += s.Height;
+            if (s.Visible) visible += s.Height;
+        }
+        sb.AppendLine("  合计（全部）=" + total + " px   可见 = " + visible + " px   视口 = " + pg.ClientSize.Height);
+        string outp = Path.Combine(OUT, "secdump.txt");
+        File.WriteAllText(outp, sb.ToString(), new System.Text.UTF8Encoding(false));
+        Console.WriteLine("saved " + outp);
+        f.Close();
+    }
+
+    // 字体清单：把本机装的相关族名落盘 —— Bahnschrift/Noto 的命名实例在 GDI+ 里叫什么，
+    // 只有问 InstalledFontCollection 才知道，猜错了会静默回退成宋体一类的默认字体。
+    static void FontDump()
+    {
+        var sb = new System.Text.StringBuilder();
+        using (var ifc = new System.Drawing.Text.InstalledFontCollection())
+            foreach (var f in ifc.Families)
+            {
+                string n = f.Name;
+                if (n.IndexOf("Bahnschrift", StringComparison.OrdinalIgnoreCase) >= 0
+                    || n.IndexOf("Noto", StringComparison.OrdinalIgnoreCase) >= 0
+                    || n.IndexOf("DIN", StringComparison.OrdinalIgnoreCase) >= 0)
+                    sb.AppendLine(n + "   R=" + f.IsStyleAvailable(FontStyle.Regular)
+                        + " B=" + f.IsStyleAvailable(FontStyle.Bold));
+            }
+        string outp = Path.Combine(OUT, "fonts.txt");
+        File.WriteAllText(outp, sb.ToString(), new System.Text.UTF8Encoding(false));
+        Console.WriteLine("saved " + outp);
     }
 
     // 接线审计：把每个页面里所有可交互控件的"是否挂了事件"打出来。
@@ -963,69 +1475,6 @@ class StyleProbe
     }
 
     // 页面布局链 dump：精确定位"上下多出一大块"到底出在哪一层
-    static void GeomPage(string mode, int page)
-    {
-        var cfg = Config.Load(Program.ConfigPath);
-        cfg.UiTheme = mode;
-        var f = new MainForm(cfg, false);
-        f.StartPosition = FormStartPosition.Manual;
-        f.Location = new Point(-6000, -6000);
-        f.Size = new Size(1056, 739);          // 用户窗口的实际尺寸
-        f.Show();
-        for (int i = 0; i < 30; i++) { Application.DoEvents(); Thread.Sleep(50); }
-        MethodInfo mi = typeof(MainForm).GetMethod("Switch", BindingFlags.NonPublic | BindingFlags.Instance);
-        if (mi != null) mi.Invoke(f, new object[] { page });
-        for (int i = 0; i < 50; i++) { Application.DoEvents(); Thread.Sleep(50); }
-
-        Pg pg = null;
-        try
-        {
-            FieldInfo pf = typeof(MainForm).GetField("pages", BindingFlags.NonPublic | BindingFlags.Instance);
-            if (pf != null)
-            {
-                Pg[] arr = pf.GetValue(f) as Pg[];
-                if (arr != null && page >= 0 && page < arr.Length) pg = arr[page];
-            }
-        }
-        catch (Exception ex) { Console.WriteLine("取 pages 失败: " + ex.Message); }
-        if (pg == null) { Console.WriteLine("找不到 Pg（pages[" + page + "]）"); f.Close(); return; }
-
-        Console.WriteLine("== Pg  ClientSize=" + pg.ClientSize + "  DisplayRect=" + pg.DisplayRectangle);
-        Console.WriteLine("   AutoScroll=" + pg.AutoScroll + "  VScroll.Visible=" + pg.VerticalScroll.Visible
-                          + "  VScroll.Maximum=" + pg.VerticalScroll.Maximum + "  LargeChange=" + pg.VerticalScroll.LargeChange
-                          + "  AutoScrollMinSize=" + pg.AutoScrollMinSize + "  Padding=" + pg.Padding);
-        int contentBottom = 0;
-        foreach (Control c in pg.Controls)
-        {
-            Console.WriteLine(string.Format("   child {0,-12} Loc={1,-14} Size={2,-12} Bottom={3}",
-                c.GetType().Name, c.Location, c.Size, c.Bottom));
-            if (c.Bottom > contentBottom) contentBottom = c.Bottom;
-        }
-        Console.WriteLine("   子控件最大 Bottom = " + contentBottom + "  （Pg 客户区高 " + pg.ClientSize.Height + "）");
-        Console.WriteLine("   → 可滚动总量 = " + (contentBottom - pg.ClientSize.Height) + " px");
-
-        // 关键：找出"分区的实际高度"与"分区内容底边"的差 —— 差就是分区内部的空白
-        foreach (Control c in pg.Controls)
-        {
-            Sec s = c as Sec;
-            if (s == null) continue;
-            int innerBottom = 0;
-            foreach (Control ch in s.Controls) if (ch.Bottom > innerBottom) innerBottom = ch.Bottom;
-            Console.WriteLine(string.Format("   Sec 「{0}」 Height={1}  内容底={2}  内部空白={3}",
-                SecTitle(s), s.Height, innerBottom, s.Height - innerBottom));
-            CardGrid cg = FindGrid(s);
-            if (cg != null)
-                Console.WriteLine("       └ CardGrid Height=" + cg.Height + " Count=" + cg.Controls.Count
-                                  + " 期望=" + (((cg.Controls.Count + Math.Max(1, (cg.ClientSize.Width - cg.PadPx * 2) / cg.CellW) - 1)
-                                    / Math.Max(1, (cg.ClientSize.Width - cg.PadPx * 2) / cg.CellW)) * cg.CellH + cg.PadPx * 2));
-        }
-        // 递归找"谁把滚动区撑大了"：打印所有后代里底边超过内容底的控件
-        Console.WriteLine("   -- 可疑后代（在 Pg 坐标系里的底边 > " + contentBottom + "）--");
-        WalkDeep(pg, pg, contentBottom, 0);
-        Console.WriteLine("   再调一次 Pg.Reflow() 之后 DisplayRect=" + AfterReflow(pg));
-        Console.WriteLine("   PerformLayout 之后 DisplayRect=" + AfterPL(pg));
-        f.Close();
-    }
 
     static Rectangle AfterPL(Pg pg) { pg.PerformLayout(); Application.DoEvents(); return pg.DisplayRectangle; }
     static Rectangle AfterReflow(Pg pg)
@@ -1073,65 +1522,89 @@ class StyleProbe
         return null;
     }
 
-    static CardGrid FindGrid(Control root)
+
+    //  悬停态截图：卡片上浮 + 放大 + 右下角「▶」只在 hover 时出现，静态截图看不到。
+    //  直接调 GameCard.SetHover（产品里鼠标进出的同一个入口），不伪造鼠标消息。
+
+    //  按下态（2026-10-23）：卡片以前只有 hover 没有 press，点下去到"选中蓝框"出现之间
+    //  界面毫无反应。这里直接调 SetPress 抓一帧，验证"缩一点 + 压暗"确实画出来了。
+
+    //  空态占位（2026-10-23）：库里一个游戏都没有时网格不能是纯空白（= "像崩了"）。
+    //  这里把 games 清空再重填一次，抓占位文案有没有画出来。
+    static void EmptyWall(string mode)
     {
-        foreach (Control c in root.Controls)
+        var cfg = Config.Load(Program.ConfigPath);
+        cfg.UiTheme = mode;
+        var f = new MainForm(cfg, false);
+        f.StartPosition = FormStartPosition.Manual;
+        f.Location = new Point(-6000, -6000);
+        f.Size = new Size(1180, 800);
+        f.Show();
+        for (int i = 0; i < 30; i++) { Application.DoEvents(); Thread.Sleep(50); }
+        MethodInfo sw = typeof(MainForm).GetMethod("Switch", BindingFlags.NonPublic | BindingFlags.Instance);
+        if (sw != null) sw.Invoke(f, new object[] { 2 });
+        for (int i = 0; i < 20; i++) { Application.DoEvents(); Thread.Sleep(50); }
+        FieldInfo gsf = typeof(MainForm).GetField("games", BindingFlags.NonPublic | BindingFlags.Instance);
+        var list = gsf == null ? null : gsf.GetValue(f) as List<DlssgGame>;
+        if (list != null)
         {
-            CardGrid g = c as CardGrid;
-            if (g != null) return g;
-            CardGrid sub = FindGrid(c);
-            if (sub != null) return sub;
+            list.Clear();
+            MethodInfo fl = typeof(MainForm).GetMethod("FillGameList", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (fl != null) fl.Invoke(f, null);
+            Console.WriteLine("已清空库，占位应为「还没有游戏」");
         }
-        return null;
+        else Console.WriteLine("取不到 games");
+        Shot(f, "emptywall_" + mode + ".png");
+        f.Close();
+    }
+
+    //  扫描指示器（2026-10-23）：标题栏左侧的"扫描中 + 旋转弧"。它只在扫描期间出现，
+    //  常规截图永远碰不到 —— 这里强制打开再抓一帧，确认它真的画出来（而不是一条死代码）。
+    static void ScanBar(string mode)
+    {
+        var cfg = Config.Load(Program.ConfigPath);
+        cfg.UiTheme = mode;
+        var f = new MainForm(cfg, false);
+        f.StartPosition = FormStartPosition.Manual;
+        f.Location = new Point(-6000, -6000);
+        f.Size = new Size(1180, 800);
+        f.Show();
+        for (int i = 0; i < 20; i++) { Application.DoEvents(); Thread.Sleep(50); }
+        MethodInfo sc = typeof(MainForm).GetMethod("SetScanning", BindingFlags.NonPublic | BindingFlags.Instance);
+        if (sc != null) sc.Invoke(f, new object[] { true });
+        for (int i = 0; i < 10; i++) { Application.DoEvents(); Thread.Sleep(40); }
+        Shot(f, "scanbar_" + mode + ".png");
+        Console.WriteLine(sc == null ? "找不到 SetScanning" : "已强制开启扫描指示");
+        f.Close();
     }
 
     static void CloseDlg(string mode)
     {
-        var dlg = new Form();
-        dlg.Text = "关闭窗口";
-        dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
-        dlg.MaximizeBox = false; dlg.MinimizeBox = false;
-        dlg.ShowInTaskbar = false;
-        dlg.ShowIcon = false;
-        dlg.BackColor = Theme.Bg;
-        dlg.ForeColor = Theme.Text;
-        dlg.Font = Theme.F(9f);
-        dlg.AutoScaleMode = AutoScaleMode.None;
-        dlg.ClientSize = new Size(Theme.S(420), Theme.S(268));
-        try { Theme.ApplyChrome(dlg.Handle); } catch { }
+        //  直接调产品的 BuildCloseDialog（2026-10-18）：以前这里复制了一整份 UI，
+        //  产品改了边框/布局，截图仍然是旧的 —— 等于用一张过期的图验收界面。
+        var cfg = Config.Load(Program.ConfigPath);
+        cfg.UiTheme = mode;
+        var f = new MainForm(cfg, false);
+        f.StartPosition = FormStartPosition.Manual;
+        f.Location = new Point(-6000, -6000);
+        f.Size = new Size(1100, 760);
+        f.Show();
+        for (int i = 0; i < 25; i++) { Application.DoEvents(); Thread.Sleep(40); }
 
-        var pg = new Pg();
-        pg.Dock = DockStyle.Fill;
-        var sec = new Sec("关闭窗口");
-        sec.Body("游戏联动、硬件告警、帧生成诊断需要程序保持后台运行。");
-        var rbTray = new RoundRadio(); Theme.StyleRadio(rbTray, "最小化到通知区域图标（后台继续运行）");
-        var rbExit = new RoundRadio(); Theme.StyleRadio(rbExit, "退出程序（联动与告警一并停止）");
-        rbTray.Checked = true; rbExit.Checked = false;
-        sec.Pair(null, rbTray, 0, null, null, 0);
-        sec.Pair(null, rbExit, 0, null, null, 0);
-        var cbRemember = new RoundCheck();
-        Theme.StyleCheck(cbRemember, "记住我的选择，不再询问");
-        sec.Pair(null, cbRemember, 0, null, null, 0);
-        sec.Body("不勾选则每次都问；勾选后想恢复询问，到「自定义优化项」里重新勾上「关闭窗口时询问」。");
-        pg.Add(sec);
-        dlg.Controls.Add(pg);
-        pg.BringToFront();
+        Form dlg = null;
+        try
+        {
+            MethodInfo mi = typeof(MainForm).GetMethod("BuildCloseDialog", BindingFlags.NonPublic | BindingFlags.Instance);
+            dlg = (Form)mi.Invoke(f, new object[] { null, null });
+        }
+        catch (Exception ex) { Console.WriteLine("BuildCloseDialog 失败: " + ex.Message); }
+        if (dlg == null) { f.Close(); return; }
 
-        var bar = new FlowLayoutPanel();
-        bar.Dock = DockStyle.Bottom;
-        bar.Height = Theme.S(52);
-        bar.FlowDirection = FlowDirection.RightToLeft;
-        bar.WrapContents = false;
-        bar.BackColor = Theme.Panel;
-        bar.Padding = new Padding(0, Theme.S(11), Theme.S(16), 0);
-        var btnOk = new FlatBtn(); btnOk.Text = "确认"; btnOk.Kind = BtnKind.Primary; btnOk.Width = Theme.S(84);
-        var btnCancel = new FlatBtn(); btnCancel.Text = "取消"; btnCancel.Width = Theme.S(84);
-        bar.Controls.Add(btnCancel);
-        bar.Controls.Add(btnOk);
-        dlg.Controls.Add(bar);
-
-        pg.Reflow();
+        dlg.StartPosition = FormStartPosition.Manual;
+        dlg.Location = new Point(-3000, -3000);
         Shot(dlg, "closedlg_" + mode + ".png");
+        try { dlg.Close(); } catch { }
+        try { f.Close(); } catch { }
     }
 
     // ==================== 滚动掉字实测（2026-09-20）====================
@@ -1613,6 +2086,7 @@ class StyleProbe
     static extern int GetWindowLongProbe(IntPtr hWnd, int index);
     const int GWL_STYLE_PROBE = -16;
     const int WS_VSCROLL_PROBE = 0x00200000;
+    const int WS_HSCROLL_PROBE = 0x00100000;
 
     static void ColWatch(string mode, int page, int steps, int stepPx)
     {
@@ -1836,7 +2310,14 @@ class StyleProbe
     // 额外记一项"列表可见行数"：远小于基线 = 整片空白那种形态。
     // 把某个长页面滚到指定位置再截一张（设置页 / 说明页的下半截以前完全看不到）。
     //   用法：python tools\ui_snapshot.py light view 6 900
+    //  pick >= 0：先按索引选中一个游戏（走 MainForm.SelectGame(g,false)，也就是"点一行"的真实路径），
+    //  用来截"列表选中 + 检查器"这一态。第 123 轮的库视图没有卡片可断言，只能靠这条路。
     static void ViewAt(string mode, int page, int y)
+    {
+        ViewAt(mode, page, y, -1);
+    }
+
+    static void ViewAt(string mode, int page, int y, int pick)
     {
         var cfg = Config.Load(Program.ConfigPath);
         cfg.UiTheme = mode;
@@ -1855,14 +2336,43 @@ class StyleProbe
         { Console.WriteLine("取 pages 失败"); f.Close(); return; }
         arr[page].SetScrollY(y);
         Pump(80);
-        Console.WriteLine("page=" + page + "  请求 ScrollY=" + y + "  实际=" + arr[page].ScrollY);
-        using (Bitmap b = new Bitmap(f.Width, f.Height))
+        if (pick >= 0)
         {
-            f.DrawToBitmap(b, new Rectangle(0, 0, f.Width, f.Height));
-            string outPath = Path.Combine(OUT, "view_" + mode + "_p" + page + "_y" + y + ".png");
-            b.Save(outPath, ImageFormat.Png);
-            Console.WriteLine("已保存 " + outPath);
+            //  按**墙面顺序**取（libGrid.Controls），不按 games 的原始顺序 —— 两者排序规则不同
+            FieldInfo rf = typeof(MainForm).GetField("libGrid", BindingFlags.NonPublic | BindingFlags.Instance);
+            CoverGrid gv = rf == null ? null : (CoverGrid)rf.GetValue(f);
+            List<DlssgGame> gs = new List<DlssgGame>();
+            if (gv != null)
+                foreach (Control c in gv.Controls)
+                {
+                    CoverTile tile = c as CoverTile;
+                    if (tile != null && tile.Game != null) gs.Add(tile.Game);
+                }
+            MethodInfo sm = typeof(MainForm).GetMethod("SelectGame",
+                BindingFlags.NonPublic | BindingFlags.Instance, null,
+                new Type[] { typeof(DlssgGame), typeof(bool) }, null);
+            if (gs != null && sm != null && pick < gs.Count)
+            {
+                //  选中会触发操作条 → content.Padding 变化 → Pg 重排，滚动位置会被重置；
+                //  所以 y 的滚动要放在选中**之后**再做一次。
+                try { sm.Invoke(f, new object[] { gs[pick], false }); }
+                catch (Exception ex)
+                {
+                    Exception e2 = ex is TargetInvocationException && ex.InnerException != null ? ex.InnerException : ex;
+                    Console.WriteLine("!! 选中失败: " + e2);
+                    try { System.IO.File.WriteAllText(System.IO.Path.Combine(OUT, "_pick_error.txt"), e2.ToString()); } catch { }
+                }
+                Pump(90);
+                Console.WriteLine("已选中：" + gs[pick].Title);
+            }
         }
+        if (pick >= 0 && y > 0) { arr[page].SetScrollY(y); Pump(60); }
+        Console.WriteLine("page=" + page + "  请求 ScrollY=" + y + "  实际=" + arr[page].ScrollY);
+        //  自绘标题栏之后：DrawToBitmap 会画一张假标题栏并裁掉客户区上沿，
+        //  改用屏幕抓取（只抓客户区，即用户看到的画面）。
+        string outPath = "view_" + mode + "_p" + page + "_y" + y + (pick >= 0 ? "_s" + pick : "") + ".png";
+        Grab(f, outPath);
+        Console.WriteLine("已保存 " + Path.Combine(OUT, outPath));
         f.Close();
     }
 
@@ -2075,14 +2585,14 @@ class StyleProbe
 
     // 体检表 ListView 的状态快照：回答"为什么每一行都画了选中条 / 行底都是一个颜色"这类问题。
     //   自绘里唯一决定行底色的就是 DrawItem 里的 Selected 判断，所以先把 Selected/Focused 打出来。
-    static void ListState(string mode, int page)
+    static void ListState(string mode, int page, int width)
     {
         var cfg = Config.Load(Program.ConfigPath);
         cfg.UiTheme = mode;
         var f = new MainForm(cfg, false);
         f.StartPosition = FormStartPosition.Manual;
         f.Location = new Point(-6000, -6000);
-        f.Size = new Size(1180, 1500);
+        f.Size = new Size(width, 1500);
         f.Show();
         for (int i = 0; i < 30; i++) { Application.DoEvents(); Thread.Sleep(50); }
         MethodInfo mi = typeof(MainForm).GetMethod("Switch", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -2105,6 +2615,61 @@ class StyleProbe
             long ext = SendMsg(lv.Handle, LVM_GETEXTENDEDLISTVIEWSTYLE, IntPtr.Zero, IntPtr.Zero).ToInt64();
             sb.AppendLine("  扩展样式 = 0x" + ext.ToString("X8") + "   LVS_EX_DOUBLEBUFFER(0x00010000) = "
                           + ((ext & 0x00010000L) != 0 ? "已开启（滚动不闪）" : "**没开**（滚动会闪白）"));
+            //  横向滚动条是否真的出现（WS_HSCROLL = 0x00100000）。列宽合计 <= 客户区宽 时不该有 ——
+            //  窄窗口下列宽自适应的验收就靠这一行，光看截图容易被半截行的阴影骗。
+            int used = 0; foreach (ColumnHeader c in lv.Columns) used += c.Width;
+            bool hbar = (GetWindowLongProbe(lv.Handle, GWL_STYLE_PROBE) & WS_HSCROLL_PROBE) != 0;
+            sb.AppendLine("  列宽合计 " + used + " vs 客户区 " + lv.ClientSize.Width
+                          + "　横向滚动条 = " + (hbar ? "**有**（列宽溢出）" : "无"));
+            //  竖向：原生条必须**藏起来**（它是一条系统灰带，贴在白卡里就是"拼上去的一块"），
+            //  改由自绘细条接管。这两项一起看才知道替换有没有真的生效。
+            bool vbar = (GetWindowLongProbe(lv.Handle, GWL_STYLE_PROBE) & WS_VSCROLL_PROBE) != 0;
+            string selfDraw = "（未挂）";
+            foreach (Control c in lv.Controls)
+            {
+                FlatScroll fs = c as FlatScroll;
+                if (fs == null) continue;
+                selfDraw = "可见=" + fs.Visible + " value=" + fs.Value + "/" + fs.MaxValue
+                           + " large=" + fs.LargeChange;
+                break;
+            }
+            //  逐格量"文字宽度 vs 列宽"：被省略号截断的单元格会直接影响可读性，
+            //  只靠看截图分不清是列窄还是文案长，这里把每一格都列出来。
+            try
+            {
+                int over = 0;
+                var lines = new System.Text.StringBuilder();
+                for (int ri = 0; ri < lv.Items.Count; ri++)
+                {
+                    for (int ci = 0; ci < lv.Columns.Count && ci < lv.Items[ri].SubItems.Count; ci++)
+                    {
+                        string ct = lv.Items[ri].SubItems[ci].Text;
+                        if (string.IsNullOrEmpty(ct)) continue;
+                        int need = TextRenderer.MeasureText(ct, Theme.F(9.5f),
+                            new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding).Width;
+                        int avail = lv.Columns[ci].Width - Theme.S(14);
+                        if (need > avail)
+                        {
+                            over++;
+                            if (over <= 12)
+                                lines.AppendLine("    ✂ " + lv.Items[ri].Text + " / " + lv.Columns[ci].Text
+                                                 + "：需 " + need + " 只有 " + avail + "  [" + ct + "]");
+                        }
+                    }
+                }
+                sb.AppendLine("  截断单元格 " + over + " 个");
+                if (over > 0) sb.Append(lines.ToString());
+            }
+            catch { }
+            sb.AppendLine("  原生竖条 WS_STYLE = " + (vbar ? "**仍在**" : "已隐藏")
+                          + "　自绘滚动条 " + selfDraw + "　行数 " + lv.Items.Count);
+            //  显式再调一次自适应，对照"钩子到底有没有触发"：调用前后一致 = Resize 钩子生效；
+            //  不一致 = Resize 没在列宽算好之后再触发（工具侧就能看出来，不用猜）。
+            Theme.FitColumns(lv, Theme.S(140), Theme.S(96));
+            int used2 = 0; foreach (ColumnHeader c in lv.Columns) used2 += c.Width;
+            bool hbar2 = (GetWindowLongProbe(lv.Handle, GWL_STYLE_PROBE) & WS_HSCROLL_PROBE) != 0;
+            sb.AppendLine("  再算一次自适应后：列宽合计 " + used2 + "　横向滚动条 = " + (hbar2 ? "有" : "无")
+                          + (used2 == used ? "（Resize 钩子已生效）" : "（**钩子没生效**，靠这里补救）"));
             int n = lv.Items.Count;
             for (int i = 0; i < n; i++)
             {
@@ -2228,27 +2793,21 @@ class StyleProbe
         {
             SwitchPage(f, fromPage);
             for (int i = 0; i < 40; i++) { Application.DoEvents(); Thread.Sleep(25); }
-            var navs = new List<NavBtn>();
-            Collect<NavBtn>(f, navs);
-            NavBtn nOut = null, nIn = null;
-            foreach (NavBtn n in navs)
-            {
-                if (n.NavIndex == fromPage) nOut = n;
-                if (n.NavIndex == page) nIn = n;
-            }
-            if (nOut == null || nIn == null) { File.WriteAllText(Path.Combine(OUT, "anim_err.txt"), "找不到 NavBtn"); f.Close(); return; }
-            aOut = GetAnim(nOut, "aAct");
-            aIn = GetAnim(nIn, "aAct");
-            Rectangle r1 = WinRect(f, nOut, 0), r2 = WinRect(f, nIn, 0);
-            cap = Rectangle.Union(r1, r2);
-            cap.Inflate(6, 6);
-            // 采样点取药丸**右端**（避开文字字形与图标胶囊，否则读到的是抗锯齿边缘色）
-            samples.Add(new Point(r1.X + r1.Width - Theme.S(16), r1.Y + r1.Height / 2));
-            names.Add("第" + fromPage + "项");
-            samples.Add(new Point(r2.X + r2.Width - Theme.S(16), r2.Y + r2.Height / 2));
-            names.Add("第" + page + "项");
+            //  导航改成 Apple 分段控件后（2026-10-21）：动效从"两枚药丸各自淡入淡出"
+            //  变成"一枚滑块从旧槽位滑到新槽位"—— 只有一条补间，进度直接映射到位置。
+            var segs = new List<Segmented>();
+            Collect<Segmented>(f, segs);
+            if (segs.Count == 0) { File.WriteAllText(Path.Combine(OUT, "anim_err.txt"), "找不到 Segmented"); f.Close(); return; }
+            Segmented seg = segs[0];
+            seg.SetSelected(page);                    // 先定下 from/to 槽位，随后每帧 Snap 把进度钉住
+            aIn = GetAnim(seg, "aThumb");
+            cap = WinRect(f, seg, 4);
+            samples.Add(new Point(cap.X + seg.Width / 6, cap.Y + cap.Height / 2));
+            names.Add("旧槽位");
+            samples.Add(new Point(cap.X + seg.Width * 5 / 6, cap.Y + cap.Height / 2));
+            names.Add("新槽位");
             curve = Motion.EmphDec; durMs = Motion.Normal;
-            title = mode + " · 侧栏选中药丸淡入淡出 storyboard（第" + fromPage + "项 -> 第" + page + "项，总时长 " + durMs + "ms · emphasized.decelerate）";
+            title = mode + " · 导航滑块滑动 storyboard（第" + fromPage + "项 -> 第" + page + "项，总时长 " + durMs + "ms · emphasized.decelerate）";
             tip = "每格 = 把补间钉在该进度上拍的静态画面；进度→时刻由曲线反解，标签里的 t 是该进度真正发生的时刻";
         }
 
@@ -2335,18 +2894,17 @@ class StyleProbe
         f2.Size = new Size(1180, hgt);
         f2.Show();
         for (int i = 0; i < 30; i++) { Application.DoEvents(); Thread.Sleep(50); }
-        var own = new List<NavBtn>();
-        Collect<NavBtn>(f2, own);
-        foreach (NavBtn n in own) n.Active = (n.NavIndex == 1);
+        var own = new List<Segmented>();
+        Collect<Segmented>(f2, own);
+        Segmented w = own.Count > 0 ? own[0] : null;
+        if (w != null) w.SetSelected(1);
         for (int i = 0; i < 40; i++) { Application.DoEvents(); Thread.Sleep(25); }
-        NavBtn w = null;
-        foreach (NavBtn n in own) if (n.NavIndex == 0) w = n;
-        Anim aw = w == null ? null : GetAnim(w, "aAct");
-        if (w != null) w.Active = true;                       // 触发第 0 项的淡入
+        Anim aw = w == null ? null : GetAnim(w, "aThumb");
+        if (w != null) w.SetSelected(2);                       // 触发滑块从第 1 段滑到第 2 段
         var sw = new System.Diagnostics.Stopwatch();
         sw.Start();
         var cad = new List<string>();
-        cad.Add("场景 = 第0项药丸淡入，时长 " + Motion.Normal + "ms（emphasized.decelerate）；每 ~20ms 采一次");
+        cad.Add("场景 = 导航滑块滑动（1→2 段），时长 " + Motion.Normal + "ms（emphasized.decelerate）；每 ~20ms 采一次");
         cad.Add("实测ms  补间值(0..1)  活动补间数");
         while (sw.ElapsedMilliseconds < Motion.Normal * 2 + 120)
         {
@@ -2450,6 +3008,21 @@ class StyleProbe
 
     static void Main(string[] args)
     {
+        //  崩溃取证（2026-10-24）：UI 线程异常默认弹系统对话框，winexe 下看起来就是"卡住"。
+        //  这里统一落到文件里，跑完直接读。
+        try
+        {
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            Application.ThreadException += delegate(object s1, System.Threading.ThreadExceptionEventArgs e1)
+            {
+                try { System.IO.File.WriteAllText(System.IO.Path.Combine(OUT, "_crash.txt"), "UI线程: " + e1.Exception); } catch { }
+            };
+            AppDomain.CurrentDomain.UnhandledException += delegate(object s1, UnhandledExceptionEventArgs e1)
+            {
+                try { System.IO.File.WriteAllText(System.IO.Path.Combine(OUT, "_crash2.txt"), "域: " + e1.ExceptionObject); } catch { }
+            };
+        }
+        catch { }
         string mode = args.Length > 0 ? args[0] : "light";
         string what = args.Length > 1 ? args[1] : "showcase";
         Theme.SetMode(mode);
@@ -2458,38 +3031,50 @@ class StyleProbe
         {
             if (what == "showcase") Showcase(mode);
             else if (what == "closedlg") CloseDlg(mode);
+            else if (what == "emptywall") EmptyWall(mode);
+            else if (what == "scanbar") ScanBar(mode);
             else if (what == "covers") Covers();
             else if (what == "webcovers") WebCovers();
-            else if (what == "geom") Geom(mode, int.Parse(args.Length > 2 ? args[2] : "3"));
-            else if (what == "geompage") GeomPage(mode, int.Parse(args.Length > 2 ? args[2] : "3"));
+            //  geom / geompage：随封面墙一起下架（第 123 轮库视图改列表，卡片命中测试没有对象了）
             else if (what == "themeswap") ThemeSwap(int.Parse(args.Length > 2 ? args[2] : "6"));
-            else if (what == "selfheal") SelfHeal();
-            else if (what == "ghostmatrix") GhostMatrix();
             else if (what == "ghostscan") GhostScan();
             else if (what == "recdump") RecDump(mode);
+            else if (what == "rectext") RecText(mode);
+            else if (what == "reccard") RecCard(mode, args.Length > 2 ? args[2] : "鸣潮");
+            else if (what == "tilefg") TileFg(mode, true);
+            else if (what == "launchcfg") LaunchCfgShot(mode);
+            else if (what == "fgcfg") FgCfgShot(mode);
+            else if (what == "bgtrim") BgTrimProbe(mode);
+            else if (what == "hover") HoverShot(mode);
+            else if (what == "secdump") SecDump(mode, args.Length > 2 ? args[2] : "鸣潮",
+                                               args.Length > 3 ? int.Parse(args[3]) : -1);
             else if (what == "wiredump") WireDump(mode);
-            else if (what == "recgame") RecGame(mode, int.Parse(args.Length > 2 ? args[2] : "2"), args.Length > 3 ? args[3] : "鸣潮");
+            else if (what == "fontdump") FontDump();
+            else if (what == "recgame") RecGame(mode, int.Parse(args.Length > 2 ? args[2] : "2"), args.Length > 3 ? args[3] : "鸣潮",
+                                               args.Length > 4 ? int.Parse(args[4]) : 0,
+                                               args.Length > 5 ? int.Parse(args[5]) : -1,
+                                               args.Length > 6 ? int.Parse(args[6]) : 0);
             else if (what == "capture") Capture(mode, int.Parse(args.Length > 2 ? args[2] : "3"),
                                                 int.Parse(args.Length > 3 ? args[3] : "1180"),
                                                 int.Parse(args.Length > 4 ? args[4] : "1000"),
                                                 int.Parse(args.Length > 5 ? args[5] : "1744"),
                                                 int.Parse(args.Length > 6 ? args[6] : "537"),
                                                 args.Length > 7 ? args[7] : "g");
-            else if (what == "hit") Hit(int.Parse(args.Length > 2 ? args[2] : "3"),
-                                        int.Parse(args.Length > 3 ? args[3] : "1180"),
-                                        int.Parse(args.Length > 4 ? args[4] : "1000"),
-                                        int.Parse(args.Length > 5 ? args[5] : "1920"),
-                                        int.Parse(args.Length > 6 ? args[6] : "1080"));
-            else if (what == "lst") ListState(mode, int.Parse(args.Length > 2 ? args[2] : "1"));
+            //  lst <mode> <page> [width]：宽度可指定，用来验"窄窗口下列宽是否还装得下"
+            else if (what == "lst") ListState(mode, int.Parse(args.Length > 2 ? args[2] : "1"),
+                                              int.Parse(args.Length > 3 ? args[3] : "1180"));
             else if (what == "scroll") ScrollStress(mode, int.Parse(args.Length > 2 ? args[2] : "1"),
                                                     int.Parse(args.Length > 3 ? args[3] : "12"));
             else if (what == "scrolldrag") ScrollDrag(mode, int.Parse(args.Length > 2 ? args[2] : "1"),
                                                       int.Parse(args.Length > 3 ? args[3] : "15"));
             else if (what == "view") ViewAt(mode, int.Parse(args.Length > 2 ? args[2] : "6"),
-                                       int.Parse(args.Length > 3 ? args[3] : "0"));
+                                       int.Parse(args.Length > 3 ? args[3] : "0"),
+                                       args.Length > 4 ? int.Parse(args[4]) : -1);
         else if (what == "pagescroll") PageScrollStress(mode, int.Parse(args.Length > 2 ? args[2] : "1"),
                                                            int.Parse(args.Length > 3 ? args[3] : "15"),
                                                            int.Parse(args.Length > 4 ? args[4] : "7"));
+            else if (what == "libsbot") LibSBottom(mode, int.Parse(args.Length > 2 ? args[2] : "724"),
+                                                int.Parse(args.Length > 3 ? args[3] : "2"));
             else if (what == "realwheel") RealWheel(mode, int.Parse(args.Length > 2 ? args[2] : "1"),
                                                     int.Parse(args.Length > 3 ? args[3] : "8"));
             else if (what == "dumprows") DumpRows(mode, int.Parse(args.Length > 2 ? args[2] : "1"));
@@ -2515,6 +3100,86 @@ class StyleProbe
                                       ex.GetType().Name + ": " + ex.Message + "\r\n" + ex.ToString());
                 }
             }
+            else if (what == "tip")
+            {
+                //  自绘悬停提示的离屏验收：直接建一个 TipForm 抓图（真机悬停没法自动化）
+                var tf = new Fluxion.TipForm();
+                tf.SetText("RPG Maker MZ\r\nSteam · 已生效 8 / 24 · 帧生成可用");
+                tf.Show();
+                tf.Location = new Point(40, 40);
+                for (int i = 0; i < 20; i++) { Application.DoEvents(); System.Threading.Thread.Sleep(20); }
+                tf.Refresh();
+                Application.DoEvents();
+                Grab(tf, "tip_preview.png");
+                tf.Close();
+            }
+            else if (what == "montree")
+            {
+                //  日志卡排查：把"实时监控"页的控件树原样 dump 出来 ——
+                //  之前靠定时器打日志，抓到的 Sec 与屏幕上的卡片对不上，这次直接看树。
+                var cfg2 = Config.Load(Program.ConfigPath);
+                cfg2.UiTheme = mode;
+                var f2 = new MainForm(cfg2, false);
+                f2.StartPosition = FormStartPosition.Manual;
+                f2.Location = new Point(-6000, -6000);
+                f2.Size = new Size(1180, 800);
+                f2.Show();
+                for (int i = 0; i < 30; i++) { Application.DoEvents(); Thread.Sleep(50); }
+                try
+                {
+                    MethodInfo mi = typeof(MainForm).GetMethod("Switch", BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (mi != null) mi.Invoke(f2, new object[] { args.Length > 2 ? int.Parse(args[2]) : 3 });
+                }
+                catch { }
+                for (int i = 0; i < 40; i++) { Application.DoEvents(); Thread.Sleep(50); }
+                var pagesArr = (Array)typeof(MainForm).GetField("pages", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(f2);
+                var pg = (Control)pagesArr.GetValue(args.Length > 2 ? int.Parse(args[2]) : 3);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("Pg " + pg.Bounds + " visible=" + pg.Visible + " children=" + pg.Controls.Count);
+                foreach (Control c in pg.Controls)
+                {
+                    string title = "";
+                    var sec = c as Fluxion.Sec;
+                    if (sec != null) title = " title=[" + sec.TitleText + "]";
+                    sb.AppendLine("  " + c.GetType().Name + " " + c.Bounds + " vis=" + c.Visible + title);
+                    foreach (Control cc in c.Controls)
+                    {
+                        sb.AppendLine("      - " + cc.GetType().Name + " " + cc.Bounds + " vis=" + cc.Visible
+                                      + (cc is RichTextBox ? " textLen=" + ((RichTextBox)cc).TextLength : ""));
+                        //  再下一层：logBox(Panel) 里的 RichTextBox 才是真正显示日志的控件
+                        foreach (Control c3 in cc.Controls)
+                            sb.AppendLine("          * " + c3.GetType().Name + " " + c3.Bounds + " vis=" + c3.Visible
+                                          + (c3 is RichTextBox ? " textLen=" + ((RichTextBox)c3).TextLength : "")
+                                          + (c3 is Label ? " text=[" + ((Label)c3).Text + "]" : ""));
+                    }
+                }
+                //  日志不显示的真因排查：打印首字符位置 / 颜色，再强制滚回顶部抓一张图
+                RichTextBox rtb2 = null;
+                foreach (Control c in pg.Controls)
+                    foreach (Control cc in c.Controls)
+                        foreach (Control c3 in cc.Controls)
+                            if (c3 is RichTextBox) rtb2 = (RichTextBox)c3;
+                if (rtb2 != null)
+                {
+                    sb.AppendLine("RTB fore=" + rtb2.ForeColor + " back=" + rtb2.BackColor
+                                  + " pos0=" + rtb2.GetPositionFromCharIndex(0)
+                                  + " sel=" + rtb2.SelectionStart + "/" + rtb2.TextLength);
+                    sb.AppendLine("RTB head=[" + rtb2.Text.Substring(0, Math.Min(60, rtb2.TextLength)).Replace("\r", " ").Replace("\n", " | ") + "]");
+                    rtb2.SelectionStart = 0;
+                    rtb2.ScrollToCaret();
+                    Application.DoEvents();
+                    //  对照组：直接把文本换成一行明显的字并强制刷新 —— 若这行也不出现，
+                    //  说明这个 RichTextBox 根本没在画（不是内容/滚动问题）。
+                    rtb2.Text = "TEST 中文 123";
+                    rtb2.Refresh();
+                    Application.DoEvents();
+                    for (int i = 0; i < 10; i++) { Application.DoEvents(); Thread.Sleep(30); }
+                    rtb2.Refresh();
+                }
+                File.WriteAllText(Path.Combine(OUT, "montree.txt"), sb.ToString());
+                Grab(f2, "montree_after.png");
+                f2.Close();
+            }
             else if (what == "pix") Pixels(mode, int.Parse(args.Length > 2 ? args[2] : "1"),
                                            (args.Length > 3 ? args[3] : "h")[0],
                                            int.Parse(args.Length > 4 ? args[4] : "0"),
@@ -2522,9 +3187,13 @@ class StyleProbe
                                            int.Parse(args.Length > 6 ? args[6] : "100"));
             else RealPage(mode, int.Parse(args.Length > 2 ? args[2] : "3"),
                           "real_" + mode + "_p" + (args.Length > 2 ? args[2] : "3")
-                          + (args.Length > 3 ? "_h" + args[3] : "") + (args.Length > 4 ? "_s" + args[4] : "") + ".png",
+                          + (args.Length > 3 ? "_h" + args[3] : "") + (args.Length > 4 ? "_s" + args[4] : "")
+                          + (args.Length > 5 && args[5] == "sel" ? "_sel" : "")
+                          + (args.Length > 6 ? "_w" + args[6] : "") + ".png",
                           args.Length > 3 ? int.Parse(args[3]) : 800,
-                          args.Length > 4 ? int.Parse(args[4]) : -1);
+                          args.Length > 4 ? int.Parse(args[4]) : -1,
+                          args.Length > 5 && args[5] == "sel",
+                          args.Length > 6 ? int.Parse(args[6]) : 1180);
         }
         catch (Exception ex)
         {

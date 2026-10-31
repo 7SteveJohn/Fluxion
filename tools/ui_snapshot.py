@@ -8,11 +8,12 @@ r"""ui_snapshot —— 离屏渲染视觉验收（与源码同编，可访问 in
     python tools/ui_snapshot.py build                  # 只编译
     python tools/ui_snapshot.py light real 3           # 浅色 · 游戏库页
     python tools/ui_snapshot.py dark  real 0           # 深色 · 仪表盘
+    python tools/ui_snapshot.py light real 0 800 -1 x 900   # 窄窗用例（第 7 参=窗口宽）· 仪表盘
     python tools/ui_snapshot.py light showcase         # 样式表（所有改动过的控件）
     python tools/ui_snapshot.py light covers           # 封面多路径下载实测
 
 输出：Fluxion/ui-snapshots/*.png
-页面索引：0 仪表盘 1 性能优化 2 帧生成 3 游戏库 4 实时监控 5 说明 6 设置
+页面索引（只有 6 页）：0 仪表盘 1 性能优化 2 游戏库(帧生成) 3 实时监控 4 说明 5 设置
 
 注意：必须把 src/*.cs 与 tools/ui_snapshot.cs 一起交给 csc 并指定 /main:StyleProbe，
       这样探针才能访问 internal 的 Theme / HeadBox / GameCard / RoundField。
@@ -37,18 +38,25 @@ def build():
     pv = env.get('Path') or env.get('PATH') or ''
     env.pop('PATH', None)
     env['Path'] = pv          # 清掉重复的 PATH/PATH，否则 csc 找不到依赖
-    srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Lib.cs', 'Ui.cs')]
+    srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Dlssg040.cs', 'MfgBridge.cs', 'Lib.cs', 'Ui.cs')]
     srcs.append(os.path.join(ROOT, 'tools', 'ui_snapshot.cs'))
     args = [CSC, '/nologo', '/target:winexe', '/main:StyleProbe', '/out:' + EXE,
             '/platform:x64', '/optimize+', '/unsafe+',
             '/r:System.dll', '/r:System.Drawing.dll', '/r:System.Windows.Forms.dll',
             '/r:System.Web.Extensions.dll', '/r:System.Management.dll',
-            '/r:System.Core.dll', '/r:System.IO.Compression.dll', '/r:System.IO.Compression.FileSystem.dll'] + srcs
+            '/r:System.Core.dll', '/r:System.ServiceProcess.dll', '/r:System.IO.Compression.dll', '/r:System.IO.Compression.FileSystem.dll']
+    #  自带界面字体（与 build.py 保持一致）：不带的话探针编出来的是"没有字体的版本"，
+    #  截图会退回 Noto，验的就不是用户实际看到的那套字。
+    for fn in ('MiSans-Regular.ttf', 'MiSans-Medium.ttf', 'MiSans-Bold.ttf'):
+        fp = os.path.join(ROOT, 'src', 'fonts', fn)
+        if os.path.exists(fp):
+            args.append('/resource:' + fp + ',Font.' + fn.replace('.ttf', '').replace('-', ''))
+    args += srcs
     r = subprocess.run(args, capture_output=True, text=True, env=env,
                        encoding='utf-8', errors='replace')
     out = (r.stdout or '') + (r.stderr or '')
     if out.strip():
-        print(out[:4000])
+        sys.stdout.buffer.write(out[:4000].encode('gbk', errors='replace') + b'\n')
     if r.returncode != 0:
         print('COMPILE FAILED')
         return False
@@ -62,7 +70,7 @@ def stale():
         return True
     e = os.path.getmtime(EXE)
     for f in [os.path.join(SRC, x) for x in
-              ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Lib.cs', 'Ui.cs')] + \
+              ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Dlssg040.cs', 'MfgBridge.cs', 'Lib.cs', 'Ui.cs')] + \
              [os.path.join(ROOT, 'tools', 'ui_snapshot.cs')]:
         try:
             if os.path.getmtime(f) > e:

@@ -38,6 +38,15 @@ namespace Fluxion
         public long LastPlayed;          // unix 秒
         public string LaunchArgs = "";   // 自定义启动参数（如 -force-d3d12，见 SetDx12）
         public string LaunchExe = "";    // 手动指认的启动 exe（自动定位不到时选一次，之后永久生效）
+        //  每游戏环境变量（2026-10-26 第 148 轮）：一行一条 `KEY=VALUE`。
+        //  为什么用字符串而不是 Dictionary：多行文本框直接编辑、顺序稳定、写进 JSON 就是一个串；
+        //  解析只在**启动那一刻**做一次，不值得为它引入一层对象。
+        public string LaunchEnv = "";
+        //  每游戏帧生成参数（2026-10-29 第 160 轮）。覆盖语义：0 / "" / -1 = 跟随全局，
+        //  与 DlssgGame 的同名字段一一对应（见 Dlssg.cs 的注释）。
+        public int FgMax;
+        public string FgPreset = "";
+        public int FgOpt = -1;
     }
 
     public static class MetaStore
@@ -109,6 +118,11 @@ namespace Fluxion
                     m.LastPlayed = L(d, "lastPlayed");
                     m.LaunchArgs = S(d, "launchArgs");
                     m.LaunchExe = S(d, "launchExe");
+                    m.LaunchEnv = S(d, "launchEnv");
+                    m.FgMax = (int)L(d, "fgMax");
+                    m.FgPreset = S(d, "fgPreset");
+                    //  fgOpt 缺键 = 跟随全局（-1），不能用 L() 的缺省 0 —— 0 是合法档位
+                    m.FgOpt = d.ContainsKey("fgOpt") && d["fgOpt"] != null ? (int)L(d, "fgOpt") : -1;
                     map[kv.Key] = m;
                 }
                 return map;
@@ -132,6 +146,10 @@ namespace Fluxion
                         d["lastPlayed"] = m.LastPlayed;
                         d["launchArgs"] = m.LaunchArgs;
                         d["launchExe"] = m.LaunchExe;
+                        d["launchEnv"] = m.LaunchEnv;
+                        if (m.FgMax > 0) d["fgMax"] = m.FgMax;                  // 缺省值不落盘，JSON 保持瘦
+                        if (m.FgPreset != null && m.FgPreset.Length > 0) d["fgPreset"] = m.FgPreset;
+                        if (m.FgOpt >= 0) d["fgOpt"] = m.FgOpt;
                         root[kv.Key] = d;
                     }
                     Directory.CreateDirectory(Program.DataDir);
@@ -268,8 +286,14 @@ namespace Fluxion
                             string appid = Vdf(t, "appid");
                             string name = Vdf(t, "name");
                             string idir = Vdf(t, "installdir");
-                            if (appid.Length == 0 || name.Length == 0 || appid == "228983") continue;
-                            if (PlatformScan.NonGame(name)) continue;
+                            //  ★ Steam 条目一律收录（2026-10-23 用户："Steam下载的一律收录就行"）：
+                            //    Valve 自己的清单里写的是"这个 app 装在哪"，名字是官方名，
+                            //    拿它去比对我们的"非游戏"词表是拿猜测覆盖事实 —— 因此不再按名字过滤。
+                            //    只留一条例外：**Steamworks 公共运行库**（appid 228980）是 VC++/DirectX
+                            //    运行库包，既不是游戏也不是软件，收进来只会多一条噪音条目。
+                            //    （旧代码里写的是 228983，那是另一个 id，228980 靠 steamworks 词条挡住的）
+                            if (appid.Length == 0 || name.Length == 0) continue;
+                            if (appid == "228980" || appid == "228983") continue;
                             if (seenApp.Contains(appid)) continue;
                             seenApp.Add(appid);
                             var a = new SteamApp();
@@ -346,17 +370,19 @@ namespace Fluxion
             @"clash|\bverge\b|notepad|chrome|firefox|thunder|迅雷|internet download|\bidm\b|" +
             @"obsidian|jetbrains|pycharm|intellij|android studio|ollama|powertoys|power toys|" +
             @"网盘|夸克|quark|迅游|加速器|\bboost\b|kimi\b|gemini\b|copilot|cherry studio|" +
-            @"antigravity|trae\b|codebuddy|workbuddy|\bbuddy\b|akko|图吧|\biot\b|iot_|" +
+            @"trae\b|codebuddy|\bbuddy\b|akko|图吧|\biot\b|iot_|" +
             @"inno setup|compil|package cache|context menu|winhance|snap\.hutao|hutao|" +
             @"watt toolkit|steam\+\+|oopz|tiez|自考|工作台|创作|荣耀互联|hihonor|gameviewer|" +
             @"uu远程|qqmail|qq音乐|qqmusic|anticheat|anti-cheat|plugin|助手|" +
             // 对战平台 / 匹配平台（用户实测点名：5EClient、perfectworldarena = CS2 的对战平台，
             //  不是游戏本身；以前它们会以"电竞平台"的名义混进游戏库，2026-09-16）
             @"\b5e(client|box|对战|平台)|perfectworld|完美世界|对战平台|电竞平台|" +
-            // 桌面美化 / 壁纸类软件：Steam 上架了但不是游戏（Wallpaper Engine / MyDockFinder），
-            //   以前会混进游戏库 → wallpaper64.exe 被"检测到游戏启动"→ 桌面上空跑加速包+卓越性能+0.5ms
-            //   定时器（2026-09-27/28 日志实测连开一整天）
-            @"wallpaper\s*engine|wallpaper32|wallpaper64|mydockfinder|mydock\b|" +
+            // 桌面美化 / Dock 类软件：Steam 上架了但不是游戏（MyDockFinder）。
+            //  ⚠ Wallpaper Engine 已从这条里**移出**（2026-10-23 用户："wallpaper也算进游戏里"）：
+            //    它在 Steam 里有正式条目（appid 431960），按游戏收录后能拿到官方名和封面。
+            //    但"别让它触发游戏联动"这件事仍然要做 —— 那是另一层（Dlssg.ToolPart/
+            //    PlatformPart 仍把它判成常驻工具，启动时不跑加速包）。两层职责分开，互不影响。
+            @"mydockfinder|mydock\b|" +
             @"\bdlss\b|gameboost|gamecenter)", RegexOptions.IgnoreCase);
 
         // 二次元关键词（匹配 名称 / 路径 / exe）
@@ -727,6 +753,8 @@ namespace Fluxion
         public static string CoversDir { get { return Path.Combine(Program.DataDir, "covers"); } }
 
         static readonly Dictionary<string, Image> mem = new Dictionary<string, Image>();
+        //  最近使用顺序（末尾=最新）。配合 MemCap 做 LRU 淘汰（2026-10-24 第 134 轮）。
+        static readonly List<string> memOrder = new List<string>();
         // mem 在 UI 线程（卡片绘制）与后台线程（批量封面 ClearCache）并发访问，无锁时
         // Dictionary 内部桶可能被并发写坏（2026-09-15 白框事故的近亲，2026-09-30 体检）。
         // Own() 的位图复制也一并锁内完成：保证复制期间源图绝不会被 ClearCache Dispose 掉。
@@ -734,10 +762,62 @@ namespace Fluxion
 
         public static void ClearCache()
         {
+            //  这里 Dispose 是**对的**：mem 里存的每一张都是缓存自己 new 出来的原件
+            //  （对外一律经 Own() 复制副本，见 Hit / Remember）。所以清表时释放，不会伤到
+            //  任何控件手里的图 —— 控件拿到的都是副本，所有权在调用方。
             lock (memLock)
             {
                 foreach (KeyValuePair<string, Image> kv in mem) { try { kv.Value.Dispose(); } catch { } }
                 mem.Clear();
+                memOrder.Clear();
+            }
+        }
+
+        //  命中时把 key 挪到队尾（真正的 LRU：常用的不会被误淘汰）
+        static Image Hit(string key)
+        {
+            Image cached;
+            if (!mem.TryGetValue(key, out cached)) return null;
+            memOrder.Remove(key);
+            memOrder.Add(key);
+            return Own(cached);
+        }
+
+        //  缓存上限：位图缓存原来无上限，常驻内存随「库大小 × 尺寸档」线性涨
+        //  （13 款游戏全尺寸 40~60 张、每张 1~3 MB —— 是进程里最大的一块浮动项）。
+        //  ★ 2026-10-24 第 134 轮：超限不再**整表清空**，改成 LRU 淘汰最旧的 1/4。
+        //  整表清空的问题是"正在被看的那 8 张也一起被 Dispose 掉"，
+        //  下次重绘要全部重新解码 —— 手感上就是滚动到某个位置突然卡一下。
+        const int MemCap = 64;
+
+        //  插入缓存（重复键先释放旧图）。必须在锁内完成插入，调用方随后在锁外 Own()。
+        static void Remember(string key, Image img)
+        {
+            if (img == null) return;
+            lock (memLock)
+            {
+                Image old;
+                if (mem.TryGetValue(key, out old) && !ReferenceEquals(old, img))
+                { try { old.Dispose(); } catch { } }
+                if (mem.Count >= MemCap && !mem.ContainsKey(key))
+                {
+                    int drop = Math.Max(1, MemCap / 4);
+                    int n = Math.Min(drop, memOrder.Count);
+                    for (int i = 0; i < n; i++)
+                    {
+                        string k = memOrder[0];
+                        memOrder.RemoveAt(0);
+                        Image v;
+                        if (mem.TryGetValue(k, out v))
+                        {
+                            if (!ReferenceEquals(v, img)) { try { v.Dispose(); } catch { } }
+                            mem.Remove(k);
+                        }
+                    }
+                }
+                mem[key] = img;       // 当前这张最后放回去，保证调用方紧接着的 Own() 源图有效
+                memOrder.Remove(key);
+                memOrder.Add(key);
             }
         }
 
@@ -774,12 +854,29 @@ namespace Fluxion
             return d;
         }
 
+        class TimeoutWebClient : WebClient
+        {
+            public int TimeoutMs { get; set; }
+            public TimeoutWebClient(int timeoutMs = 4000) { TimeoutMs = timeoutMs; }
+            protected override WebRequest GetWebRequest(Uri address)
+            {
+                WebRequest req = base.GetWebRequest(address);
+                if (req != null)
+                {
+                    req.Timeout = TimeoutMs;
+                    var hr = req as HttpWebRequest;
+                    if (hr != null) hr.ReadWriteTimeout = TimeoutMs;
+                }
+                return req;
+            }
+        }
+
         static byte[] Fetch(string url, int maxSize, int minSize, bool useProxy)
         {
             try { ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072; } catch { }
             try
             {
-                using (WebClient wc = new WebClient())
+                using (var wc = new TimeoutWebClient(4000))
                 {
                     wc.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 Fluxion";
                     wc.Encoding = Encoding.UTF8;
@@ -798,6 +895,48 @@ namespace Fluxion
             }
         }
 
+        // 生成多别名候选，解决冒号、空格、中英文别名导致的封面无法匹配问题
+        public static List<string> GetTitleCandidates(string title)
+        {
+            var res = new List<string>();
+            if (string.IsNullOrEmpty(title)) return res;
+            string s = title.Trim();
+            Action<string> Add = delegate(string v)
+            {
+                if (!string.IsNullOrEmpty(v))
+                {
+                    string safe = SafeName(v);
+                    if (!string.IsNullOrEmpty(safe) && !res.Contains(safe)) res.Add(safe);
+                }
+            };
+            Add(s);
+            if (s.Contains("：")) Add(s.Replace('：', '_'));
+            if (s.Contains("：")) Add(s.Replace("：", ""));
+            if (s.Contains(":")) Add(s.Replace(':', '_'));
+            if (s.Contains(":")) Add(s.Replace(":", ""));
+            if (s.Contains(" ")) Add(s.Replace(" ", ""));
+
+            string lower = s.ToLowerInvariant();
+            if (lower.Contains("星穹铁道") || lower.Contains("starrail"))
+            { Add("崩坏：星穹铁道"); Add("崩坏_星穹铁道"); Add("StarRail"); Add("崩坏星穹铁道"); }
+            if (lower.Contains("绝区零") || lower.Contains("zenless"))
+            { Add("绝区零"); Add("ZenlessZoneZero"); }
+            if (lower.Contains("原神") || lower.Contains("genshin") || lower.Contains("yuanshen"))
+            { Add("原神"); Add("GenshinImpact"); }
+            if (lower.Contains("鸣潮") || lower.Contains("wuthering"))
+            { Add("鸣潮"); Add("WutheringWaves"); }
+            if (lower.Contains("卡拉彼丘") || lower.Contains("calabiyau"))
+            { Add("卡拉彼丘"); Add("Calabiyau"); }
+            if (lower.Contains("无畏契约") || lower.Contains("valorant"))
+            { Add("无畏契约"); Add("VALORANT"); }
+            if (lower.Contains("三角洲") || lower.Contains("deltaforce"))
+            { Add("三角洲行动"); Add("DeltaForce"); }
+            if (lower.Contains("cs2") || lower.Contains("counter-strike"))
+            { Add("Counter-Strike 2"); Add("cs2"); }
+
+            return res;
+        }
+
         public static string SafeName(string s)
         {
             string t = s == null ? "" : s;
@@ -808,7 +947,12 @@ namespace Fluxion
         public static string CardFile(string id) { return Path.Combine(CoversDir, id + ".jpg"); }
         public static string CardFilePng(string id) { return Path.Combine(CoversDir, id + ".png"); }
         // v4 生成卡（构图改过：磁贴上移、去掉自带底部压暗）→ 换文件名作废旧缓存
-        public static string GenFile(string id) { return Path.Combine(CoversDir, id + "_gen4.png"); }
+        //  gen4 → gen5：改成 2 倍烘焙之后，旧的 1x 文件必须失效（否则照旧被放大）。
+        //  版本号进文件名 = 生成规则一改，旧磁贴自动失效（不用手动清缓存）。
+        //  gen5 → gen6（2026-10-22）：磁贴配色从"按标题 hash"改成"取图标主色"。
+        //  gen6 → gen7（2026-10-22）：顶部提亮从 118° 斜向改成垂直渐变 ——
+        //        斜向那条在卡片 50% 高度处留一道水平切缝（用户截图的"磁贴瑕疵"）。
+        public static string GenFile(string id) { return Path.Combine(CoversDir, id + "_gen7.png"); }
 
         // Steam 官方封面候选路径，按「竖版优先」排列。
         //  实测（2026-09-14，用户反馈"怎么有的没有封面"）：
@@ -853,12 +997,38 @@ namespace Fluxion
             try
             {
                 if (g == null || srcFile == null || !File.Exists(srcFile)) return "文件不存在";
+                using (Image src = Image.FromFile(srcFile))
+                    return SetManualCoverImage(g, src);
+            }
+            catch (Exception ex) { return ex.Message; }
+        }
+
+        //  内存图直接落盘（2026-10-23 自定义封面入口之一：剪贴板粘贴）。
+        //  以前只能"选文件"，用户截完图还得先存盘 —— 多两步就没人用了。
+        //  落盘逻辑与上面那条完全同一套（同一文件名、同一清缓存），不另起一条分支。
+        public static string SetManualCoverImage(DlssgGame g, Image img)
+        {
+            try
+            {
+                if (g == null || img == null) return "没有图片";
+                if (img.Width < 100 || img.Height < 100) return "图片太小（至少 100×100）";
                 Directory.CreateDirectory(CoversDir);
-                string dst = Path.Combine(CoversDir, SafeName(g.Title) + Path.GetExtension(srcFile).ToLowerInvariant());
-                using (Image probe = Image.FromFile(srcFile)) { }        // 先验证是合法图片
-                File.Copy(srcFile, dst, true);
+                //  ⚠ 一律转存成 .png（2026-10-22）：以前按源文件扩展名原样复制，
+                //  选 .bmp / .webp 时存成 `<标题>.bmp`，而 Card() 的候选链只找 png/jpg/jpeg ——
+                //  于是"设置成功"但卡片照旧，用户以为没生效。
+                string dst = Path.Combine(CoversDir, SafeName(g.Title) + ".png");
+                using (Bitmap bmp = new Bitmap(img.Width, img.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
+                {
+                    using (Graphics gg = Graphics.FromImage(bmp))
+                    {
+                        gg.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                        gg.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                        gg.DrawImage(img, new Rectangle(0, 0, img.Width, img.Height));
+                    }
+                    bmp.Save(dst, ImageFormat.Png);
+                }
                 // 清掉同名的其它扩展，避免旧封面抢先
-                foreach (string ext in new string[] { ".png", ".jpg", ".jpeg" })
+                foreach (string ext in new string[] { ".jpg", ".jpeg" })
                 {
                     string p = Path.Combine(CoversDir, SafeName(g.Title) + ext);
                     if (File.Exists(p) && !Eq(p, dst)) { try { File.Delete(p); } catch { } }
@@ -867,6 +1037,34 @@ namespace Fluxion
                 return "";
             }
             catch (Exception ex) { return ex.Message; }
+        }
+
+        //  移除封面（2026-10-22）：删掉这个条目**所有**可能的封面文件，让它回到
+        //  "exe 图标磁贴 / Steam 官方封面"的自动状态。以前没有这个入口 ——
+        //  手动设的、搜图存的、CDN 下的一律叫 `<标题>.*` 或 `<id>.*`，用户想撤销只能自己去翻目录。
+        public static void ClearCover(DlssgGame g)
+        {
+            if (g == null) return;
+            try
+            {
+                string nm = SafeName(g.Title);
+                var kill = new List<string>();
+                foreach (string ext in new string[] { ".png", ".jpg", ".jpeg" })
+                    kill.Add(Path.Combine(CoversDir, nm + ext));
+                string id = g.Id == null ? "" : g.Id;
+                if (id.Length > 0)
+                {
+                    kill.Add(CardFile(id)); kill.Add(CardFilePng(id)); kill.Add(GenFile(id));
+                    kill.Add(HeroFile(id));                       // 详情页的横幅也要一起退回自动
+                }
+                foreach (string p in kill)
+                {
+                    try { if (p != null && p.Length > 0 && File.Exists(p)) File.Delete(p); } catch { }
+                }
+                ClearCache();
+                Program.Log("  已移除封面：" + (g.Title == null ? "" : g.Title));
+            }
+            catch { }
         }
 
         // 同上的字节版（联网下载后直接落盘）
@@ -889,12 +1087,54 @@ namespace Fluxion
                 }
                 catch { return "封面数据无法解码"; }
                 Directory.CreateDirectory(CoversDir);
+                string norm = NormalizeGameTitle(g.Title);
+                string nm = SafeName(norm);
+                string dst = Path.Combine(CoversDir, nm + ".jpg");
+                File.WriteAllBytes(dst, data);
+                if (g.Id != null && g.Id.Length > 0)
+                {
+                    try { File.WriteAllBytes(CardFile(g.Id), data); } catch { }
+                    try { if (File.Exists(GenFile(g.Id))) File.Delete(GenFile(g.Id)); } catch { }
+                }
+                foreach (string ext in new string[] { ".png", ".jpeg" })
+                {
+                    string p = Path.Combine(CoversDir, nm + ext);
+                    if (File.Exists(p) && !Eq(p, dst)) { try { File.Delete(p); } catch { } }
+                }
+                ClearCache();
+                return "";
+            }
+            catch (Exception ex) { return ex.Message; }
+        }
+
+        //  官网图专用落盘：与 SaveCoverBytes 唯一的区别是**没有竖版门禁**。
+        //  平台客户端（5E / 完美世界）根本不存在竖版海报，官网给的多是横版主视觉；
+        //  卡片渲染是 cover 裁切，横图裁两侧即可 —— 总比"配一张别家的竖版海报"强。
+        static string SaveCoverBytesLoose(DlssgGame g, byte[] data)
+        {
+            try
+            {
+                if (g == null || data == null || data.Length < 1000) return "数据无效";
+                try
+                {
+                    using (MemoryStream ms = new MemoryStream(data))
+                    using (Image img = Image.FromStream(ms))
+                    {
+                        if (img.Width < 400 || img.Height < 300) return string.Format("图片太小（{0}x{1}）", img.Width, img.Height);
+                    }
+                }
+                catch { return "封面数据无法解码"; }
+                Directory.CreateDirectory(CoversDir);
                 string dst = Path.Combine(CoversDir, SafeName(g.Title) + ".jpg");
                 File.WriteAllBytes(dst, data);
                 foreach (string ext in new string[] { ".png", ".jpeg" })
                 {
-                    string p = Path.Combine(CoversDir, SafeName(g.Title) + ext);
-                    if (File.Exists(p) && !Eq(p, dst)) { try { File.Delete(p); } catch { } }
+                    string p2 = Path.Combine(CoversDir, SafeName(g.Title) + ext);
+                    if (File.Exists(p2) && !Eq(p2, dst)) { try { File.Delete(p2); } catch { } }
+                }
+                if (g.Id != null && g.Id.Length > 0)
+                {
+                    try { if (File.Exists(GenFile(g.Id))) File.Delete(GenFile(g.Id)); } catch { }
                 }
                 ClearCache();
                 return "";
@@ -929,11 +1169,104 @@ namespace Fluxion
             return d;
         }
 
+        //  从网页里抠 og:image / twitter:image（属性顺序两种都试）
+        static string MetaImage(string html)
+        {
+            if (string.IsNullOrEmpty(html)) return "";
+            string[] pats = new string[] {
+                "<meta[^>]+property=[\"']og:image[\"'][^>]+content=[\"']([^\"']+)",
+                "<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+property=[\"']og:image[\"']",
+                "<meta[^>]+name=[\"']twitter:image[\"'][^>]+content=[\"']([^\"']+)" };
+            foreach (string pat in pats)
+            {
+                Match m = Regex.Match(html, pat, RegexOptions.IgnoreCase);
+                if (m.Success && m.Groups[1].Value.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                    return m.Groups[1].Value.Replace("&amp;", "&");
+            }
+            return "";
+        }
+
+        //  「官网 og:image」优先（2026-10-22）：对 5EClient / 完美世界竞技平台这类**平台客户端**，
+        //  名字搜图必然混入同名内容（旅游海报、电影剧照）—— 官网首页的主视觉才是官方那张。
+        //  比例放宽到 0.45~2.4：官网图多是横版，卡片会 cover 裁切，总比配错图强。
+        static string TryOfficialCover(DlssgGame g, string q)
+        {
+            try
+            {
+                byte[] raw = FetchAny("https://www.bing.com/search?q=" + Uri.EscapeDataString(q + " 官网"), 2 << 20, 2000);
+                if (raw == null) return "官网检索失败";
+                string html = Encoding.UTF8.GetString(raw);
+                int p = 0, tried = 0;
+                while (tried < 4)
+                {
+                    int h2 = html.IndexOf("<h2><a ", p, StringComparison.OrdinalIgnoreCase);
+                    if (h2 < 0) break;
+                    int hs = html.IndexOf("href=\"", h2, StringComparison.OrdinalIgnoreCase);
+                    if (hs < 0) break;
+                    hs += 6;
+                    int he = html.IndexOf('"', hs);
+                    if (he <= hs) break;
+                    string url = html.Substring(hs, he - hs);
+                    p = he;
+                    if (!url.StartsWith("http", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (url.IndexOf("bing.com", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                    if (url.IndexOf("microsoft.com", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                    tried++;
+                    byte[] page = FetchAny(url, 3 << 20, 1000);
+                    if (page == null) continue;
+                    string img = MetaImage(Encoding.UTF8.GetString(page));
+                    if (img.Length == 0) continue;
+                    try { img = new Uri(new Uri(url), img).ToString(); } catch { }
+                    byte[] d = FetchAny(img, 12 << 20, 6000);
+                    if (d == null) continue;
+                    try
+                    {
+                        using (MemoryStream ms = new MemoryStream(d))
+                        using (Image im = Image.FromStream(ms))
+                        {
+                            if (im.Width < 400 || im.Height < 400) continue;
+                            double ar = (double)im.Width / im.Height;
+                            if (ar < 0.45 || ar > 2.4) continue;
+                        }
+                    }
+                    catch { continue; }
+                    if (SaveCoverBytesLoose(g, d).Length == 0)
+                    {
+                        Program.Log("  官网封面命中：" + g.Title + " ← " + ShortUrl(img));
+                        return "";
+                    }
+                }
+            }
+            catch { }
+            return "官网没找到可用图";
+        }
+
+        public static string NormalizeGameTitle(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return "";
+            string s = raw.Trim();
+            if (s.EndsWith(" Game", StringComparison.OrdinalIgnoreCase)) s = s.Substring(0, s.Length - 5).Trim();
+            if (s.EndsWith(" Client", StringComparison.OrdinalIgnoreCase)) s = s.Substring(0, s.Length - 7).Trim();
+            string low = s.ToLowerInvariant().Replace(" ", "").Replace(":", "").Replace("-", "").Replace("_", "");
+            if (low.Contains("starrail") || low.Contains("honkai") || low.Contains("星穹铁道")) return "崩坏：星穹铁道";
+            if (low.Contains("genshin") || low.Contains("yuanshen") || low.Contains("原神")) return "原神";
+            if (low.Contains("zenless") || low.Contains("zzz") || low.Contains("绝区零")) return "绝区零";
+            if (low.Contains("wutheringwaves") || low.Contains("鸣潮")) return "鸣潮";
+            if (low.Contains("valorant") || low.Contains("无畏契约")) return "无畏契约";
+            if (low.Contains("blackmyth") || low.Contains("wukong") || low.Contains("黑神话")) return "黑神话：悟空";
+            if (low.Contains("deltaforce") || low.Contains("三角洲")) return "三角洲行动";
+            if (low.Contains("naraka") || low.Contains("永劫无间")) return "永劫无间";
+            return s;
+        }
+
         // 成功返回 ""，失败/找不到返回原因
         public static string SearchWebCover(DlssgGame g)
         {
             if (g == null || g.Title == null || g.Title.Trim().Length < 2) return "名字太短，无法检索";
-            string q = g.Title.Trim();
+            string q = NormalizeGameTitle(g.Title);
+            //  ① 先试官网主视觉（最准）
+            if (TryOfficialCover(g, q).Length == 0) return "";
+            //  ② 再走图片搜索，但**按标题相关性排序**：对得上的先用，对不上的只做兜底
             int tried = 0;
             string[] tails = new string[] { " 游戏 封面 竖版", " 官方 主视觉 壁纸 竖" };
             foreach (string tail in tails)
@@ -947,12 +1280,30 @@ namespace Fluxion
                 }
                 string html = Encoding.UTF8.GetString(raw);
                 var seen = new Dictionary<string, int>();
-                foreach (string cand0 in BingImageUrls(html, 30))
+                //  相关性排序：标题对得上的排前面，对不上的留在后面当兜底（一张都不匹配时才用）
+                var strict = new List<string>();
+                var loose = new List<string>();
+                foreach (string[] hit in BingImageHits(html, 40))
+                {
+                    string u0 = hit[1];
+                    if (BadImageHost(u0)) continue;
+                    (TitleMatch(hit[0], q) ? strict : loose).Add(u0);
+                }
+                if (strict.Count == 0)
+                {
+                    //  ★ 没有任何一张图的标题跟游戏名对得上 —— 这时候"兜底"就是"配错图"
+                    //  （5EClient 搜出自媒体教程封面就是这么来的）。宁可明说失败，让用户手动给图。
+                    Program.Log("  搜图放弃：候选里没有一张的标题与「" + q + "」相关（loose=" + loose.Count + "）");
+                    return "未找到与名字相关的封面（建议手动指定图片）";
+                }
+                var ordered = new List<string>(strict);
+                ordered.AddRange(loose);
+                Program.Log("  搜图相关性：匹配 " + strict.Count + " 张 / 其余 " + loose.Count + " 张（兜底）");
+                foreach (string cand0 in ordered)
                 {
                     string cand = cand0;
                     if (seen.ContainsKey(cand)) continue;
                     seen[cand] = 1;
-                    if (BadImageHost(cand)) continue;
                     if (++tried > 24) break;
                     byte[] d = FetchAny(cand, 12 << 20, 8000);
                     if (d == null) continue;
@@ -961,11 +1312,11 @@ namespace Fluxion
                         using (MemoryStream ms = new MemoryStream(d))
                         using (Image img = Image.FromStream(ms))
                         {
-                            if (img.Width < 500 || img.Height < 640) continue;      // 太小
+                            if (img.Width < 380 || img.Height < 520) continue;      // 太小
                             double ar = (double)img.Width / img.Height;
                             // 只收接近 2:3 的竖版（0.58~0.78）。放宽到 0.95 会收到
                             // 「三格拼图 / 堆叠宣传图」这类东西 —— 实测无畏契约就中过招。
-                            if (ar < 0.58 || ar > 0.78) continue;
+                            if (ar < 0.52 || ar > 0.82) continue;
                         }
                     }
                     catch { continue; }
@@ -980,7 +1331,68 @@ namespace Fluxion
             return "未找到合适的竖版图（已试 " + tried + " 个候选）";
         }
 
-        // Bing 图片搜索结果里图片直链的形式实测为：
+        //  图片结果里每条都带一个 `t`（页面标题）—— 这是判断"这张图是不是这个游戏的"唯一线索。
+        //  以前只抠 murl，于是一张"5E 相关"的旅游海报也能凭尺寸过关（2026-10-22 用户报的正是这个）。
+        static List<string[]> BingImageHits(string html, int max)
+        {
+            var res = new List<string[]>();
+            if (html == null) return res;
+            string[] tags = new string[] { "&quot;murl&quot;:&quot;", "murl" + '"' + ':' + '"' };
+            foreach (string tag in tags)
+            {
+                bool esc = tag[0] == '&';
+                string endTag = esc ? "&quot;" : "\"";
+                string tTag = esc ? "&quot;t&quot;:&quot;" : "t" + '"' + ':' + '"';
+                int p = 0;
+                while (res.Count < max)
+                {
+                    p = html.IndexOf(tag, p);
+                    if (p < 0) break;
+                    int us = p + tag.Length;
+                    int e = html.IndexOf(endTag, us);
+                    if (e < 0) break;
+                    string u = html.Substring(us, e - us).Replace("&amp;", "&").Replace("\\/", "/");
+                    p = e;
+                    if (!u.StartsWith("http", StringComparison.OrdinalIgnoreCase)) continue;
+                    string title = "";
+                    int w0 = Math.Max(0, e - 1400), w1 = Math.Min(html.Length, e + 1400);
+                    string win = html.Substring(w0, w1 - w0);
+                    int tp = win.IndexOf(tTag);
+                    if (tp >= 0)
+                    {
+                        int ts = tp + tTag.Length;
+                        int te = win.IndexOf(endTag, ts);
+                        if (te > ts) title = win.Substring(ts, te - ts).Replace("&amp;", "&");
+                    }
+                    res.Add(new string[] { title, u });
+                }
+                if (res.Count > 0) break;
+            }
+            return res;
+        }
+
+        //  结果标题与游戏名是否"像同一个东西"：去符号小写后互相包含，或最长公共子串 ≥ min(3, 名字长度)。
+        //  目的是把"同名的旅游照 / 电影海报"排到后面，而不是一刀切掉（否则容易一张都搜不到）。
+        static bool TitleMatch(string pageTitle, string game)
+        {
+            string a = Regex.Replace((pageTitle == null ? "" : pageTitle).ToLowerInvariant(), @"[^a-z0-9\u4e00-\u9fff]+", "");
+            string b = Regex.Replace((game == null ? "" : game).ToLowerInvariant(), @"[^a-z0-9\u4e00-\u9fff]+", "");
+            if (a.Length == 0 || b.Length == 0) return false;
+            if (a.Contains(b) || b.Contains(a)) return true;
+            int need = Math.Min(3, b.Length);
+            if (need < 2) return false;
+            int best = 0;
+            for (int i = 0; i < b.Length; i++)
+                for (int j = 0; j < a.Length; j++)
+                {
+                    int k = 0;
+                    while (i + k < b.Length && j + k < a.Length && b[i + k] == a[j + k]) k++;
+                    if (k > best) best = k;
+                }
+            return best >= need;
+        }
+
+        //  Bing 图片搜索结果里图片直链的形式实测为：
         //     &quot;murl&quot;:&quot;https://…&quot;
         //  也就是 JSON 被 HTML 转义过了（旧版页面是未转义的 "murl":"…"，这里两种都兼容）。
         //  用 HTML 实体当定界符的额外好处：**源码里一个转义双引号都不用写** ——
@@ -1033,17 +1445,24 @@ namespace Fluxion
                 var ser = new JavaScriptSerializer();
                 var arr = ser.DeserializeObject(txt) as System.Collections.IEnumerable;
                 if (arr == null) return "";
-                string first = "";
+                //  ⚠ 不再 return first（2026-10-22 严重问题）：
+                //  Steam 的 SearchApps 是**模糊搜索**，第一个结果经常是别家游戏 ——
+                //  用户库里 5EClient / 完美世界竞技平台 被配上了完全无关的封面，
+                //  就是"名字没搜到 → 拿第一个 appid 顶替"造成的。
+                //  现在只认"精确同名"，或"一方包含另一方且都不算短串"；否则宁可返回空。
+                string best = "";
                 foreach (object o in arr)
                 {
                     var d = o as Dictionary<string, object>;
                     if (d == null || !d.ContainsKey("appid") || d["appid"] == null) continue;
                     string id = d["appid"].ToString();
-                    if (first.Length == 0) first = id;
                     string rn = Regex.Replace((d.ContainsKey("name") && d["name"] != null ? d["name"].ToString() : "").ToLowerInvariant(), @"[^a-z0-9\u4e00-\u9fff]+", "");
+                    if (rn.Length == 0) continue;
                     if (rn == n) return id;      // 精确同名优先
+                    if (best.Length == 0 && rn.Length >= 4 && n.Length >= 4
+                        && (rn.Contains(n) || n.Contains(rn))) best = id;
                 }
-                return first;
+                return best;
             }
             catch { return ""; }
         }
@@ -1055,28 +1474,88 @@ namespace Fluxion
         //  横版图缩进竖版卡里，上下两条模糊带非常显眼 —— 用户原话"这个明显不适合做封面"。
         //  现在对齐游戏启动器的 .card-img { object-fit: cover }：一律裁切填满；
         //  横版图纵向取景 42%（关键视觉通常偏上，取正中容易切掉角色头）。
+        //  GDI+ 单步缩小超过约 4 倍会出条带/接缝（7000px 的壁纸直接缩到 800 宽，
+        //  画面上就会多出一条贯穿的暗线）。先逐级减半到目标的 4 倍以内，再精确缩放。
+        //  Fit（裁切填满）与 ResizeTo（等比不裁）共用这一步 —— 别各写一份。
+        static Image StepHalve(Image src, int w, int h, ref Bitmap scratch)
+        {
+            Image work = src;
+            while (work.Width > w * 4 || work.Height > h * 4)
+            {
+                var next = new Bitmap(Math.Max(1, work.Width / 2), Math.Max(1, work.Height / 2));
+                using (var g2 = Graphics.FromImage(next))
+                {
+                    g2.InterpolationMode = InterpolationMode.HighQualityBilinear;
+                    g2.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                    g2.CompositingQuality = CompositingQuality.HighQuality;
+                    g2.DrawImage(work, 0, 0, next.Width, next.Height);
+                }
+                if (scratch != null) scratch.Dispose();
+                scratch = next;
+                work = scratch;
+                if (work.Width <= 4 || work.Height <= 4) break;
+            }
+            return work;
+        }
+
         public static Bitmap Fit(Image src, int w, int h)
         {
-            Bitmap bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
-            using (Graphics g = Graphics.FromImage(bmp))
+            Bitmap mid = null;
+            try
             {
-                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                g.SmoothingMode = SmoothingMode.HighQuality;
-                g.CompositingQuality = CompositingQuality.HighQuality;
-                double tr = (double)w / h, sr = (double)src.Width / src.Height;
-                int cw, ch;
-                if (sr > tr) { ch = src.Height; cw = (int)Math.Round(src.Height * tr); }
-                else { cw = src.Width; ch = (int)Math.Round(src.Width / tr); }
-                int cx = (src.Width - cw) / 2;
-                int cy = (int)Math.Round((src.Height - ch) * (sr > tr ? 0.42 : 0.5));
-                using (var ia = new ImageAttributes())
+                Image work = StepHalve(src, w, h, ref mid);
+
+                Bitmap bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
+                using (Graphics g = Graphics.FromImage(bmp))
                 {
-                    ia.SetWrapMode(WrapMode.TileFlipXY);
-                    g.DrawImage(src, new Rectangle(0, 0, w, h), cx, cy, cw, ch, GraphicsUnit.Pixel, ia);
+                    g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                    g.SmoothingMode = SmoothingMode.HighQuality;
+                    g.CompositingQuality = CompositingQuality.HighQuality;
+                    double tr = (double)w / h, sr = (double)work.Width / work.Height;
+                    int cw, ch;
+                    if (sr > tr) { ch = work.Height; cw = (int)Math.Round(work.Height * tr); }
+                    else { cw = work.Width; ch = (int)Math.Round(work.Width / tr); }
+                    int cx = (work.Width - cw) / 2;
+                    int cy = (int)Math.Round((work.Height - ch) * (sr > tr ? 0.42 : 0.5));
+                    using (var ia = new ImageAttributes())
+                    {
+                        ia.SetWrapMode(WrapMode.TileFlipXY);
+                        g.DrawImage(work, new Rectangle(0, 0, w, h), cx, cy, cw, ch, GraphicsUnit.Pixel, ia);
+                    }
                 }
+                return bmp;
             }
-            return bmp;
+            finally { if (mid != null) mid.Dispose(); }
+        }
+
+        //  等比缩放（**不裁切**）—— 横幅专用。
+        //  为什么需要它：横幅最终要按"实际横幅比例"取景，那一刀由 HeadBox.Compose 裁。
+        //  在这里再裁一次就是两刀，取景比素材明显"往里怼"（见 Hero 的注释）。
+        public static Bitmap ResizeTo(Image src, int w, int h)
+        {
+            Bitmap mid = null;
+            try
+            {
+                Image work = StepHalve(src, w, h, ref mid);
+                var bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
+                using (var g = Graphics.FromImage(bmp))
+                {
+                    g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                    g.SmoothingMode = SmoothingMode.HighQuality;
+                    g.CompositingQuality = CompositingQuality.HighQuality;
+                    using (var ia = new ImageAttributes())
+                    {
+                        ia.SetWrapMode(WrapMode.TileFlipXY);
+                        g.DrawImage(work, new Rectangle(0, 0, w, h), 0, 0, work.Width, work.Height,
+                                    GraphicsUnit.Pixel, ia);
+                    }
+                }
+                return bmp;
+            }
+            catch { return null; }
+            finally { if (mid != null) mid.Dispose(); }
         }
 
         // 圆角必须"烘焙"进位图，而不是绘制时 SetClip。
@@ -1139,7 +1618,43 @@ namespace Fluxion
             catch { return 0; }
         }
 
-        // 封面专用加载：先裁空底再 cover-crop（生成磁贴不走这里，它们本来就是成品构图）
+        //  顶部平坦边（与底部同款逻辑）。只认"近黑 / 近白"的整行 —— 画面里那种暗色天空、
+        //  纯色渐变背景不会被误裁，否则会切掉真画面（Steam 的 library 图经常上下各带一条黑边）。
+        static int CountFlatTop(Image src, double maxCutFrac)
+        {
+            try
+            {
+                int sw = 64;
+                int sh = (int)((double)src.Height / src.Width * sw);
+                if (sh < 8) return 0;
+                using (Bitmap small = new Bitmap(src, sw, sh))
+                {
+                    int cut = 0;
+                    int maxCut = (int)(sh * maxCutFrac);
+                    for (int y = 0; y < sh / 2; y++)
+                    {
+                        int mn = 255, mx = 0, sum = 0;
+                        for (int x = 0; x < sw; x++)
+                        {
+                            Color c = small.GetPixel(x, y);
+                            int lum = (c.R * 3 + c.G * 6 + c.B) / 10;
+                            if (lum < mn) mn = lum;
+                            if (lum > mx) mx = lum;
+                            sum += lum;
+                        }
+                        int avg = sum / sw;
+                        bool flat = (mx - mn) <= 10;
+                        bool edge = avg < 45 || avg > 210;
+                        if (flat && edge && cut < maxCut) cut = y + 1;
+                        else break;
+                    }
+                    return cut > 0 ? (int)((double)cut / sh * src.Height) : 0;
+                }
+            }
+            catch { return 0; }
+        }
+
+        // 封面专用加载：先裁空底/空边再 cover-crop（生成磁贴不走这里，它们本来就是成品构图）
         static Image LoadCoverScaled(string path, int w, int h)
         {
             try
@@ -1147,11 +1662,103 @@ namespace Fluxion
                 using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read))
                 using (Image tmp = Image.FromStream(fs))
                 {
-                    int cut = CountFlatBottom(tmp, 0.40);
-                    if (cut > 0 && cut < tmp.Height - 40)
-                    using (Image trimmed = ((Bitmap)tmp).Clone(new Rectangle(0, 0, tmp.Width, tmp.Height - cut), tmp.PixelFormat))
+                    int cutB = CountFlatBottom(tmp, 0.40);
+                    int cutT = CountFlatTop(tmp, 0.40);
+                    //  左右也照裁（2026-10-22 用户"封面角落有瑕疵"）：只处理上下两条的话，
+                    //  带**侧边黑边/白边**的素材（国产客户端横图、截图类封面常见）裁完
+                    //  角上还剩一块黑/白 —— cover-crop 之后正好怼在卡片左上角上。
+                    int cutL = CountFlatLeft(tmp, 0.30);
+                    int cutR = CountFlatRight(tmp, 0.30);
+                    int nx = tmp.Width - cutL - cutR, nh = tmp.Height - cutT - cutB;
+                    bool any = cutT > 0 || cutB > 0 || cutL > 0 || cutR > 0;
+                    if (any && nx > 40 && nh > 40 && nx < tmp.Width - 4 && nh < tmp.Height - 4)
+                    using (Image trimmed = ((Bitmap)tmp).Clone(new Rectangle(cutL, cutT, nx, nh), tmp.PixelFormat))
                         return Fit(trimmed, w, h);
                     return Fit(tmp, w, h);
+                }
+            }
+            catch { return null; }
+        }
+
+        //  与 CountFlatTop 同款判据的左右版本：只认"近黑(<45)/近白(>210) 的整列"，
+        //  防止把画面里真正的暗色/亮色竖条（柱子、墙角、海报边框设计）误裁掉。
+        static int CountFlatLeft(Image src, double maxCutFrac)
+        {
+            try
+            {
+                int sh = 64;
+                int sw = (int)((double)src.Width / src.Height * sh);
+                if (sw < 8) return 0;
+                using (Bitmap small = new Bitmap(src, sw, sh))
+                {
+                    int cut = 0;
+                    int maxCut = (int)(sw * maxCutFrac);
+                    for (int x = 0; x < sw / 2; x++)
+                    {
+                        int mn = 255, mx = 0, sum = 0;
+                        for (int y = 0; y < sh; y++)
+                        {
+                            Color c = small.GetPixel(x, y);
+                            int lum = (c.R * 3 + c.G * 6 + c.B) / 10;
+                            if (lum < mn) mn = lum;
+                            if (lum > mx) mx = lum;
+                            sum += lum;
+                        }
+                        int avg = sum / sh;
+                        bool flat = (mx - mn) <= 10;
+                        bool edge = avg < 45 || avg > 210;
+                        if (flat && edge && cut < maxCut) cut = x + 1;
+                        else break;
+                    }
+                    return cut > 0 ? (int)((double)cut / sw * src.Width) : 0;
+                }
+            }
+            catch { return 0; }
+        }
+
+        static int CountFlatRight(Image src, double maxCutFrac)
+        {
+            try
+            {
+                int sh = 64;
+                int sw = (int)((double)src.Width / src.Height * sh);
+                if (sw < 8) return 0;
+                using (Bitmap small = new Bitmap(src, sw, sh))
+                {
+                    int cut = 0;
+                    int maxCut = (int)(sw * maxCutFrac);
+                    for (int x = sw - 1; x > sw / 2; x--)
+                    {
+                        int mn = 255, mx = 0;
+                        for (int y = 0; y < sh; y++)
+                        {
+                            Color c = small.GetPixel(x, y);
+                            int lum = (c.R * 3 + c.G * 6 + c.B) / 10;
+                            if (lum < mn) mn = lum;
+                            if (lum > mx) mx = lum;
+                        }
+                        if (mx - mn <= 10 && cut < maxCut) cut = sw - x;
+                        else break;
+                    }
+                    return cut > 0 ? (int)((double)cut / sw * src.Width) : 0;
+                }
+            }
+            catch { return 0; }
+        }
+
+        //  等比缩放到"不超过 maxW"（不裁切、不放大）—— 横幅用。
+        //  不放大是有意的：小图放大只会糊，不如按原样用，让 Compose 去 zoom。
+        static Image LoadWide(string path, int maxW)
+        {
+            try
+            {
+                using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read))
+                using (Image tmp = Image.FromStream(fs))
+                {
+                    int w = Math.Min(maxW, tmp.Width);
+                    if (w < 32) return null;
+                    int h = Math.Max(1, (int)Math.Round((double)tmp.Height * w / tmp.Width));
+                    return ResizeTo(tmp, w, h);
                 }
             }
             catch { return null; }
@@ -1205,12 +1812,55 @@ namespace Fluxion
 
         // 生成卡 v3：「设计感封面」而不是「渐变 + 小图标」
         //  深色斜渐变 → 中央品牌色辉光 → 图标磁贴（大、带投影与细描边）→ 底部压暗 → 斜向高光
+        //  图标主色：跳过透明 / 近黑 / 近白 / 低饱和像素，按"饱和度 × 亮度"加权投票。
+        //  纯黑白图标（比如很多工具类）取不到彩色 → 返回 Empty，调用方回落到按标题 hash 的色板。
+        static Color DominantColor(Image icon, Color fallback)
+        {
+            try
+            {
+                using (var small = new Bitmap(icon, 32, 32))
+                {
+                    double sr = 0, sg = 0, sb = 0, sw = 0;
+                    for (int y = 0; y < 32; y++)
+                        for (int x = 0; x < 32; x++)
+                        {
+                            Color c = small.GetPixel(x, y);
+                            if (c.A < 200) continue;
+                            int mx = Math.Max(c.R, Math.Max(c.G, c.B));
+                            int mn = Math.Min(c.R, Math.Min(c.G, c.B));
+                            float sat = mx == 0 ? 0f : (float)(mx - mn) / mx;
+                            float val = mx / 255f;
+                            if (sat < 0.22f || val < 0.18f || val > 0.97f) continue;
+                            double wgt = sat * val;
+                            sr += c.R * wgt; sg += c.G * wgt; sb += c.B * wgt; sw += wgt;
+                        }
+                    if (sw < 1) return fallback;
+                    return Color.FromArgb((int)(sr / sw), (int)(sg / sw), (int)(sb / sw));
+                }
+            }
+            catch { return fallback; }
+        }
+
         public static Bitmap GradientCard(string name, int w, int h, Image icon)
         {
             byte[] dig;
             using (SHA256 sha = SHA256.Create()) dig = sha.ComputeHash(Encoding.UTF8.GetBytes(name == null ? "" : name));
             int[] pair = GenPairs[dig[0] % GenPairs.Length];
             Color c1 = FromRgb(pair[0]), c2 = FromRgb(pair[1]);
+
+            //  ★ 有图标就用**图标自己的主色**（2026-10-22）：
+            //  以前配色是"按标题 hash 从色板里抽一组"，于是 5E 顶着橙绿渐变、完美世界顶着粉紫 ——
+            //  跟品牌毫无关系，用户一眼就觉得"这不是它的封面"。
+            //  主色来自官方图标，磁贴就有了品牌感（黑蓝的 5E、金红的完美）。
+            if (icon != null)
+            {
+                Color dom = DominantColor(icon, Color.Empty);
+                if (dom != Color.Empty)
+                {
+                    c1 = Darken(dom, 0.55);
+                    c2 = Lighten(dom, 0.18);
+                }
+            }
 
             Bitmap bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
             using (Graphics g = Graphics.FromImage(bmp))
@@ -1274,15 +1924,26 @@ namespace Fluxion
                     }
                 }
 
-                // 斜向高光（收边提质感）。
-                // ⚠ 画刷矩形必须与填充矩形一致：填的面积比画刷大时，默认 WrapMode.Tile
-                //   会平铺出条纹（与 GameCard 遮罩"两道杠"同源）。
-                var hlRect = new Rectangle(-w, -h, w * 2, h * 3 / 2);
+                // 顶部提亮（收边提质感）。
+                //  ⚠ 必须是"alpha 在填充矩形内部就降到 0"的渐变：以前是 118° 斜向高光，
+                //    画刷矩形 (-w,-h,2w,1.5h) 的下边缘正好落在卡片 50% 高度处，而 118° 的
+                //    梯度沿那条边还没走到 0 → 一整条水平切缝（像素实测：y=h/2 处 RGB 跳变 9~16），
+                //    用户截图里磁贴中部的"横线瑕疵"就是它。垂直渐变 + 底边 alpha=0，物理上无缝。
+                var hlRect = new Rectangle(0, 0, w, h * 2 / 5);
                 using (LinearGradientBrush hl = new LinearGradientBrush(hlRect,
-                           Color.FromArgb(28, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), 118f))
+                           Color.FromArgb(22, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), 90f))
                     g.FillRectangle(hl, hlRect);
             }
             return bmp;
+        }
+
+        //  与 Lighten 配套：往黑色压，k=0.55 大约是"同一个色相、暗 55%"
+        static Color Darken(Color c, double k)
+        {
+            return Color.FromArgb(
+                Math.Max(0, (int)(c.R * (1 - k))),
+                Math.Max(0, (int)(c.G * (1 - k))),
+                Math.Max(0, (int)(c.B * (1 - k))));
         }
 
         static Color Lighten(Color c, double k)
@@ -1294,6 +1955,383 @@ namespace Fluxion
         }
 
         // 卡片图：内存缓存 + 磁盘缓存（避免每次刷新重算）
+        // ---- hero 横幅（2026-10-18）----
+        //  以前直接拿**竖版**封面塞进 800×196 的横条：600×900 放大到 800 宽再裁掉上下 3/4，
+        //  又糊又只剩中间一条。Steam 库页的横幅用的是横版 library_hero（1920×620）。
+        //  这里优先取横版，取不到才退回竖版（会糊，但至少不是空白）。
+        public static string HeroFile(string id) { return Path.Combine(CoversDir, id + "_hero.jpg"); }
+
+        //  ⚠ 参数是"最大宽度"，**不传目标比例**（2026-10-20 核对 Steam 素材后改）。
+        //  原来传 1200×540（2.22:1）让 Fit 先裁成那个比例，可素材比例根本不统一：
+        //  实测本机 hero 全是 16:9（1.78，Bing 搜的壁纸），Steam 官方 library_hero 是 3.10。
+        //  固定一个请求比例 ⇒ 总有一方被白白裁掉，再被横幅裁第二刀，取景比素材明显"往里怼"。
+        //  现在只按宽度等比缩小，取景那一刀交给 HeadBox.Compose（按实际横幅比例裁一次）。
+        public static Image Hero(DlssgGame g, int maxW)
+        {
+            if (g == null) return null;
+            string id = g.Id == null ? "" : g.Id;
+            string key = id + "|hero|" + maxW;
+            Image cached;
+            //  ★ 命中缓存也要交**副本**（2026-10-26 第 149 轮）：原来这里直接 return cached，
+            //  于是 Card() 的语义是"第一次给副本、之后给缓存本体"—— 调用方一律按"自己持有、自己释放"
+            //  写（CoverTile / LibHero / LibActionBar 都在 Dispose 时释放 cover），
+            //  第二次取同一个 key 就会把缓存本体销毁掉，之后任何一次绘制都是在已销毁的
+            //  GDI+ 句柄上作图 → ArgumentException「参数无效」→ 控件被填白打叉。
+            //  这与 0915 那次"16 张白框红叉"是同一个根因的残留分支：缓存自己持有，调用方只拿副本。
+            lock (memLock) { cached = Hit(key); if (cached != null) return Own(cached); }
+            try
+            {
+                // 1. 优先在 covers/ 查找根据游戏标题命名的 _hero 横幅或通用高清封面
+                foreach (string cName in GetTitleCandidates(g.Title))
+                {
+                    string hf = Path.Combine(CoversDir, cName + "_hero.jpg");
+                    if (!File.Exists(hf)) hf = Path.Combine(CoversDir, cName + "_hero.png");
+                    if (!File.Exists(hf)) hf = Path.Combine(CoversDir, cName + ".jpg");
+                    if (File.Exists(hf))
+                    {
+                        Image img = LoadWide(hf, maxW);
+                        if (img != null)
+                        {
+                            Remember(key, img);
+                            return Own(img);
+                        }
+                    }
+                }
+
+                if (id.Length > 0)
+                {
+                    string cache = HeroFile(id);
+                    string hid = AppIdOf(g);
+                    if (!File.Exists(cache) && hid.Length > 0)
+                        CopyLocalHero(hid, cache);
+                    if (File.Exists(cache))
+                    {
+                        Image img = LoadWide(cache, maxW);
+                        if (img != null)
+                        {
+                            Remember(key, img);
+                            return Own(img);
+                        }
+                    }
+                }
+            }
+            catch { }
+            //  没有横版就后台搜一张（只试一次）：第一次显示纯色底，搜到后自动换成整幅横图
+            if (id.Length > 0 && !HeroTried(id) && Program.Cfg.DlssgOnlineCovers)
+            {
+                MarkHeroTried(id);
+                DlssgGame gg = g;
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate
+                {
+                    try
+                    {
+                        if (SearchHeroCover(gg).Length == 0)
+                        {
+                            ClearCache();
+                            if (HeroReady != null) HeroReady();
+                        }
+                    }
+                    catch { }
+                });
+            }
+            //  没有横版素材：不硬裁竖版（600×900 塞进 4:1 只截中间一条，残缺且糊），
+            //  改成「竖版封面缩到极小再放大」的廉价模糊底 —— 有图、看不出裁切，标题压在上面也清楚。
+            //  这里的画布按 16:9 算（横幅实际比例由 Compose 再裁，这层只是兜底底图）。
+            int fw = maxW, fh = Math.Max(1, maxW * 9 / 16);
+            Image fallback = Card(g, fw, fh);
+            if (fallback == null) return null;
+            return AmbientWithCover(g, fallback, fw, fh);
+        }
+
+        //  无横版时的氛围底：模糊背景 + **右下角放完整竖版封面**（等比缩小，不裁切）。
+        //  模糊底只是氛围，真正"看得全"的是右下那张小图。
+        static Image AmbientWithCover(DlssgGame g, Image cardFit, int w, int h)
+        {
+            //  底色不模糊：取封面主色压暗当纯色背景（用户原话："别加模糊感，要 CS2 那种干净整幅"）
+            Image canvas = SolidBackdrop(cardFit, w, h);
+            if (canvas == null) return null;
+            try
+            {
+                byte[] raw = RawCoverBytes(g);
+                if (raw != null)
+                {
+                    using (var ms = new MemoryStream(raw))
+                    using (Image full = Image.FromStream(ms))
+                    {
+                        int ch = h - Theme.S(36);
+                        int cw = (int)Math.Round((double)full.Width * ch / full.Height);
+                        if (cw > 0 && cw <= w / 2)
+                        {
+                            using (Bitmap scaled = GameIcon.Scale(full, cw, ch))
+                            using (Bitmap rounded = RoundAlpha(scaled, Theme.RCard))
+                            using (var gr = Graphics.FromImage(canvas))
+                            {
+                                gr.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                                gr.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                                gr.DrawImage(rounded, w - cw - Theme.S(18), Theme.S(18));
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return canvas;
+        }
+
+        //  原始封面字节（不做任何裁切）：与 Card() 同一套候选，但直接返回文件内容
+        static byte[] RawCoverBytes(DlssgGame g)
+        {
+            try
+            {
+                string nm = SafeName(g.Title);
+                string id = g.Id == null ? "" : g.Id;
+                List<string> cand = new List<string>();
+                cand.Add(Path.Combine(CoversDir, nm + ".png"));
+                cand.Add(Path.Combine(CoversDir, nm + ".jpg"));
+                cand.Add(Path.Combine(CoversDir, nm + ".jpeg"));
+                if (id.Length > 0) { cand.Add(CardFile(id)); cand.Add(CardFilePng(id)); }
+                foreach (string p in cand)
+                {
+                    if (!File.Exists(p)) continue;
+                    byte[] d = File.ReadAllBytes(p);
+                    if (d.Length > 1000) return d;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        //  纯色底：把封面缩成 1×1 取主色，压暗后铺满 + 上下加深，替代模糊层
+        static Image SolidBackdrop(Image src, int w, int h)
+        {
+            try
+            {
+                Color c = Color.FromArgb(40, 46, 58);
+                try
+                {
+                    using (var one = new Bitmap(1, 1))
+                    {
+                        using (var g1 = Graphics.FromImage(one))
+                        {
+                            g1.InterpolationMode = InterpolationMode.HighQualityBilinear;
+                            g1.DrawImage(src, 0, 0, 1, 1);
+                        }
+                        Color s0 = one.GetPixel(0, 0);
+                        c = Color.FromArgb(s0.R * 45 / 100 + 10, s0.G * 45 / 100 + 10, s0.B * 45 / 100 + 14);
+                    }
+                }
+                catch { }
+                var bmp = new Bitmap(w, h);
+                using (var g = Graphics.FromImage(bmp))
+                {
+                    using (var b = new LinearGradientBrush(new Rectangle(0, 0, w, h),
+                               Color.FromArgb(Math.Min(255, c.R + 18), Math.Min(255, c.G + 18), Math.Min(255, c.B + 22)), c, 25f))
+                        g.FillRectangle(b, 0, 0, w, h);
+                }
+                return bmp;
+            }
+            catch { return null; }
+        }
+
+        //  廉价模糊：缩到 1/12 再双三次放大。GDI+ 没有高斯模糊，这两步足够糊掉细节、又几乎不耗时。
+        static Image BlurFill(Image src, int w, int h)
+        {
+            try
+            {
+                int sw = Math.Max(6, w / 16), sh = Math.Max(4, h / 16);
+                using (var small = new Bitmap(sw, sh))
+                {
+                    using (var g = Graphics.FromImage(small))
+                    {
+                        g.InterpolationMode = InterpolationMode.HighQualityBilinear;
+                        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                        g.DrawImage(src, 0, 0, sw, sh);
+                    }
+                    var big = new Bitmap(w, h);
+                    using (var g = Graphics.FromImage(big))
+                    {
+                        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                        g.DrawImage(small, 0, 0, w, h);
+                        //  压暗一档，保证白色标题与副标题在任何封面上都读得清
+                        using (var b = new SolidBrush(Color.FromArgb(120, 8, 12, 18)))
+                            g.FillRectangle(b, 0, 0, w, h);
+                    }
+                    return big;
+                }
+            }
+            catch { return src; }
+        }
+
+        // ---- 横版主视觉搜索（2026-10-18）----
+        //  Steam 有 library_hero，非 Steam 没有。这里按名字搜一张 16:9 的壁纸当横幅，
+        //  存 <id>_hero.jpg 后就不再联网（跟封面一样只补一次）。
+        static readonly HashSet<string> heroTried = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        public static Action HeroReady;      // 由 MainForm 注册：搜到了就刷新当前横幅
+
+        static bool HeroTried(string id) { lock (heroTried) return heroTried.Contains(id); }
+        static void MarkHeroTried(string id) { lock (heroTried) heroTried.Add(id); }
+
+        public static string SearchHeroCover(DlssgGame g)
+        {
+            if (g == null || g.Title == null || g.Title.Trim().Length < 2) return "名字太短";
+            string id = g.Id == null ? "" : g.Id;
+            if (id.Length == 0) return "无 id";
+            try
+            {
+                string[] tails = new string[] { " 游戏 壁纸 1920x1080", " 官方 主视觉 横版" };
+                foreach (string tail in tails)
+                {
+                    string u = "https://www.bing.com/images/search?q="
+                             + Uri.EscapeDataString(g.Title.Trim() + tail) + "&form=HDRSC2";
+                    byte[] raw = FetchAny(u, 6 << 20, 2000);
+                    if (raw == null) continue;
+                    string html = Encoding.UTF8.GetString(raw);
+                    int tried = 0;
+                    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (string cand in BingImageUrls(html, 30))
+                    {
+                        if (!seen.Add(cand)) continue;
+                        if (BadImageHost(cand)) continue;
+                        if (++tried > 20) break;
+                        byte[] d = FetchAny(cand, 12 << 20, 30000);
+                        if (d == null) continue;
+                        try
+                        {
+                            using (var ms = new MemoryStream(d))
+                            using (Image img = Image.FromStream(ms))
+                            {
+                                double ar = (double)img.Width / img.Height;
+                                //  只要接近 16:9 的大图：横幅要横、要够大，竖版/方图一律不要
+                                if (img.Width < 1280 || ar < 1.5 || ar > 2.1) continue;
+                            }
+                        }
+                        catch { continue; }
+                        Directory.CreateDirectory(CoversDir);
+                        File.WriteAllBytes(HeroFile(id), d);
+                        Program.Log("  横幅命中（按名字搜）：" + g.Title + " ← " + ShortUrl(cand));
+                        return "";
+                    }
+                }
+            }
+            catch { }
+            return "未找到横版";
+        }
+
+        //  Steam 本地缓存的横版主视觉：library_hero*.jpg（要排除 *_blur_* —— 那是糊的底图）
+        static bool CopyLocalHero(string appid, string dst)
+        {
+            try
+            {
+                if (!Regex.IsMatch(appid == null ? "" : appid.Trim(), @"^\d{1,12}$")) return false;
+                string root = SteamRoot();
+                if (root.Length == 0) return false;
+                string dir = Path.Combine(root, "appcache", "librarycache", appid.Trim());
+                if (!Directory.Exists(dir)) return false;
+                string[] hits = Directory.GetFiles(dir, "library_hero*.jpg");
+                string pick = "";
+                foreach (string p in hits)
+                {
+                    if (p.IndexOf("blur", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                    if (p.IndexOf("schinese", StringComparison.OrdinalIgnoreCase) >= 0) { pick = p; break; }
+                    if (pick.Length == 0) pick = p;
+                }
+                if (pick.Length == 0) return false;
+                Directory.CreateDirectory(CoversDir);
+                File.Copy(pick, dst, true);
+                Program.Log("  横幅取自 Steam 本地缓存：" + appid + " ← " + pick);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        //  条目对应的 Steam appid：优先用扫描结果，其次查元数据。
+        //  为什么需要兜底：从磁盘扫进来的 Steam 库游戏（platform 为空）DlssgGame.AppId 是空的，
+        //  但 library.json 里往往存着正确的 appid —— 不查这一下，封面就永远取不到。
+        //  安装目录里找官方主视觉：递归 ≤3 层，只收 60KB~8MB 的 png/jpg，
+        //  跳过 cache / screenshot / locales 这类目录和 icon/unins 这类文件。
+        //  取"文件最大"的几张再验尺寸 —— 启动横幅通常是目录里最大的那张图。
+        static string LocalArt(DlssgGame g)
+        {
+            try
+            {
+                if (g == null || g.Dir == null || g.Dir.Length == 0 || !Directory.Exists(g.Dir)) return "";
+                var cands = new List<KeyValuePair<long, string>>();
+                CollectArt(g.Dir, 0, cands);
+                if (cands.Count == 0) return "";
+                cands.Sort(delegate(KeyValuePair<long, string> a, KeyValuePair<long, string> b) { return b.Key.CompareTo(a.Key); });
+                int tried = 0;
+                foreach (var kv in cands)
+                {
+                    if (++tried > 5) break;
+                    try
+                    {
+                        using (Image im = Image.FromFile(kv.Value))
+                        {
+                            if (im.Width < 600 || im.Height < 400) continue;
+                            double ar = (double)im.Width / im.Height;
+                            if (ar < 0.5 || ar > 3.0) continue;
+                            Directory.CreateDirectory(CoversDir);
+                            string dst = Path.Combine(CoversDir, SafeName(g.Title) + ".jpg");
+                            using (var bmp = new Bitmap(im)) bmp.Save(dst, ImageFormat.Jpeg);
+                            ClearCache();
+                            Program.Log("  封面取自安装目录：" + g.Title + " ← " + kv.Value);
+                            return dst;
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+            return "";
+        }
+
+        static void CollectArt(string dir, int depth, List<KeyValuePair<long, string>> outList)
+        {
+            if (depth > 2 || outList.Count > 40) return;
+            try
+            {
+                foreach (string f in Directory.GetFiles(dir))
+                {
+                    string nm = Path.GetFileName(f).ToLowerInvariant();
+                    if (!(nm.EndsWith(".png") || nm.EndsWith(".jpg") || nm.EndsWith(".jpeg"))) continue;
+                    if (nm.IndexOf("icon") >= 0 || nm.IndexOf("unins") >= 0 || nm.IndexOf("thumb") >= 0) continue;
+                    try
+                    {
+                        long len = new FileInfo(f).Length;
+                        if (len < 60L * 1024 || len > 8L * 1024 * 1024) continue;
+                        outList.Add(new KeyValuePair<long, string>(len, f));
+                    }
+                    catch { }
+                }
+                foreach (string d in Directory.GetDirectories(dir))
+                {
+                    string dn = Path.GetFileName(d).ToLowerInvariant();
+                    if (dn.IndexOf("cache") >= 0 || dn.IndexOf("screenshot") >= 0 || dn == "locales" || dn == "locales") continue;
+                    CollectArt(d, depth + 1, outList);
+                    if (outList.Count > 40) return;
+                }
+            }
+            catch { }
+        }
+
+        public static string AppIdOf(DlssgGame g)
+        {
+            if (g == null) return "";
+            try
+            {
+                if (g.AppId != null && Regex.IsMatch(g.AppId.Trim(), @"^\d{1,12}$")) return g.AppId.Trim();
+            }
+            catch { }
+            try
+            {
+                GameMeta m = MetaStore.GetOrCreate(MetaStore.KeyOf(g));
+                if (m != null && m.AppId != null && Regex.IsMatch(m.AppId.Trim(), @"^\d{1,12}$")) return m.AppId.Trim();
+            }
+            catch { }
+            return "";
+        }
+
         public static Image Card(DlssgGame g, int w, int h)
         {
             if (g == null) return null;
@@ -1302,19 +2340,42 @@ namespace Fluxion
             // 两个不同游戏会共用同一张图（2026-09-14 探针实测踩到）
             string key = id + "|" + SafeName(g.Title) + "|" + w + "x" + h;
             Image cached;
-            lock (memLock) { if (mem.TryGetValue(key, out cached)) return Own(cached); }
+            //  ★ 命中缓存也要交**副本**（2026-10-26 第 149 轮）：原来这里直接 return cached，
+            //  于是 Card() 的语义是"第一次给副本、之后给缓存本体"—— 调用方一律按"自己持有、自己释放"
+            //  写（CoverTile / LibHero / LibActionBar 都在 Dispose 时释放 cover），
+            //  第二次取同一个 key 就会把缓存本体销毁掉，之后任何一次绘制都是在已销毁的
+            //  GDI+ 句柄上作图 → ArgumentException「参数无效」→ 控件被填白打叉。
+            //  这与 0915 那次"16 张白框红叉"是同一个根因的残留分支：缓存自己持有，调用方只拿副本。
+            lock (memLock) { cached = Hit(key); if (cached != null) return Own(cached); }
 
             Image img = null;
             try
             {
                 Directory.CreateDirectory(CoversDir);
-                string nm = SafeName(g.Title);
-                string[] cand = new string[] {
-                    Path.Combine(CoversDir, nm + ".png"),
-                    Path.Combine(CoversDir, nm + ".jpg"),
-                    Path.Combine(CoversDir, nm + ".jpeg") };
+                var candList = new List<string>();
+                foreach (string cName in GetTitleCandidates(g.Title))
+                {
+                    candList.Add(Path.Combine(CoversDir, cName + ".png"));
+                    candList.Add(Path.Combine(CoversDir, cName + ".jpg"));
+                    candList.Add(Path.Combine(CoversDir, cName + ".jpeg"));
+                }
                 if (id.Length > 0)
-                    cand = Append(cand, CardFile(id), CardFilePng(id), GenFile(id));
+                {
+                    candList.Add(CardFile(id));
+                    candList.Add(CardFilePng(id));
+                }
+                string[] cand = candList.ToArray();
+                //  ★ AppId 有效就再找一套 `steam_<appid>`（2026-10-22 "封面识别差劲"）：
+                //  扫描器把一部分 Steam 库游戏标成了空 platform（如 wallpaper_engine / MyDockFinder），
+                //  它们的 Id 是 local_<hash>，永远命不中 steam_<appid> 那套封面文件 ——
+                //  于是明明有 appid、本地 Steam 缓存里也有图，卡片却只显示生成磁贴。
+                string appid = AppIdOf(g);
+                string sid = appid.Length > 0 ? "steam_" + appid : "";
+                if (sid.Length > 0 && sid != id)
+                    cand = Append(cand, CardFile(sid), CardFilePng(sid));
+                //  ⚠ 生成磁贴**不在候选链里**（2026-10-22）：`local_<hash>_gen6.png` 一旦存在，
+                //  就会抢在"安装目录官方主视觉"前面（完美世界就是被自己的旧磁贴顶掉的）。
+                //  磁贴只在最后作为"复用上次结果"来用，见下面 img == null 的分支。
                 foreach (string p in cand)
                 {
                     if (!File.Exists(p)) continue;
@@ -1324,6 +2385,43 @@ namespace Fluxion
                     if (bi == null) continue;
                     img = RoundAlpha((Bitmap)bi, Theme.RPic);
                     break;
+                }
+                //  ★ 再试一步：**安装目录自带的官方主视觉**（2026-10-22）。
+                //  完美世界竞技平台这类客户端会把启动横幅放在 `pvp_static\xxx.png`（实测 1212×712），
+                //  那是发行方自己的素材 —— 比任何"按名字搜图"都准，也不需要联网。
+                if (img == null && g.Dir != null && g.Dir.Length > 0)
+                {
+                    string art = LocalArt(g);
+                    if (art.Length > 0)
+                    {
+                        Image bi = LoadCoverScaled(art, w, h);
+                        if (bi != null) img = RoundAlpha((Bitmap)bi, Theme.RPic);
+                    }
+                }
+
+                //  已经生成过磁贴就复用（磁贴跨 DPI 存了 2 倍图，重算没必要）
+                if (img == null)
+                {
+                    foreach (string gf in new string[] { id.Length > 0 ? GenFile(id) : "", sid.Length > 0 ? GenFile(sid) : "" })
+                    {
+                        if (gf.Length == 0 || !File.Exists(gf)) continue;
+                        Image bi = LoadScaled(gf, w, h);
+                        if (bi != null) { img = RoundAlpha((Bitmap)bi, Theme.RPic); break; }
+                    }
+                }
+
+                //  ★ 兜底前先"趁手"从本地 Steam 客户端缓存复制一张（毫秒级、不联网）：
+                //  有 appid 但因为 platform 识别不到而没有封面文件的条目，就靠这一步救回来 ——
+                //  以前必须先手动点一次「获取封面」才会有图，用户看到的就是一堆生成磁贴。
+                if (img == null && sid.Length > 0)
+                {
+                    string sp = CardFile(sid);
+                    if (!File.Exists(sp) && CopyLocalSteam(appid, sid)) sp = CardFile(sid);
+                    if (File.Exists(sp))
+                    {
+                        Image bi = LoadCoverScaled(sp, w, h);
+                        if (bi != null) img = RoundAlpha((Bitmap)bi, Theme.RPic);
+                    }
                 }
                 if (img == null)
                 {
@@ -1337,16 +2435,25 @@ namespace Fluxion
                         }
                     }
                     catch { }
-                    Bitmap bmp = RoundAlpha(GradientCard(g.Title, w, h, icon), Theme.RPic);
-                    if (icon != null) icon.Dispose();
-                    img = bmp;
-                    try { if (id.Length > 0) bmp.Save(GenFile(id), ImageFormat.Png); } catch { }
+                    //  ★ 按 **2 倍**烘焙、并且**不圆角**存盘（2026-10-20）：
+                    //    · 2 倍：磁盘缓存文件名只有 id，是跨 DPI 复用的 —— 按 1x 存进去，
+                    //      150% 缩放下再读出来就是"放大"，渐变色带和首字母一起糊。
+                    //    · 不圆角：读回来时那条路本来就会 RoundAlpha，存盘再圆一次等于圆两遍。
+                    int gw = w * 2, gh = h * 2;
+                    Bitmap big = GradientCard(g.Title, gw, gh, icon);
+                    if (icon != null) { icon.Dispose(); icon = null; }
+                    if (big != null && id.Length > 0)
+                    {
+                        try { big.Save(GenFile(id), ImageFormat.Png); } catch { }
+                    }
+                    img = big == null ? null : RoundAlpha(Fit(big, w, h), Theme.RPic);
+                    if (big != null) big.Dispose();
                 }
             }
             catch { }
             // 加进缓存后当场在锁内复制出调用方的独占副本：Own 若放到锁外，
             // 中间可能被并发 ClearCache 把源图 Dispose 掉（0915 白框事故同款）
-            if (img != null) lock (memLock) { mem[key] = img; return Own(img); }
+            if (img != null) { Remember(key, img); return Own(img); }
             return null;
         }
 
@@ -1375,6 +2482,188 @@ namespace Fluxion
         }
 
         // 该游戏是否已有"真封面"（自定义 or 下载的官方封面）——决定要不要联网补
+        // ---- Steam 本地库缓存（2026-10-18）----
+        //  Steam 客户端本身就把官方竖版封面放在 appcache\librarycache 里，直接复制一份
+        //  是毫秒级、离线可用，比走 CDN 快一个数量级，也不吃用户的代理设置。
+        public static string SteamRoot()
+        {
+            try
+            {
+                string p = SteamLib.RegS(Registry.CurrentUser, @"Software\Valve\Steam", "SteamPath");
+                if (p.Length == 0) p = @"C:\Program Files (x86)\Steam";
+                p = Lib.BackSlashes(p);
+                return Directory.Exists(p) ? p : "";
+            }
+            catch { return ""; }
+        }
+
+        public static bool CopyLocalSteam(string appid, string id)
+        {
+            if (!Regex.IsMatch(appid == null ? "" : appid.Trim(), @"^\d{1,12}$")) return false;
+            if (id == null || id.Length == 0) return false;
+            string root = SteamRoot();
+            if (root.Length == 0) return false;
+            string cache = Path.Combine(root, "appcache", "librarycache");
+            if (!Directory.Exists(cache)) return false;
+            string dst = CardFile(id);
+            //  已有就别覆盖：那可能是用户手动换的、或之前下过的高清版
+            //  （返回 false = "这次没有从本地补图"，调用方据此计数）
+            if (File.Exists(dst) && new FileInfo(dst).Length > 0) return false;
+            //  ⚠ 本地缓存的文件名带**语言后缀**（实测：「Steam\appcache\librarycache\730」里是
+            //    library_600x900_schinese.jpg / header_schinese.jpg），所以不能拿 CDN 那套精确文件名去拼，
+            //    必须用通配符枚举。顺序 = 竖版优先（600x900），最后才是横版与 logo。
+            //  ⚠ 不要把 logo*.png 算进来：Steam 的 logo 是**透明背景的小标识**，
+            //    贴上卡片几乎什么都看不见（实测 Blender 变成一块灰白）。宁可继续用生成卡。
+            string[] pats = new string[] {
+                "library_600x900*.jpg", "library_600x900*.png",
+                "header*.jpg", "library_hero*.jpg", "capsule_616x353*.jpg" };
+            string dir = Path.Combine(cache, appid);
+            foreach (string pat in pats)
+            {
+                string hit = First(Directory.Exists(dir) ? Directory.GetFiles(dir, pat) : null);
+                if (hit.Length > 0 && TryCopy(hit, dst, id)) return true;
+            }
+            foreach (string pat in pats)
+            {
+                string hit = First(Directory.GetFiles(cache, appid + "_" + pat));
+                if (hit.Length > 0 && TryCopy(hit, dst, id)) return true;
+            }
+            return false;
+        }
+
+        // ---- 自定义封面来源（2026-10-18）----
+        //  非 Steam 游戏的封面没有稳定公开图源：官方图在游戏包/DLL 里（鸣潮、米哈游启动器都如此），
+        //  商店图要平台 API。所以这里给一张**用户可编辑**的表（DataDir\covers.json）：
+        //      { "鸣潮": "https://xxx/cover.jpg", "绝区零": "D:\\pics\\zzz.png" }
+        //  键 = 游戏名关键词（包含匹配，大小写不敏感），值 = 网络图片 URL 或本地图片路径。
+        //  命中后优先于「Steam 本地缓存 / CDN / 按名字搜图」，填一次永久生效、离线也能用。
+        public static string CustomFile { get { return Path.Combine(Program.DataDir, "covers.json"); } }
+
+        //  返回值：true = 已用上自定义图；false + err 非空 = 命中但失败；false + err 空 = 没配。
+        public static bool ApplyCustom(DlssgGame g, out string err)
+        {
+            err = "";
+            if (g == null || g.Title == null || g.Title.Length == 0) return false;
+            if (!File.Exists(CustomFile)) return false;
+            try
+            {
+                var map = new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(
+                    File.ReadAllText(CustomFile, Encoding.UTF8));
+                if (map == null) return false;
+                string hit = "";
+                foreach (KeyValuePair<string, string> kv in map)
+                {
+                    if (kv.Key == null || kv.Key.Length == 0 || kv.Key[0] == '_') continue;   // 下划线开头 = 说明行
+                    if (kv.Value == null || kv.Value.Trim().Length == 0) continue;
+                    if (g.Title.IndexOf(kv.Key, StringComparison.OrdinalIgnoreCase) >= 0) { hit = kv.Value.Trim(); break; }
+                }
+                if (hit.Length == 0) return false;
+                //  已经用上了就不再重复下载/复制：图比 covers.json 新 = 上次已经应用过
+                string card = Path.Combine(CoversDir, SafeName(g.Title) + ".jpg");
+                if (File.Exists(card) && File.GetLastWriteTimeUtc(card) > File.GetLastWriteTimeUtc(CustomFile))
+                    return true;
+
+                byte[] data;
+                if (hit.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                    || hit.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    //  用户明确指定的地址：不走域名白名单（那条闸是给自动搜图用的）
+                    data = Fetch(hit, 20 << 20, 1000, false);
+                    if (data == null) data = Fetch(hit, 20 << 20, 1000, true);
+                    if (data == null) { err = "下载失败：" + hit; return false; }
+                }
+                else
+                {
+                    if (!File.Exists(hit)) { err = "本地图片不存在：" + hit; return false; }
+                    data = File.ReadAllBytes(hit);
+                }
+                err = SaveCoverBytes(g, data);
+                if (err.Length > 0) return false;
+                Program.Log("  封面取自 covers.json：" + g.Title);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                err = "covers.json 读取失败：" + ex.Message;
+                return false;
+            }
+        }
+
+        //  同一游戏常有多语言封面：中文优先（用户是中文环境），否则取文件名最短的那张（= 无语言后缀）
+        static string First(string[] hits)
+        {
+            if (hits == null || hits.Length == 0) return "";
+            foreach (string h in hits)
+                if (h.IndexOf("schinese", StringComparison.OrdinalIgnoreCase) >= 0) return h;
+            string best = hits[0];
+            foreach (string h in hits)
+                if (Path.GetFileName(h).Length < Path.GetFileName(best).Length) best = h;
+            return best;
+        }
+
+        static bool TryCopy(string src, string dst, string id)
+        {
+            try
+            {
+                using (Image probe = Image.FromFile(src)) { }     // 先验证是合法图片（缓存里可能有半截文件）
+                Directory.CreateDirectory(CoversDir);
+                File.Copy(src, dst, true);
+                Program.Log("  封面取自 Steam 本地缓存：" + id + " ← " + src);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        //  批量补齐：只碰本地文件，零网络。扫描合并后直接调，用户不用再点「获取封面」。
+        public static int FillLocalCovers(IEnumerable<DlssgGame> list)
+        {
+            int n = 0;
+            foreach (DlssgGame g in list)
+            {
+                if (g == null) continue;
+                if (g.Id == null || g.Id.Length == 0) g.Id = Lib.IdOf(g);
+                //  ① covers.json 里用户自己配的（对所有平台生效，且**覆盖**旧图 —— 填了就是想换）
+                string cerr;
+                if (ApplyCustom(g, out cerr)) { n++; continue; }
+                if (cerr.Length > 0) Program.Log("  covers.json 未生效（" + g.Title + "）：" + cerr);
+                //  ② Steam 本地缓存（只对 Steam 条目）
+                if (HasRealCover(g)) continue;
+                if (g.Platform != "steam") continue;
+                string appid = g.AppId == null ? "" : g.AppId.Trim();
+                if (appid.Length == 0) continue;
+                if (CopyLocalSteam(appid, g.Id)) n++;
+            }
+            return n;
+        }
+
+        //  ★ 扫描后自动补齐 Steam 官方封面（2026-10-23，P3）。
+        //  为什么值得自动做：缺封面时落的是"渐变磁贴 + exe 图标"，一面墙里混着两种画风 ——
+        //  官方 2:3 库封面的比例与其它卡片一致，补齐之后墙面才是同一套语言。
+        //  边界（刻意收窄）：
+        //    · 只走 Steam 官方域名（DownloadSteam 拼的是 cdn.cloudflare.steamstatic.com / steampowered），
+        //      **不做"按名字搜图"** —— 那条路会把 5EClient 配成"春天就要上春山"（2026-10-22 教训）；
+        //    · 只补**有 appid 且没有真封面**的条目，最多 max 张，失败静默；
+        //    · 开关是设置页的「联网获取封面」，关掉就只读本地缓存。
+        public static int FillSteamCovers(IEnumerable<DlssgGame> list, bool online, int max)
+        {
+            int got = 0;
+            if (list == null) return 0;
+            foreach (DlssgGame g in list)
+            {
+                if (g == null) continue;
+                if (got >= max) break;
+                if (g.Id == null || g.Id.Length == 0) g.Id = Lib.IdOf(g);
+                if (HasRealCover(g)) continue;
+                string appid = g.AppId == null ? "" : g.AppId.Trim();
+                if (appid.Length == 0) continue;
+                if (!online) continue;
+                bool okOne = false;
+                try { okOne = DownloadSteam(appid, g.Id); } catch { }
+                if (okOne) got++;
+            }
+            return got;
+        }
+
         public static bool HasRealCover(DlssgGame g)
         {
             try
@@ -1554,6 +2843,8 @@ namespace Fluxion
                     g.Favorite = m.Favorite; g.Private = m.Private; g.Hidden = m.Hidden;
                     g.LastPlayed = m.LastPlayed;
                     g.LaunchArgs = m.LaunchArgs;
+                    g.LaunchEnv = m.LaunchEnv;
+                    g.FgMax = m.FgMax; g.FgPreset = m.FgPreset ?? ""; g.FgOpt = m.FgOpt;
                     if ((g.AppId == null || g.AppId.Length == 0) && m.AppId.Length > 0) g.AppId = m.AppId;
                 }
                 if (g.Platform == null || g.Platform.Length == 0) g.Platform = "local";
@@ -1611,6 +2902,19 @@ namespace Fluxion
             {
                 string root = WeGameRootLauncher(g.Dir);
                 if (root.Length > 0) return root;
+            }
+            //  ★ 第 149 轮：深找先用**条目里记的 exe 名**当提示，再退回打分。
+            //  原来直接 `FindExe(dir, null, title)` —— 完全不看 exe 名，只按"名字含标题 / UE Shipping /
+            //  体积最大"打分。于是条目里写 `nope.exe` 时，它会挑一个**别的** exe 启动：
+            //  用户点的 A 程序、跑起来是 B，而且不报错。同名优先之后，"exe 改名/挪位"仍能救回来
+            //  （同名那条路会命中），只是不再替用户瞎选。
+            string nm = g.Exe == null ? "" : g.Exe.Trim();
+            if (nm.IndexOf('\\') >= 0 || nm.IndexOf('/') >= 0) nm = "";   // 带路径的不能当文件名用
+            string stem = nm.Length > 0 ? Path.GetFileNameWithoutExtension(nm) : "";
+            if (stem.Length > 0)
+            {
+                string byName = PlatformScan.FindExe(g.Dir, stem, g.Title);
+                if (byName.Length > 0) return byName;
             }
             return PlatformScan.FindExe(g.Dir, null, g.Title);
         }
@@ -1672,6 +2976,67 @@ namespace Fluxion
             return "";
         }
 
+        // 环境变量文本 → 键值对（一行一条 `KEY=VALUE`；空行和 # 注释行跳过）。
+        //  只按**第一个** '=' 切 —— 值里可能还有 '='（token / base64 / 命令行片段）。
+        //  非法行（没有 '=' 或键为空）静默跳过：校验在编辑对话框里做，启动路径不该再弹框。
+        public static List<KeyValuePair<string, string>> ParseEnv(string text)
+        {
+            var r = new List<KeyValuePair<string, string>>();
+            if (text == null || text.Length == 0) return r;
+            string[] lines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            foreach (string raw in lines)
+            {
+                string line = raw.Trim();
+                if (line.Length == 0 || line[0] == '#') continue;
+                int eq = line.IndexOf('=');
+                if (eq <= 0) continue;
+                string k = line.Substring(0, eq).Trim();
+                string v = line.Substring(eq + 1).Trim();
+                if (k.Length == 0) continue;
+                r.Add(new KeyValuePair<string, string>(k, v));
+            }
+            return r;
+        }
+
+        // 写入「启动参数 + 环境变量」（一次落盘，两个字段同源，避免半更新）
+        public static void SetLaunchConfig(DlssgGame g, string args, string env)
+        {
+            if (g == null) return;
+            args = args == null ? "" : args.Trim();
+            env = env == null ? "" : env.Trim().Replace("\r\n", "\n");
+            GameMeta m = MetaStore.GetOrCreate(MetaStore.KeyOf(g));
+            m.LaunchArgs = args;
+            m.LaunchEnv = env;
+            m.Platform = g.Platform;
+            if (g.AppId != null && g.AppId.Length > 0) m.AppId = g.AppId;
+            MetaStore.Save(m);
+            g.LaunchArgs = args;
+            g.LaunchEnv = env;
+        }
+
+        // 写入「每游戏帧生成参数」（第 160 轮）：一次落盘 + 同步到运行时对象。
+        //  覆盖语义见 DlssgGame 的字段注释（0/""/-1 = 跟随全局）；应用（写 INI）由调用方做 ——
+        //  这里只管元数据，因为"装没装、装的是哪一代"只有 UI 层知道。
+        public static void SetFgConfig(DlssgGame g, int max, string preset, int opt)
+        {
+            if (g == null) return;
+            if (max < 0) max = 0;
+            if (max > 5) max = 5;
+            if (opt < -1) opt = -1;
+            if (opt > 3) opt = 3;
+            preset = preset == null ? "" : preset.Trim();
+            GameMeta m = MetaStore.GetOrCreate(MetaStore.KeyOf(g));
+            m.FgMax = max;
+            m.FgPreset = preset;
+            m.FgOpt = opt;
+            m.Platform = g.Platform;
+            if (g.AppId != null && g.AppId.Length > 0) m.AppId = g.AppId;
+            MetaStore.Save(m);
+            g.FgMax = max;
+            g.FgPreset = preset;
+            g.FgOpt = opt;
+        }
+
         // 启动：Steam 走 steam:// 协议（DRM/更新更稳），其余直接跑 exe（绕开官方启动器的校验弹窗）。
         // 返回值："" = 已启动；NeedLocate|目录 = 自动定位不到启动文件，界面弹指认对话框；
         //         其他非空 = 失败原因。
@@ -1689,8 +3054,40 @@ namespace Fluxion
                     if (exe.Length > 0)
                     {
                         string args = (g.LaunchArgs == null ? "" : g.LaunchArgs).Trim();
-                        if (args.Length > 0) Process.Start(exe, args);
-                        else Process.Start(exe);
+                        List<KeyValuePair<string, string>> env = ParseEnv(g.LaunchEnv);
+                        if (env.Count == 0)
+                        {
+                            // 没有环境变量：沿用原来的启动方式。
+                            // 刻意不统一改成 ProcessStartInfo —— UseShellExecute=false 会改变
+                            // 工作目录与 shell 行为，这条路径跑了很久没出问题，不为"整齐"去动它。
+                            if (args.Length > 0) Process.Start(exe, args);
+                            else Process.Start(exe);
+                        }
+                        else
+                        {
+                            // 有环境变量就只能走 ProcessStartInfo（Process.Start(文件, 参数) 没有环境变量入口）。
+                            // ⚠ 两个必须显式设的：
+                            //   ① UseShellExecute=false —— 为 true 时 EnvironmentVariables 被静默忽略；
+                            //   ② WorkingDirectory=exe 所在目录 —— 缺省是 Fluxion 自己的目录，
+                            //      游戏按相对路径找资源会失败，症状是"闪退/黑屏"，极难查。
+                            var psi = new ProcessStartInfo(exe);
+                            if (args.Length > 0) psi.Arguments = args;
+                            psi.UseShellExecute = false;
+                            psi.WorkingDirectory = Path.GetDirectoryName(exe);
+                            foreach (KeyValuePair<string, string> kv in env)
+                            {
+                                try { psi.EnvironmentVariables[kv.Key] = kv.Value; } catch { }
+                            }
+                            try
+                            {
+                                Program.Log("  启动环境变量 " + env.Count + " 条："
+                                    + string.Join(", ", Array.ConvertAll(env.ToArray(),
+                                        delegate(KeyValuePair<string, string> kv) { return kv.Key; })));
+                            }
+                            catch { }
+                            Process.Start(psi);
+                            g.LastLaunchedWithEnv = env.Count;      // 供诊断/探针判断"这次真带上了"
+                        }
                     }
                     else if (Directory.Exists(g.Dir))
                     {

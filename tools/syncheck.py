@@ -20,7 +20,7 @@ FW = r"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 REFS = ("System.dll", "System.Core.dll", "System.Drawing.dll", "System.Windows.Forms.dll",
         "System.Web.Extensions.dll", "System.Management.dll", "System.ServiceProcess.dll",
         "System.IO.Compression.dll", "System.IO.Compression.FileSystem.dll")
-SRCS = ("Core.cs", "Pack.cs", "Dlssg.cs", "Lib.cs", "Ui.cs")
+SRCS = ("Core.cs", "Pack.cs", "Dlssg.cs", "Dlssg040.cs", "MfgBridge.cs", "Lib.cs", "Ui.cs")
 
 
 def env_clean():

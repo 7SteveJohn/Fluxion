@@ -1,4 +1,4 @@
-﻿// ==========================================================================
+// ==========================================================================
 //  Pack.cs —— 插件包导入：把作者发布的压缩包拖进窗口，自动识别 → 校验 → 归位
 // ==========================================================================
 //  为什么需要这层：
@@ -38,6 +38,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Security.Cryptography;
@@ -181,7 +182,10 @@ namespace Fluxion
 
         public string KindLabel()
         {
+            if (Kind == Pack.K_NVBR) return "方案 B · MFG Bridge（单文件 nvngx.dll）";
             if (Kind == Pack.K_030) return "DLSS MFG 0.3.x（真 DLSS 多帧生成 · 代理模式）";
+            if (Kind == Pack.K_040) return "DLSS MFG 0.4.x（新版结构：代理 + dlssg_sm86\\ 资源目录）";
+            if (Kind == Pack.K_ASI) return "DLSS MFG 0.3.x · ASI 变体（Version.asi + 加载器）";
             if (Kind == Pack.K_LEGACY) return "dlssg_for_sm86 旧版（0.2.x）";
             if (Kind == Pack.K_OPTI) return "OptiScaler / XeMfg（方案 A）";
             return "未识别";
@@ -247,6 +251,11 @@ namespace Fluxion
         public const string K_LEGACY = "legacy";
         public const string K_OPTI = "optiscaler";
         public const string K_UNK = "unknown";
+        // 2026-10-18 加：0.4.x 换了发布结构（代理缩到 0.8 MB，运行库/内核包搬到 dlssg_sm86\ 下），
+        //  以及 0.3.x 的 ASI 变体（Version.asi + wininet.dll）。两者都由 Dlssg040.cs 里的类自己认。
+        public const string K_040 = Dlssg040.Kind;
+        public const string K_ASI = DlssgAsi.Kind;
+        public const string K_NVBR = MfgBridge.Kind;
 
         // 旧版（0.2.x）代理的体积窗口与 0.3.x 的粗窗口都在 Catalog —— 判据不再散在代码里
 
@@ -268,7 +277,9 @@ namespace Fluxion
             {
                 if (File.Exists(p.Input))
                 {
-                if (!LooksLikeZip(p.Input)) { p.Error = "只认 .zip 压缩包（这个文件不像 zip）"; return p; }
+                // zip、7z 或 rar —— 0.4.0 起的发布包有 .zip/.rar，MFG Bridge 那边是 .7z
+                if (!LooksLikeZip(p.Input) && !LooksLike7z(p.Input) && !LooksLikeRar(p.Input))
+                { p.Error = "只认 .zip / .7z / .rar 压缩包（这个文件三者都不像）"; return p; }
                 p.TempDir = NewInboxDir();
                 Unzip(p.Input, p.TempDir);
                 root = p.TempDir;
@@ -298,9 +309,47 @@ namespace Fluxion
         return d;
     }
 
-    // zip 头是 "PK\x03\x04"。后缀也看一眼 —— 有些下载站给的是 .zip 但内容是别的。
-        static bool LooksLikeZip(string path)
+    // 7z 头是 "7z\xBC\xAF\x27\x1C"。MFG Bridge 的 release 资产就是 .7z，
+    //  而 .NET Framework 里没有任何内置的 7z 解压 —— 见下面 Unzip() 的处理。
+    static bool LooksLike7z(string path)
+    {
+        try
         {
+            using (FileStream fs = File.OpenRead(path))
+            {
+                if (fs.Length < 8) return false;
+                byte[] b = new byte[6];
+                if (fs.Read(b, 0, 6) != 6) return false;
+                return b[0] == 0x37 && b[1] == 0x7A && b[2] == 0xBC && b[3] == 0xAF
+                    && b[4] == 0x27 && b[5] == 0x1C;
+            }
+        }
+        catch { return false; }
+    }
+
+    // RAR 4.x ("Rar!\x1A\x07\x00") 或 RAR 5.x ("Rar!\x1A\x07\x01\x00")
+    static bool LooksLikeRar(string path)
+    {
+        try
+        {
+            using (FileStream fs = File.OpenRead(path))
+            {
+                if (fs.Length < 7) return false;
+                byte[] b = new byte[7];
+                if (fs.Read(b, 0, 7) != 7) return false;
+                return b[0] == 0x52 && b[1] == 0x61 && b[2] == 0x72 && b[3] == 0x21
+                    && b[4] == 0x1A && b[5] == 0x07;
+            }
+        }
+        catch { return false; }
+    }
+
+    //  给下载层用（Upstream.Download 下完做完整性校验）：只读文件头，不改任何状态。
+    public static bool LooksLikeZipPublic(string path) { return LooksLikeZip(path); }
+
+    // zip 头是 "PK\x03\x04"。后缀也看一眼 —— 有些下载站给的是 .zip 但内容是别的。
+    static bool LooksLikeZip(string path)
+    {
             try
             {
                 using (FileStream fs = File.OpenRead(path))
@@ -318,6 +367,14 @@ namespace Fluxion
         //  ② 要自己建目录 —— 有些包不写目录条目，靠条目名里的路径。
         static void Unzip(string zipPath, string dst)
         {
+            // .7z：本机没有 7-Zip 命令行时，退到 Windows 自带的 tar.exe（libarchive 能读 7z）。
+            //  为什么不全用 tar：tar 对 zip 的处理在少数打包器上会出长路径问题，
+            //  zip 这条老路已经跑过几百次了，不值得为统一入口去动它。
+            if (!LooksLikeZip(zipPath))
+            {
+                Un7z(zipPath, dst);
+                return;
+            }
             string full = Path.GetFullPath(dst);
             if (!full.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal))
                 full += Path.DirectorySeparatorChar;
@@ -337,6 +394,87 @@ namespace Fluxion
                     using (FileStream outFs = File.Create(outPath))
                         src.CopyTo(outFs);
                 }
+            }
+        }
+
+        // 7z 解包。优先系统自带的 tar.exe（Win10 1803+ 的 bsdtar 基于 libarchive，能读 7z），
+        //  没有再找 7-Zip 的 7z.exe / 7za.exe；都没有就如实报错，让用户解压后拖文件夹进来。
+        //  ⚠ 不做内置 LZMA 解码：那意味着自带一个解压器，换来的只是少一步手工操作，不划算。
+        static void Un7z(string path, string dst)
+        {
+            Directory.CreateDirectory(dst);
+            string tar = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "tar.exe");
+            if (File.Exists(tar))
+            {
+                try
+                {
+                    RunExe(tar, "-xf \"" + path + "\" -C \"" + dst + "\"");
+                    return;
+                }
+                catch { }
+            }
+            string[] cand = new string[] {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "7-Zip", "7z.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "7-Zip", "7z.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "7-Zip", "7za.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "WinRAR", "WinRAR.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "WinRAR", "UnRAR.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "WinRAR", "WinRAR.exe"),
+            };
+            foreach (string c in cand)
+            {
+                if (File.Exists(c))
+                {
+                    try
+                    {
+                        if (c.IndexOf("WinRAR", StringComparison.OrdinalIgnoreCase) >= 0)
+                            RunExe(c, "x -ibck -inul -y -o+ \"" + path + "\" \"" + dst + "\\\"");
+                        else
+                            RunExe(c, "x -y -o\"" + dst + "\" \"" + path + "\"");
+                        return;
+                    }
+                    catch { }
+                }
+            }
+            throw new Exception("这是压缩包（.7z / .rar），但解压未能完成（未检测到可用解压引擎或包损坏）"
+                                 + " —— 请先解压成文件夹，再把文件夹直接拖进窗口");
+        }
+
+        static void RunExe(string exe, string args)
+        {
+            ProcessStartInfo psi = new ProcessStartInfo(exe, args);
+            psi.CreateNoWindow = true;
+            psi.UseShellExecute = false;
+            psi.RedirectStandardError = true;
+            psi.RedirectStandardOutput = true;
+            using (Process p = Process.Start(psi))
+            {
+                //  ★ 第 143 轮：这里原先是 `ReadToEnd(stderr)` → `WaitForExit()`，两个坑叠在一起：
+                //    ① stdout 也重定向了却没人读 —— 管道缓冲（4KB）一满，tar/7z 就卡在写 stdout 上
+                //      永远不退出，我们这边还卡在 ReadToEnd(stderr) 等它关句柄，双方互等 = 死锁。
+                //      解压一个整合包的输出清单几万行很常见，**不是边角情况**。
+                //    ② WaitForExit() 没有超时 —— 包损坏时 tar 自己也可能挂住，界面就永远停在"安装中"。
+                //  正确做法与 Program.RunCmd 一致：两路都异步排空，再带超时地等退出。
+                var se = new StringBuilder();
+                p.OutputDataReceived += delegate(object s, DataReceivedEventArgs e2) { };
+                p.ErrorDataReceived += delegate(object s, DataReceivedEventArgs e2)
+                {
+                    if (e2.Data != null) lock (se) se.AppendLine(e2.Data);
+                };
+                p.BeginOutputReadLine();      // 只为**排空** stdout（内容用不到），关键是不让它堵住子进程
+                p.BeginErrorReadLine();
+                if (!p.WaitForExit(120000))
+                {
+                    try { p.Kill(); } catch { }
+                    throw new Exception(Path.GetFileName(exe) + " 解包超时（120 秒未结束，已强制终止）"
+                                        + " —— 包可能损坏或不完整");
+                }
+                // 进程已退出，这一步只是让异步读取把缓冲里剩下的行收完（必然很快返回）
+                p.WaitForExit();
+                string err = "";
+                lock (se) err = se.ToString();
+                if (p.ExitCode != 0)
+                    throw new Exception(Path.GetFileName(exe) + " 解包失败（exit " + p.ExitCode + "）：" + err);
             }
         }
 
@@ -369,6 +507,13 @@ namespace Fluxion
         // 角色 + 套别 + 版本档
         static void Classify(PackProbe p)
         {
+            // 0.4.x 与 ASI 变体先判：它们的代理体积窗口与 0.3.x 完全不重叠
+            //  （0.4.0 的入口只有 0.8 MB，下面"按 16/28 MB 认代理"的老规则认不出它，
+            //   只会报一句"没找到入口代理"，然后把作者的新包当成垃圾）。
+            if (MfgBridge.ClassifyInto(p)) return;
+            if (Dlssg040.ClassifyInto(p)) return;
+            if (DlssgAsi.ClassifyInto(p)) return;
+
             PackItem biggest = null;      // 体积最大的入口代理 —— 版本的判据
             foreach (PackItem it in p.Items)
             {
@@ -536,6 +681,9 @@ namespace Fluxion
                      + "而方案 A 的部署逻辑按绝区零 / 鸣潮分别取件，自动归位反而更容易搞错。请继续手工替换。";
             if (p.Kind == K_LEGACY)
                 return "这是旧版 dlssg_for_sm86（0.2.x）的包，本工具已不带这条路径，未做任何改动。";
+            if (p.Kind == K_NVBR) return MfgBridge.Import(p, log);
+            if (p.Kind == K_040) return Dlssg040.Import(p, log);
+            if (p.Kind == K_ASI) return DlssgAsi.Import(p, log);
             if (p.Kind != K_030)
                 return "认不出这个包属于哪套方案（既没有 dlssg_sm86.ini，入口体积也不在已知窗口内），未做任何改动。";
             if (!p.Ready)
@@ -619,6 +767,13 @@ namespace Fluxion
         //  config.json 被写坏的教训（2026-09-11）在前，宁可多一步。
         static void WriteLedger(PackProbe p, List<PackItem> placed)
         {
+            WriteLedger(p, placed, Dlssg030.PackRoot);
+        }
+
+        // 0.4.x 与 ASI 变体的资源包各占一个目录，账本要写在它自己的根下 ——
+        //  写在 0.3.x 那儿的话，"这个包是哪年哪月来的"就变成两份互斥的答案了。
+        internal static void WriteLedger(PackProbe p, List<PackItem> placed, string root)
+        {
             Dictionary<string, object> rec = new Dictionary<string, object>();
             rec["source"] = p.Input;
             rec["importedAt"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
@@ -638,7 +793,7 @@ namespace Fluxion
             }
             rec["files"] = files;
             string text = new JavaScriptSerializer().Serialize(rec);
-            string path = Path.Combine(Dlssg030.PackRoot, "pack.json");
+            string path = Path.Combine(root, "pack.json");
             File.WriteAllText(path, text, new UTF8Encoding(false));
             new JavaScriptSerializer().DeserializeObject(File.ReadAllText(path, Encoding.UTF8));   // 读回校验
         }
@@ -659,9 +814,15 @@ namespace Fluxion
         //  缺失 / 形状不对 / 读不动一律返回 null，由调用方如实说"没有账本"，不猜。
         public static PackLedger ReadLedger()
         {
+            return ReadLedger(Dlssg030.PackRoot);
+        }
+
+        // 0.4.x 与 ASI 变体各有自己的资源包目录，账本要按各自的根读
+        public static PackLedger ReadLedger(string root)
+        {
             try
             {
-                string path = Path.Combine(Dlssg030.PackRoot, "pack.json");
+                string path = Path.Combine(root, "pack.json");
                 if (!File.Exists(path)) return null;
                 object raw = new JavaScriptSerializer().DeserializeObject(
                     File.ReadAllText(path, Encoding.UTF8));
@@ -723,7 +884,9 @@ namespace Fluxion
                 if (g == null || g.Dir == null || g.Dir.Length == 0) continue;
                 try
                 {
-                    if (Dlssg030.IsInstalled(g.Dir) || Dlssg030.GenericInstalled(g.Dir)) r.Add(g);
+                    // 装的是哪一代就重新部署哪一代：0.4.x 的游戏不能因为一次资源包更新被降回 0.3.x
+                    if (Dlssg030.IsInstalled(g.Dir) || Dlssg030.GenericInstalled(g.Dir)
+                        || Dlssg040.Installed(g.Dir)) r.Add(g);
                 }
                 catch { }
             }
@@ -739,7 +902,12 @@ namespace Fluxion
             foreach (DlssgGame g in targets)
             {
                 string r;
-                try { r = Plan.SwitchTo(g.Dir, Plan.D030, true); }
+                // 目标取决于这个目录现在装的是谁：别让一次资源包更新把装了 0.4.x 的游戏打回 0.3.x
+                string tgt = Plan.Current(g.Dir);
+                try
+                {
+                    r = Plan.SwitchTo(g.Dir, tgt == Plan.D040 ? Plan.D040 : Plan.D030, true);
+                }
                 catch (Exception ex) { r = "异常：" + ex.GetType().Name + "：" + ex.Message; }
                 if (r.IndexOf("已切换到", StringComparison.Ordinal) >= 0) ok++; else bad++;
                 if (log != null) log("  " + g.Title + "：" + r.Replace("\n", "\n      "));
@@ -799,8 +967,12 @@ namespace Fluxion
         //  方案 A（OptiScaler）入口的体积下沿。0.3.x 的粗窗口已经覆盖了 28–34 MB，
         //  所以"大于这个数且不在本方案窗口里"才是方案 A —— 与 OwnerOf 的判据顺序一致。
         const long DefOptiMin = 20 * MB;
+        //  ⚠ Version.asi 必须在这份名单里：它是 0.3.x 代理改了名（异环那类游戏靠 ASI 加载器把它带进进程），
+        //    少了它，这颗代理在目录里就是个"没人管的陌生文件" —— 既不会被停放、也不会被巡检发现
+        //    （2026-10-18：0.3.5 ASI 变体随 dlssg_sm86.ini 一起进出目录时的实测漏洞）。
         static string[] DefEntries() { return new string[] {
-            "dxgi.dll", "d3d12.dll", "version.dll", "dinput8.dll", "winmm.dll", "winhttp.dll", "dbghelp.dll" }; }
+            "dxgi.dll", "d3d12.dll", "version.dll", "dinput8.dll", "winmm.dll", "winhttp.dll", "dbghelp.dll",
+            DlssgAsi.Proxy }; }
         static SizeWin DefLegacy() { return new SizeWin(14 * MB, 16 * MB); }        // 旧版 0.2.x 入口
         static SizeWin DefSource() { return new SizeWin(15500000L, 15800000L); }    // 0.2.x 下载源件
         static SizeWin[] DefWins() { return new SizeWin[] {

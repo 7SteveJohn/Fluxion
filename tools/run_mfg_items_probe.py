@@ -18,7 +18,7 @@ env.pop('PATH', None)
 env['Path'] = pv
 
 exe = os.path.join(WORK, 'MfgItemsProbe.exe')
-srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Lib.cs', 'Ui.cs')]
+srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Dlssg040.cs', 'MfgBridge.cs', 'Lib.cs', 'Ui.cs')]
 args = [FW, '/nologo', '/target:exe', '/out:' + exe, '/unsafe+',
         '/main:Fluxion.MfgItemsProbe',
         '/r:System.dll', '/r:System.Drawing.dll', '/r:System.Windows.Forms.dll',

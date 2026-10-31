@@ -155,11 +155,15 @@ namespace Fluxion
             Chk("★ 二游（无专用入口）结论里不再出现「方案 A」（与 OptiNote 不再打架）",
                 gGacha != null && Dlssg.BuildRec(gGacha).Head.IndexOf("方案 A") < 0,
                 gGacha == null ? "null" : Dlssg.BuildRec(gGacha).Head);
+            //  ⚠ 2026-10-26：这两句文案从 `Why` **搬到了 `Note`**（Why 讲"为什么推荐"，
+            //  Note 讲"要注意什么"）—— 断言还钉在 Why 上，于是永远红。
+            //  改成 Why + Note 一起查：以后文案在两个字段间挪动不会再误报。
+            var recG = gGacha == null ? null : Dlssg.BuildRec(gGacha);
+            string gn = recG == null ? "" : (recG.Why + "\n" + recG.Note);
             Chk("★ 二游（无专用入口）文案给出「换入口重试」的替代路径",
-                gGacha != null && Dlssg.BuildRec(gGacha).Why.IndexOf("换入口重试") >= 0, "");
+                gn.IndexOf("换入口重试") >= 0, "");
             Chk("★ 二游（无专用入口）文案点出两个前置（DX12 + Reflex）",
-                gGacha != null && Dlssg.BuildRec(gGacha).Why.IndexOf("DX12") >= 0
-                && Dlssg.BuildRec(gGacha).Why.IndexOf("Reflex") >= 0, "");
+                gn.IndexOf("DX12") >= 0 && gn.IndexOf("Reflex") >= 0, "");
             Chk("二游（有专用入口 = 鸣潮）仍推方案 A",
                 gWuwa != null && Dlssg.BuildRec(gWuwa).Action == "opti",
                 gWuwa == null ? "null" : (Dlssg.BuildRec(gWuwa).Head + " / Action=" + Dlssg.BuildRec(gWuwa).Action));
@@ -231,7 +235,10 @@ namespace Fluxion
                 FieldInfo fs = typeof(MainForm).GetField("selected", flags);
                 MethodInfo mFill = typeof(MainForm).GetMethod("FillGameList", flags);
                 MethodInfo mRec = typeof(MainForm).GetMethod("RefreshRec", flags);
-                FieldInfo fBig = typeof(MainForm).GetField("lblRecBig", flags);
+                //  ⚠ 2026-10-26：`lblRecBig`（推荐卡的大标题）随详情页改版撤掉了 ——
+                //  评分/判定那一套按设计不进面板（见 `RefreshRec` 的注释），结论改由
+                //  `lblFgState`（"当前：…"）承载。断言跟着搬到新控件上，不守着一个已删的字段。
+                FieldInfo fBig = typeof(MainForm).GetField("lblFgState", flags);
                 Chk("反射拿到 games / selected / FillGameList / RefreshRec",
                     fg != null && fs != null && mFill != null && mRec != null, "");
 
@@ -243,10 +250,14 @@ namespace Fluxion
                 var sel1 = fs.GetValue(f) as DlssgGame;
                 string head1 = (fBig == null || fBig.GetValue(f) == null) ? "(null)" : ((Label)fBig.GetValue(f)).Text;
                 Chk("选中项就是新加的游戏", sel1 != null && sel1.Dir == dnew, sel1 == null ? "null" : sel1.Title);
-                Chk("推荐结论已给出（不是「先选一个游戏」）",
+                string st1 = Dlssg.BuildRec(sel1).State == null ? "" : Dlssg.BuildRec(sel1).State.Trim();
+                Chk("状态行已给出（不是「先选一个游戏」）",
                     head1.Length > 0 && head1.IndexOf("先选一个游戏") < 0, head1);
-                Chk("推荐结论 = BuildRec 的结论（界面与判定同源）",
-                    head1 == Dlssg.BuildRec(sel1).Head, head1 + " | " + Dlssg.BuildRec(sel1).Head);
+                //  同源判据：状态行必须**包含** BuildRec 算出来的 State（不是另算一套）。
+                //  State 为空时这条无意义，改成断言两者都为空（同样算同源）。
+                Chk("界面状态 = BuildRec 的 State（界面与判定同源）",
+                    st1.Length == 0 ? head1.Trim().Length == 0 : head1.IndexOf(st1) >= 0,
+                    head1 + " | State=" + st1);
 
                 // 模拟"又来了一次扫描"：真实链路是 **扫描层产出全新对象**（只有 Dir/Exe/Title），
                 // 再交给 MergeScan 重探能力 + 重算分类。这里照做——否则 MergeScan 会复用旧对象引用，
@@ -266,7 +277,10 @@ namespace Fluxion
                 mRec.Invoke(f, null);
                 string head2 = (fBig == null || fBig.GetValue(f) == null) ? "(null)" : ((Label)fBig.GetValue(f)).Text;
                 Chk("★ 重扫后结论与重扫前一致（判定重算而不是沿用旧对象）", head2 == head1, head1 + " | " + head2);
-                Chk("界面结论 = BuildRec（界面与判定同源）", head2 == Dlssg.BuildRec(sel2).Head, head2);
+                string st2 = Dlssg.BuildRec(sel2).State == null ? "" : Dlssg.BuildRec(sel2).State.Trim();
+                Chk("界面状态仍与判定同源（重扫后）",
+                    st2.Length == 0 ? head2.Trim().Length == 0 : head2.IndexOf(st2) >= 0,
+                    head2 + " | State=" + st2);
                 Chk("新对象上确实带上了能力字段（证明重探发生在合并管线里）",
                     sel2 != null && sel2.HasFrameGen, sel2 == null ? "null" : ("HasFrameGen=" + sel2.HasFrameGen));
                 f.Close();

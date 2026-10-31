@@ -17,7 +17,7 @@ env.pop('PATH', None)
 env['Path'] = pv
 
 out = os.path.join(WORK, 'ResLinkProbe.exe')
-srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Lib.cs', 'Ui.cs')]
+srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Dlssg040.cs', 'MfgBridge.cs', 'Lib.cs', 'Ui.cs')]
 args = [FW, '/nologo', '/target:exe', '/out:' + out, '/unsafe+', '/main:Fluxion.ResLinkProbe',
         '/r:System.dll', '/r:System.Drawing.dll', '/r:System.Windows.Forms.dll',
         '/r:System.Web.Extensions.dll', '/r:System.Management.dll', '/r:System.Core.dll',

@@ -24,7 +24,7 @@ import sys
 
 DEFAULT_TYPES = ['Theme', 'Native', 'Program', 'Config', 'Dlssg']
 
-DEFAULT_FILES = ['Core.cs', 'Pack.cs', 'Dlssg.cs', 'Ui.cs']
+DEFAULT_FILES = ['Core.cs', 'Pack.cs', 'Dlssg.cs', 'Dlssg040.cs', 'MfgBridge.cs', 'Ui.cs']
 
 # 方法名/属性名允许出现在两条正则里，这里统一清洗掉注释与字符串，
 # 避免把注释里提到的名字算成定义。

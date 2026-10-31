@@ -35,6 +35,7 @@ Name Text Size Location Width Height Top Left Right Bottom X Y ClientSize Bounds
 Visible Enabled BackColor ForeColor Font Padding Margin Dock Anchor AutoSize
 Parent Controls Tag Cursor UseWaitCursor AllowDrop Capture
 Invalidate Refresh Update PerformLayout CreateGraphics Dispose SuspendLayout
+InvokeRequired BeginInvoke EndInvoke IsHandleCreated IsDisposed Created
 ResumeLayout BringToFront SendToBack Focus Select FindForm
 PointToClient PointToScreen Scale SetBounds DrawToBitmap Show ShowDialog Hide
 GetType Equals GetHashCode ToString
@@ -153,10 +154,22 @@ def depth_map(body):
 DECL_ANY = re.compile(
     r'(?P<mods>(?:(?:public|internal|private|protected|static|readonly|const|volatile|'
     r'new|override|virtual|sealed|abstract|extern|unsafe|async|partial|event)\s+)*)'
-    r'(?P<type>[A-Za-z_][\w\.]*(?:<[^<>]*>)?(?:\[\])*)\s+'
+    r'(?P<type>[A-Za-z_][\w\.]*(?:<[^<>]*>)?(?:\[\])*\??)\s+'
     # 名字后面允许再跟一个泛型参数表：`public T Block<T>(...)` 的方法名是 Block，
     # 漏掉这一段会让这类方法整个从成员表里消失（会把合法调用误报成 CS1061）。
     r'(?P<name>[A-Za-z_]\w*)\s*(?:<[^<>]*>)?\s*(?P<tail>[\(=;\{])')
+
+
+#  多名字声明：`event Action<DlssgGame> Install, Launch, Details;` / `Bar a, b, c;`
+#  DECL_ANY 只捕获第一个名字（它要求名字后面紧跟 ( = ; {），逗号后面的全丢 ——
+#  于是 libHero.Launch / actBar.Details 这类**合法**的事件订阅被误报成 CS1061。
+#  这里单独补一遍逗号列表（2026-10-26：13 条误报里有 7 条是这么来的）。
+DUO_DECL = re.compile(
+    r'^[ \t]*(?:(?:public|internal|private|protected|static|readonly|const|volatile|'
+    r'new|override|virtual|sealed|abstract|extern|unsafe|event)\s+)+'
+    r'[A-Za-z_][\w\.]*(?:<[^<>;]*>)?(?:\[\])*\s+'
+    r'(?P<names>[A-Za-z_]\w*(?:\s*=\s*[^,;{}]+)?'
+    r'(?:\s*,\s*[A-Za-z_]\w*(?:\s*=\s*[^,;{}]+)?)*)\s*;', re.M)
 
 
 def class_members(body):
@@ -166,6 +179,13 @@ def class_members(body):
         if dm[m.start()] != 0:
             continue
         names.add(m.group('name'))
+    for m in DUO_DECL.finditer(body):
+        if dm[m.start()] != 0:
+            continue
+        for nm in m.group('names').split(','):
+            nm = nm.split('=')[0].strip()
+            if nm:
+                names.add(nm)
     return names
 
 
@@ -206,7 +226,7 @@ def class_fields(clean, start, end, ours):
 
 def main():
     src = sys.argv[1] if len(sys.argv) > 1 else '.'
-    files = ['Core.cs', 'Pack.cs', 'Dlssg.cs', 'Ui.cs']
+    files = ['Core.cs', 'Pack.cs', 'Dlssg.cs', 'Dlssg040.cs', 'MfgBridge.cs', 'Ui.cs']
 
     cls_members = {}
     clean_all = {}

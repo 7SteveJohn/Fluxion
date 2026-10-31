@@ -253,7 +253,10 @@ def strip_noise(text):
             continue
         # 字符串字面量（含 verbatim）
         if c == '@' and i + 1 < n and text[i + 1] == '"':
-            out[i] = out[i + 1] = ' '
+            #  开引号位置留一个 'S' 占位：全抹成空白会让 count_args 把 Log(@"...") 数成 0 个实参，
+            #  于是 ARITY 对"唯一实参是字符串"的调用全线误报（2026-10-18 实测 3 条）。
+            out[i] = 'S'
+            out[i + 1] = ' '
             i += 2
             while i < n:
                 if text[i] == '"':
@@ -275,7 +278,8 @@ def strip_noise(text):
                 if out[k] != ' ':
                     prev = out[k]
                     break
-            out[i] = '#' if prev == '$' else ' '
+            #  非插值字符串用 'S' 占位（原因同上：空白会让 ARITY 误判实参个数）
+            out[i] = '#' if prev == '$' else 'S'
             i += 1
             while i < n:
                 if text[i] == '\\':
@@ -293,7 +297,7 @@ def strip_noise(text):
                 i += 1
             continue
         if c == "'":
-            out[i] = ' '
+            out[i] = 'S'
             i += 1
             while i < n:
                 if text[i] == '\\':
@@ -660,7 +664,7 @@ def split_top(s):
 
 def main():
     src = sys.argv[1] if len(sys.argv) > 1 else '.'
-    files = ['Core.cs', 'Pack.cs', 'Dlssg.cs', 'Lib.cs', 'Ui.cs']
+    files = ['Core.cs', 'Pack.cs', 'Dlssg.cs', 'Dlssg040.cs', 'MfgBridge.cs', 'Lib.cs', 'Ui.cs']
     problems = []
 
     all_types = {}
@@ -753,6 +757,42 @@ def main():
                                     '它内部有 ping（最坏 12s）与 WMI 事件日志扫描，会把主线程钉住'
                                     '（页面整片空白 + 点不动，且不产生任何异常/日志）。'
                                     '必须走 GuardTickAsync()（ThreadPool + 重入闸）' % (f, ln))
+
+        # 5f) 子进程管道的两种经典挂死 —— 本项目实踩（2026-10-25 第 143 轮，Pack.RunExe）：
+        #     ① 同时重定向 stdout + stderr，却只用同步 ReadToEnd 读其中一路。另一路没人读，
+        #        它的管道缓冲（4KB）一满，子进程就卡在 write 上永不退出，我们这侧卡在
+        #        ReadToEnd 等"句柄关闭"—— 双方互等，界面永远停在"安装中"。
+        #        解压类命令的输出动辄上万行，早超 4KB，**不是边角情况**。
+        #     ② WaitForExit() 不带超时：子进程真挂住时没有任何出口，只能杀进程。
+        #     正确写法见 Program.RunCmd：两路 ReadToEndAsync（或 BeginXxxReadLine）排空 + WaitForExit(ms)。
+        #     判据：文件里出现过 RedirectStandard* 才检查；允许"带超时的 WaitForExit(ms) 之后再
+        #     调一次无参 WaitForExit()"（那是让异步读取收尾的标准写法，前面 1200 字符内必须能查到）。
+        if 'RedirectStandard' in clean:
+            for m in re.finditer(r'\.Standard(?:Output|Error)\.ReadToEnd\s*\(\s*\)', clean):
+                ln = clean[:m.start()].count('\n') + 1
+                problems.append('%s:%d PROC-SYNC-READ -> 同步 ReadToEnd 读被重定向的子进程管道；'
+                                '另一路管道写满即死锁（界面永远"安装中"，无异常无日志）。'
+                                '必须两路都异步排空（ReadToEndAsync / BeginOutputReadLine）' % (f, ln))
+            for m in re.finditer(r'\.WaitForExit\s*\(\s*\)', clean):
+                ctx = clean[max(0, m.start() - 1200):m.start()]
+                if re.search(r'\.WaitForExit\s*\(\s*\d', ctx):
+                    continue
+                ln = clean[:m.start()].count('\n') + 1
+                problems.append('%s:%d PROC-NO-TIMEOUT -> WaitForExit() 没有超时；'
+                                '子进程挂住时调用方没有任何出口（配合重定向管道就是永久挂死）。'
+                                '用 WaitForExit(毫秒) 并在超时后 Kill' % (f, ln))
+
+        # 5g) Graphics.Clip 的 getter 返回**新建的 Region**，用完必须 Dispose。
+        #     只写 `g.Clip = old;` 不释放 = 每画一帧漏一个 GDI 对象；自绘列表里一行一次，
+        #     悬停/滚动时一秒几十帧，GDI 句柄很快见底（本项目第 145 轮侧栏列表就是这么写的）。
+        #     正确写法：`finally { g.Clip = old; old.Dispose(); }`。
+        for m in re.finditer(r'\.Clip\s*=\s*old\s*;', clean):
+            if 'old.Dispose' in clean[m.end():m.end() + 90]:
+                continue
+            ln = clean[:m.start()].count('\n') + 1
+            problems.append('%s:%d GDI-CLIP-LEAK -> 恢复 Clip 之后没有 Dispose；'
+                            'Graphics.Clip 的 getter 每次返回新建 Region，会按帧泄漏 GDI 句柄。'
+                            '写成 finally { g.Clip = old; old.Dispose(); }' % (f, ln))
 
         # 1) 顶层类型收集
         for tname, body, sline in find_type_bodies(clean, lineof):

@@ -21,7 +21,7 @@ pv = env.get('Path') or env.get('PATH') or ''
 env.pop('PATH', None)
 env['Path'] = pv
 
-srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Lib.cs', 'Ui.cs')]
+srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Dlssg040.cs', 'MfgBridge.cs', 'Lib.cs', 'Ui.cs')]
 args = [FW, '/nologo', '/target:exe', '/out:' + exe, '/unsafe+',
         '/main:Fluxion.NrProbe',
         '/r:System.dll', '/r:System.Drawing.dll', '/r:System.Windows.Forms.dll',

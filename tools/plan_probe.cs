@@ -492,9 +492,16 @@ namespace Fluxion
                 Plan.OwnerOfCore(36000000L, "upstream") == Plan.D030, Plan.OwnerOfCore(36000000L, "upstream"));
             Chk("③ 作者签名 + 两窗口之间(22 MB) → 仍判 030",
                 Plan.OwnerOfCore(22000000L, "upstream") == Plan.D030, "");
-            Chk("③ 作者签名也救不了 LooksProxy 的两端（1 MB / 500 MB 不是代理）",
-                Plan.OwnerOfCore(1048576L, "upstream") == ""
-                && Plan.OwnerOfCore(500L * 1024 * 1024, "upstream") == "", "");
+            //  ⚠ 2026-10-26 改契约（不是凑绿）：0.4.x 代理只有 0.8 MB，所以「1 MB + 作者签名」
+            //  现在**应该**判成 0.4.x（`Dlssg040.IsProxySize` 窗口 200 KB~8 MB），
+            //  旧断言"1 MB 不是代理"是只有 0.3.x 那个年代的判据。
+            //  真正该守的两端是：小到不可能是 DLL（1 KB）、大到不可能是代理（500 MB）。
+            Chk("③ 作者签名 + 1 MB → 判 0.4.x（0.4 代代理就是这个量级）",
+                Plan.OwnerOfCore(1048576L, "upstream") == Plan.D040, Plan.OwnerOfCore(1048576L, "upstream"));
+            Chk("③ 作者签名也救不了两端（1 KB / 500 MB 都不是代理）",
+                Plan.OwnerOfCore(1024L, "upstream") == ""
+                && Plan.OwnerOfCore(500L * 1024 * 1024, "upstream") == "",
+                Plan.OwnerOfCore(1024L, "upstream") + " | " + Plan.OwnerOfCore(500L * 1024 * 1024, "upstream"));
             Chk("③ 签名读不到（missing）不否决，退回体积判据",
                 Plan.OwnerOfCore(30021920L, "missing") == Plan.D030, "");
             // ④ 真签名文件回归（只读；换机器找不到就跳过，不拿它凑数）

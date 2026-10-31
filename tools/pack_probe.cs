@@ -79,7 +79,8 @@ static class PackImportProbe
         // ---------- 1. 入口名单只有一份 ----------
         Head("1. 入口名单单点维护（Plan.AllEntryNames）");
         string[] all = Plan.AllEntryNames;
-        Chk("入口共 7 个", all != null && all.Length == 7, all == null ? "null" : all.Length.ToString());
+        //  8 个：7 个常规入口名 + Version.asi（ASI 改名版，见 DlssgAsi.Proxy）
+        Chk("入口共 8 个", all != null && all.Length == 8, all == null ? "null" : all.Length.ToString());
         bool hasWinhttp = false;
         foreach (string n in all) if (n == "winhttp.dll") hasWinhttp = true;
         Chk("含历史遗留的 winhttp.dll", hasWinhttp, "");
@@ -487,9 +488,12 @@ static class PackImportProbe
         Catalog.Reload();
         Chk("撤掉文件后回到内置默认", Catalog.Origin.IndexOf("内置", StringComparison.Ordinal) >= 0,
             Catalog.Origin);
+        //  ⚠ 入口数 8（不是 7）：2026-10-18 把 ASI 变体的代理（DlssgAsi.Proxy）并进了
+        //    Catalog.DefEntries —— 它也得被"停放/巡检"认成自家文件。这两条断言当时没跟着改，
+        //    从此一直红着（2026-10-25 第 143 轮跑回归时清掉）。
         Chk("回到默认后 ver / 窗口 / 名单都复原",
             Dlssg030.Ver == "0.3.5" && Dlssg030.CodeOf(31200000L).Length == 0
-            && !Dlssg030.IsProxySize(35800000L) && Plan.AllEntryNames.Length == 7,
+            && !Dlssg030.IsProxySize(35800000L) && Plan.AllEntryNames.Length == 8,
             Dlssg030.Ver + " / " + Plan.AllEntryNames.Length);
         Chk("默认档表三条都在", Catalog.Bands.Length == 3, Catalog.Bands.Length + " 条");
 
@@ -507,7 +511,7 @@ static class PackImportProbe
         Chk("内置默认导出的模板读回去，判据逐值不变",
             Dlssg030.Ver == "0.3.5" && Catalog.Bands.Length == 3 && Catalog.Error.Length == 0
             && Dlssg030.CodeOf(29975840L) == "0.3.2" && Dlssg030.CodeOf(30021920L) == "0.3.5"
-            && Plan.AllEntryNames.Length == 7 && Catalog.OptiMin == 20971520L,
+            && Plan.AllEntryNames.Length == 8 && Catalog.OptiMin == 20971520L,
             Catalog.Summary());
         Chk("模板带上了旧版窗口与源件窗口（这两条也在判据里）",
             Catalog.IsLegacySize(15667520L) && Catalog.IsSourceSize(15667520L)

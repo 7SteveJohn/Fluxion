@@ -63,8 +63,8 @@ RE_SIZE = re.compile(r'(?P<v>\w+)\.Size\s*=\s*new\s+Size\s*\(\s*(?P<w>-?\d+)\s*,
 RE_ADD = re.compile(r'(?P<p>\w+)\.Controls\.Add\s*\(\s*(?P<c>\w+)\s*\)')
 RE_MAKECOMBO = re.compile(r'MakeCombo\s*\(\s*(?P<p>\w+)\s*,\s*(?P<x>\d+)\s*,\s*(?P<y>\d+)\s*,\s*(?P<w>\d+)')
 RE_MAKELABEL = re.compile(r'(?P<v>\w+)\s*=\s*MakeLabel\s*\(\s*(?P<p>\w+)\s*,')
-RE_METHOD = re.compile(r'^[ \t]*(?:public|private|protected|internal|static|override|void|[\w<>\[\],\s]+?)\s+'
-                       r'(?P<n>\w+)\s*\([^;{]*\)\s*$', re.M)
+RE_METHOD = re.compile(r'^[ \t]*(?:(?:public|private|protected|internal|static|override|virtual|async|partial|void|[\w<>\[\],]+)[ \t]+)+'
+                       r'(?P<n>\w+)[ \t]*\([^;{]*\)[ \t]*$', re.M)
 
 COMBO_H = 28          # MakeCombo 内部统一 Size = (w, 28)
 CHECK_H = 22          # FlatCheck 统一高度

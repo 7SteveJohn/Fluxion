@@ -10,7 +10,7 @@ for k in ('http_proxy', 'https_proxy', 'all_proxy', 'HTTP_PROXY', 'HTTPS_PROXY',
 pv = env.get('Path') or env.get('PATH') or ''
 env.pop('PATH', None); env['Path'] = pv
 out = os.path.join(WORK, 'SpoofProbe.exe')
-srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Lib.cs', 'Ui.cs')]
+srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Dlssg040.cs', 'MfgBridge.cs', 'Lib.cs', 'Ui.cs')]
 FWC = os.path.join(r'C:\Windows\Microsoft.NET\Framework64\v4.0.30319', 'csc' + '.exe')
 args = [FWC, '/nologo', '/target:exe', '/out:' + out, '/unsafe+', '/main:Fluxion.SpoofProbe',
         '/r:System.dll', '/r:System.Drawing.dll', '/r:System.Windows.Forms.dll',

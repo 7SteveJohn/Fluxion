@@ -16,7 +16,7 @@ def main():
         env.pop(k, None)
     pv = env.get('Path') or env.get('PATH') or ''
     env.pop('PATH', None); env['Path'] = pv          # PATH 大小写重复会让 csc 解析到坏值
-    srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Lib.cs', 'Ui.cs')]
+    srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Dlssg040.cs', 'MfgBridge.cs', 'Lib.cs', 'Ui.cs')]
     args = [FW, '/nologo', '/target:exe', '/out:' + OUT, '/unsafe+', '/main:CoverRefetch',
             '/r:System.dll', '/r:System.Drawing.dll', '/r:System.Windows.Forms.dll',
             '/r:System.Web.Extensions.dll', '/r:System.Management.dll', '/r:System.Core.dll', '/r:System.IO.Compression.dll', '/r:System.IO.Compression.FileSystem.dll'] + srcs + [PROBE]

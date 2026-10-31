@@ -55,6 +55,16 @@ namespace Fluxion
         public bool Hidden;                 // 隐藏（除非开"显示已隐藏"）
         public long LastPlayed;             // 最近游玩（unix 秒）
         public string LaunchArgs = "";      // 自定义启动参数（持久化在 library.json，见 GameMeta/Lib.SetDx12）
+        public string LaunchEnv = "";       // 每游戏环境变量，一行一条 KEY=VALUE（见 Lib.Launch / SetLaunchConfig）
+        // ---- 每游戏帧生成参数（2026-10-29 第 160 轮，持久化在 library.json）----
+        //  三个值都是"覆盖"语义：0 / "" / -1 = 跟随全局（config.json 的 dlssg 段）。
+        //  0.3.x 只吃 FgMax（它的 INI 只有倍率一个常用键）；FgPreset/FgOpt 只对 0.4.x 生效。
+        public int FgMax;                   // 倍率上限 1..5（0 = 跟随全局 DlssgMaxFrames）
+        public string FgPreset = "";        // DLSS-G 预设（"" = 跟随全局；Auto/A/B/C）
+        public int FgOpt = -1;              // 0.4.x Optimized 档（-1 = 跟随全局；0..3）
+        //  上一次真启动带上了几条环境变量（0 = 走的是老路径）。只给诊断/探针看，不持久化：
+        //  "环境变量到底有没有生效到子进程"这件事没法从外面看，只能由启动那一处自己记账。
+        public int LastLaunchedWithEnv;
         // ---- 判定缓存（每次 MergeScan 重算，不落盘）----
         //   RecCat = RecommendCategory 的原始分类（platform / gacha / aaa / fps / other），
         //   null 表示"还没算过"。缓存它的两个理由：
@@ -285,6 +295,7 @@ namespace Fluxion
             }
 
             int n = 0;
+            var platforms = new List<string>();
             foreach (var root in roots)
             {
                 n++;
@@ -295,10 +306,18 @@ namespace Fluxion
                 foreach (var dir in dirs)
                 {
                     if (Contain(seen, dir)) continue;
+                    //  对战平台先剔掉：它们是给某个游戏做匹配的客户端，不是游戏本身
+                    //  （5EClient / perfectworldarena 就是 CS2 的两家对战平台）
+                    string dn = Path.GetFileName(dir);
+                    if (IsPlatformClient(dn)) { if (!platforms.Contains(dn)) platforms.Add(dn); continue; }
                     var g = Inspect(dir, true, customRoots.Contains(root));   // 自定义目录放宽游戏性判定
                     if (g != null) { found.Add(g); seen.Add(dir); }
                 }
             }
+            //  只写文件日志（和「已忽略：…」同一条通道）：状态栏一个词就够，明细留给日志。
+            //  不写这一行的话，用户只会看到"库里少了两个条目"，不知道是被判成平台了。
+            if (platforms.Count > 0)
+                Program.Log("    对战平台（不是游戏，已跳过）：" + string.Join("、", platforms.ToArray()));
 
             // 4) 注册表卸载项：启动器类游戏（米哈游 HoYoPlay / 库洛等）装在自定义路径，
             //    前三类根目录覆盖不到（实测：绝区零在 G:\miHoYo Launcher、鸣潮在 G:\Wuthering Waves，
@@ -589,11 +608,16 @@ namespace Fluxion
             "5eclient", "5ebox", "5e对战", "perfectworld", "完美世界", "对战平台", "电竞平台",
             "epicgames", "goggalaxy", "battlenet", "ubisoftconnect", "eadesktop", "eaapp",
             "gameviewer", "steamclient", "wegameplatform", "平台",
-            // 桌面美化 / 壁纸软件（Steam 上架但不是游戏）：拦在分类这层，联动档位判成"不是游戏"，
+            // 桌面美化 / 壁纸软件、建模渲染工具（Steam 上架但不是游戏）：拦在分类这层，联动档位判成"不是游戏"，
             //   否则 wallpaper64.exe 会以"aaa 档"触发全套游戏联动（2026-09-28 实测）
-            "wallpaperengine", "wallpaper32", "wallpaper64", "mydockfinder", "mydock" };
+            "wallpaperengine", "wallpaper32", "wallpaper64", "mydockfinder", "mydock", "blender" };
 
-        // 名字像不像"对战平台"。命中即认为不是游戏。
+        //  这一类也是"不是游戏"，但跟上面的对战平台**完全不是一回事**：
+        //  桌面美化 / 壁纸 / Dock 这类常驻工具在 Steam 里上架，却没有渲染帧可生成。
+        //  分开是因为文案骗不了人 —— 以前 platform 一整块统一说"对战平台负责匹配与反作弊"，
+        //  于是 Wallpaper Engine 拿到那段（2026-10-19 文案全量导出 rectext.txt 抓到）。
+        static readonly string[] ToolPart = new string[] {
+            "wallpaperengine", "wallpaper32", "wallpaper64", "mydockfinder", "mydock", "blender" };
         //  匹配的是"归一化后的 exe 名 / 目录名 / 标题"，不含完整路径 ——
         //  否则 G:\wegameapps\rail_apps\卡拉彼丘 这种正常游戏会被误判。
         //  ⚠ 曾经这里还有一条 EndsWith("launcher")：结果把「无畏契约」（条目 exe 是
@@ -605,6 +629,16 @@ namespace Fluxion
             if (n.Length == 0) return false;
             foreach (string k in PlatformExact) if (n == k) return true;
             foreach (string k in PlatformPart) if (n.IndexOf(k, StringComparison.Ordinal) >= 0) return true;
+            return false;
+        }
+
+        // 是不是"桌面工具"型非游戏（壁纸软件 / Dock）。
+        //  要在 platform 里单独认出来，UI 才能给对的理由 —— 见 ToolPart 上的注释。
+        public static bool IsToolName(string s)
+        {
+            string n = Norm(s);
+            if (n.Length == 0) return false;
+            foreach (string k in ToolPart) if (n.IndexOf(k, StringComparison.Ordinal) >= 0) return true;
             return false;
         }
 
@@ -727,41 +761,52 @@ namespace Fluxion
             public string Stars = "☆☆☆☆☆";   // 适用度
             public string Verdict = "";       // 推荐 / 可选 / 不推荐
             public string State = "";         // 当前状态
-            public string Why = "";           // 一句话理由
+            public string Why = "";           // 一句话理由（正文，一到两句）
+            //  指标 / 前置条件 / 警告，**一行一条**（用 \n 分隔）。
+            //  以前这些都拼在 Why 后面，中间还套着全角括号 —— 一屏 150 字不留气口，
+            //  用户原话"这一栏内容优化"。拆出来之后 UI 可以把它排成独立的次级文字块。
+            public string Note = "";
             public string Btn = "一键应用推荐方案";
             public string Action = "none";    // opti | 030 | 030spoof | none
             public bool Bad;                  // true = 用告警色（红）而不是强调色（绿）
             public bool Dim;                  // true = 用中性灰（"这不是游戏"这类中性结论）
         }
 
-        // NR 状态一句话（给推荐文案与区块正文共用）
+        // NR（DLSS 5 神经渲染）状态一句话。返回**不带**前置分隔符，方便直接当 Note 的一行。
+        //  2026-10-19 压成一句：用户原话「过多文字会让用户感觉还不如自己动手操作」——
+        //  上游设计、158 MB 模型、实测日期这些细节都在「说明」页，这里只留"要不要动它"。
+        //  关闭时返回空串：没有动作要做的状态不值得占一行。
         static string NrHint(string dir)
         {
             int nr = XeMfg.NrEnabled(dir);
-            if (nr == 0) return "；DLSS 5 神经渲染已关闭（帧生成不受影响）。";
-            if (nr == 1) return "；⚠ DLSS 5 神经渲染开着 —— 它每帧跑一遍 158 MB 模型，"
-                              + "上游文档写明其设计约束「是用设备挂死换来的」；"
-                              + "2026-09-16 实测与 4X 帧生成同开 → 鸣潮两次 GPUCrash（设备挂死）。"
-                              + "若出现黑屏/崩溃先把这一项关掉再试（与驱动版本无关，升级驱动也解决不了）。";
+            if (nr == 1) return "⚠ 神经渲染（DLSS 5）开着：与帧生成同开实测崩溃，黑屏先关它";
             return "";
+        }
+        //  把两段 Note 接起来（任一为空就只留另一段）
+        static string JoinNote(string a, string b)
+        {
+            if (string.IsNullOrEmpty(a)) return b == null ? "" : b;
+            if (string.IsNullOrEmpty(b)) return a;
+            return a + "\n" + b;
         }
 
         // 「方案 A」区块正文：按选中的游戏给不同的话，不再把某一个游戏名写死在标题里。
+        //  2026-10-19 一律一句：这里是操作区不是说明书，细节在「说明」页。
         public static string OptiNote(DlssgGame g)
         {
             if (g == null)
-                return "先在「游戏库」页选中一个游戏，这里会给出它用本方案的结果。\n"
-                     + "本方案 = OptiScaler 注入（dxgi / d3d12 入口）—— 同时提供帧生成与 DLSS 5 神经渲染。";
+                return "OptiScaler 注入：帧生成 + DLSS 5 神经渲染二合一。";
             string kind = XeMfg.Detect(g.Dir);
             if (kind == "zzz")
-                return "绝区零：先确认游戏跑在 DX12（右键卡片 →「DX12 模式启动」）—— 3.0+ 的 DX12 模式自带超分与帧生成，"
-                     + "多数情况游戏内直接开就够了，不必注入。只有要跑 DLSS 帧生成（官方限 40 系）才用本方案，"
-                     + "且该选项要靠「② 显卡名伪装」才会出现。";
+                return "绝区零：只跑 DLSS 帧生成（官方限 40 系）才用它，选项靠「显卡名伪装」出现。";
             if (kind == "wuwa")
-                return "鸣潮：本方案在用。dxgi.dll 入口 · 帧生成走游戏原生 DLSSG（SM86 解锁）"
-                     + NrHint(g.Dir);
-            return "本方案只对绝区零 / 鸣潮有意义（依赖专用入口名与显卡名伪装）。"
-                 + "其它游戏请用下方 0.3.x 通用模式。";
+            {
+                //  鸣潮：理由已经在「此游戏的适配方案」那一行说过了（推荐为什么是方案 A），
+                //  这里返回空串让区块内的说明行整行折掉 —— 同一个结论写两遍就是"占地"。
+                string nr = NrHint(g.Dir);
+                return nr;
+            }
+            return "只对绝区零 / 鸣潮有意义；其它游戏用 0.3.x 通用模式。";
         }
 
         // ---------- 显卡代际门禁（分享给别人时，对方的卡各不相同）----------
@@ -839,26 +884,31 @@ namespace Fluxion
             var r = new Rec();
             if (g == null)
             {
-                r.Head = "先选一个游戏";
+                //  空选中只说一件事：去哪儿选。原来 Head / State / Why 三行讲同一件事。
+                r.Head = "未选中游戏";
                 r.Stars = "";
-                r.State = "未选中";
-                r.Why = "到「游戏库」页点一张卡片，这里会自动给出该装哪个方案，并可直接一键应用。";
+                r.State = "";
+                r.Why = "到「游戏库」页点一张卡片";
                 return r;
             }
             string cat = RecommendCategory(g);
             string kind = XeMfg.Detect(g.Dir);
             string cur = Plan.Current(g.Dir);
-            r.State = cur == Plan.None ? "当前未接入（游戏跑原生）" : ("当前 " + Plan.PlanName(cur));
+            r.State = cur == Plan.None ? "原生（所有代理均已停放）" : Plan.PlanName(cur);
 
             if (cat == "platform")
             {
-                r.Head = "不用装：这不是游戏，是对战平台 / 启动器";
+                //  两种 platform 混过一次亏：桌面工具被说成"负责匹配与反作弊"（见 ToolPart 注释）。
+                bool tool = IsToolName(g.Title) || IsToolName(g.Exe) || IsToolName(Path.GetFileName(g.Dir));
+                r.Head = tool ? "不用装：这是工具软件，不是游戏" : "不用装：这是平台 / 启动器，不是游戏本体";
                 r.Stars = "";
                 r.Verdict = "不适用";
+                r.State = "";                 // "当前未接入"对它毫无信息：它压根没有可接入的渲染帧
                 r.Dim = true;
-                r.Why = "对战平台（5E / 完美世界竞技平台这类）负责匹配与反作弊，本身没有帧生成 —— "
-                      + "注入进去既没收益、还可能被它的反作弊盯上。要装的是它启动的那个游戏（例如 cs2.exe）。"
-                      + (g.Ignored ? "\n它已经在忽略清单里，保持忽略即可。" : "");
+                r.Why = tool
+                    ? "代理只能接管游戏的 DLSS 帧生成调用 —— 它不为游戏画面渲染，注入进去什么都不会发生。"
+                    : "它负责拉起 / 匹配那个游戏，自己不渲染画面 —— 帧生成要注入的是被它拉起来的游戏进程（例如 cs2.exe）。"
+                      + (g.Ignored ? "\n已在忽略清单里，保持忽略即可。" : "");
                 r.Btn = "无需安装";
                 return r;
             }
@@ -867,6 +917,7 @@ namespace Fluxion
                 r.Head = "不推荐安装（保持原生）";
                 r.Stars = "★☆☆☆☆";
                 r.Verdict = "不推荐";
+                r.State = "";                 // 结论已经是"别装"，再说一句"当前未接入"只是重复
                 r.Bad = true;
                 r.Why = "竞技网游带内核反作弊，注入类工具封号风险自负，收益也不值当 —— 本工具只给它做电源 / 加速包联动。";
                 r.Btn = "无需安装";
@@ -888,13 +939,47 @@ namespace Fluxion
                 r.Head = "先解决运行模式：游戏现在跑 DX11";
                 r.Stars = "";
                 r.Verdict = "前置条件";
-                r.State = "当前 Direct3D 11 · 帧生成面板不会被渲染出来";
-                r.Why = "这款游戏的「超分辨率 / 帧生成」只在 DX12 模式下出现，DX11 下整块面板不渲染 —— "
-                      + "所以任何注入都不会有效果。\n"
-                      + "下一步只有一件事：右键它的卡片 →「DX12 模式启动（-use-d3d12）」→ 点「启动游戏」。"
-                      + "启动后本工具会自动确认是否真的跑在 DX12；跑起来后 FSR 帧生成本机原生可用，不需要注入。";
+                r.State = "Direct3D 11 · 帧生成面板不会被渲染出来";
+                r.Why = "它的「超分辨率 / 帧生成」只在 DX12 下渲染，DX11 下整块面板都不出现 —— 任何注入都不会有效果。";
+                //  操作步骤与判据搬到依据里：以前和理由挤在同一段，读起来是"160 字留不住任何一句"
+                r.Note = "右键卡片 →「DX12 模式启动（-use-d3d12）」→ 点「启动游戏」\n"
+                       + "启动后本工具自动确认是否真的跑在 DX12\n"
+                       + "跑在 DX12 之后：FSR 帧生成本机原生可用，不需要注入";
                 r.Btn = "一键开启 DX12 启动";
                 r.Action = "dx12";
+                return r;
+            }
+
+            // 异环：常规入口名被占住 / 屏蔽，只能走 ASI（Version.asi + wininet.dll）。
+            //  XeMfg.Detect 认不出它（那套只认绝区零 / 鸣潮），所以单独判。
+            //  放在 DX12 门禁之后：那道门禁看的是"目录里有没有 FSR3 帧生成组件"，
+            //  异环用的是 DLSS FG，不会误触发。
+            if (SecondGame.Detect(g) == SecondGame.Yh)
+            {
+                string asiMiss;
+                if (DlssgAsi.Ready(out asiMiss))
+                {
+                    r.Head = "推荐：ASI 变体（Version.asi + wininet.dll）";
+                    r.Stars = "★★★★☆";
+                    r.Verdict = "推荐";
+                    r.Why = "异环会占住 / 屏蔽常规入口名 —— 作者为它单独出了 ASI 版："
+                          + "把同一颗 0.3.5 代理改名 Version.asi，靠 wininet.dll 加载器带进进程。"
+                          + "这条线停在 0.3.5，0.4.0 没有 ASI 形态。";
+                    r.Btn = "一键应用（ASI 变体）";
+                    r.Action = "asi";
+                }
+                else
+                {
+                    r.Head = "先导入异环专用包";
+                    r.Stars = "★★★☆☆";
+                    r.Verdict = "缺资源";
+                    r.Dim = true;
+                    r.Why = "异环只能用 ASI 变体，但资源还没到位（缺 " + asiMiss + "）。\n"
+                          + "把「0.3.5 20系30系 异环专用 多帧生成.zip」拖进窗口，"
+                          + "或用「网盘下载源」复制链接下载后拖进来。";
+                    r.Btn = "等待导入";
+                    r.Action = "none";
+                }
                 return r;
             }
 
@@ -907,7 +992,7 @@ namespace Fluxion
                     r.Head = "推荐：游戏内直接开 FSR 帧生成（原生，无需注入）";
                     r.Stars = "★★★★★";
                     r.Verdict = "推荐";
-                    r.State = "当前 Direct3D 12 · 游戏自带 DLSS / FSR 超分与帧生成";
+                    r.State = "Direct3D 12 · 游戏自带 DLSS / FSR 超分与帧生成";
                     r.Why = "DX12 模式已生效 → 游戏内「设置 → 画面 → 高级 → 帧生成」选【FSR 帧生成】即可"
                           + "（官方说明：FSR 帧生成支持 NVIDIA 20 系及以上含 RT Core）。"
                           + "要 DLSS 帧生成（官方限 40 系）才需要下面「0.3.x + 显卡名伪装」的注入路线，属进阶可选。";
@@ -951,8 +1036,8 @@ namespace Fluxion
                     r.Head = "推荐：" + Plan.PlanName(Plan.Opti);
                     r.Stars = "★★★★★";
                     r.Verdict = "推荐";
-                    r.Why = "帧生成走游戏原生 DLSSG（SM86 解锁，实测 6X）+ 可另开 DLSS 5 神经渲染。"
-                          + NrHint(g.Dir) + RefreshHint();
+                    r.Why = "帧生成走游戏原生 DLSSG（SM86 解锁，实测 6X）+ 可另开 DLSS 5 神经渲染。";
+                    r.Note = JoinNote(NrHint(g.Dir), RefreshHint());
                     r.Btn = "一键应用（方案 A）";
                     r.Action = "opti";
                     return r;
@@ -963,11 +1048,11 @@ namespace Fluxion
                 r.Head = "推荐：DLSS MFG 0.3.x 通用模式";
                 r.Stars = "★★★☆☆";
                 r.Verdict = "可试";
-                r.Why = "游戏自己集成了 DLSS 帧生成，挡住的只是「驱动不给 20/30 系开放」这一层 —— 0.3.x 补 SM86 内核即可。"
-                      + "通用模式默认用 version.dll 入口；二游常带内核反作弊，可能按【文件名】拦掉它，"
-                      + "那就到下方 0.3.x 区块点「换入口重试」，优先试 dxgi.dll / d3d12.dll。"
-                      + "\n两个前置（二游实测都躲不掉）：游戏要以 DX12 模式启动；游戏内要同时打开 NVIDIA Reflex，帧生成开关才会出现。"
-                      + RefreshHint();
+                r.Why = "游戏自己集成了 DLSS 帧生成，挡住的只是「驱动不给 20/30 系开放」这一层 —— 0.3.x 补上 SM86 内核即可。";
+                r.Note = JoinNote(
+                    "前置（二游实测都躲不掉）：游戏以 DX12 模式启动，并在游戏内打开 NVIDIA Reflex，帧生成开关才会出现\n"
+                    + "通用模式默认用 version.dll 入口；内核反作弊可能按【文件名】拦掉它 —— 到下方 0.3.x 区块点「换入口重试」，优先试 dxgi.dll / d3d12.dll",
+                    RefreshHint());
                 r.Btn = "一键应用（0.3.x）";
                 r.Action = "030";
                 return r;
@@ -991,9 +1076,10 @@ namespace Fluxion
                 r.Head = "推荐：DLSS MFG 0.3.x 通用模式";
                 r.Stars = "★★★★★";
                 r.Verdict = "推荐";
-                r.Why = "游戏自己集成了 DLSS 帧生成 → 单机只放两个文件、不用改显卡名即可。"
-                      + "倍率由游戏菜单决定（2077 的菜单上限是 4X，300 帧就是 4X 在正常工作，代理抬不上去）。"
-                      + RefreshHint();
+                r.Why = "游戏自己集成了 DLSS 帧生成 → 单机只放两个文件、不用改显卡名即可。";
+                r.Note = JoinNote(
+                    "倍率由游戏菜单决定：2077 的菜单上限是 4X，跑出 300 帧说明 4X 正在正常工作，代理抬不上去",
+                    RefreshHint());
                 r.Btn = "一键应用（0.3.x）";
                 r.Action = "030";
                 return r;
@@ -1006,8 +1092,10 @@ namespace Fluxion
                 r.Stars = "★☆☆☆☆";
                 r.Verdict = "不适用";
                 r.Dim = true;
-                r.Why = "游戏目录里没有 nvngx_dlssg.dll / sl.dlss_g.dll，代理没有可接管的调用，装了也不会出现选项。"
-                      + "若你确认游戏内本来就有「DLSS 帧生成」开关，可到下方 0.3.x 区块手动装一次试试。";
+                r.Why = "游戏目录里没有 nvngx_dlssg.dll / sl.dlss_g.dll，代理没有可接管的调用，装了也不会出现选项。";
+                //  "如果你确认有开关，可以手动试一次"是**备选动作**，不是不装的理由 ——
+                //   跟理由挤在一句里，它就被读成了"其实也许可以装"。落到依据层，语气才对。
+                r.Note = "例外：你确认游戏内本来就有「DLSS 帧生成」开关时，可到下方 0.3.x 区块手动装一次试试";
                 r.Btn = "无需安装";
                 return r;
             }
@@ -1022,9 +1110,17 @@ namespace Fluxion
             return r;
         }
 
-        // 按显示器刷新率给"倍率甜点"提示。
-        //  依据：生成帧超过刷新率就是无效帧 → 可用倍率上限 = 刷新率 ÷ 基础帧。
+        // 按显示器刷新率给"倍率甜点"提示。依据两条：
+        //  ① 生成帧超过刷新率就是无效帧 → 可用倍率上限 = 刷新率 ÷ 基础帧；
+        //  ② XDA 实测（RTX 4070 Ti Super，《Backrooms: Escape Together》，TechLab 转载的原始数据）：
+        //       4X = 296 平均 / 243 1% low / 29.1ms
+        //       6X = 351 平均 / 172 1% low / 37.5ms
+        //     —— 倍数抬上去平均帧确实更高，但 1% low 掉 71 帧、系统延迟涨 8.4ms。
+        //     即"6X 是 240Hz+ 屏的东西"，165Hz 这一档 4X 才是甜点。
         //  只读刷新率、不猜帧率（本工具不采集帧率），所以按常见基础帧档位给结论。
+        //  ⚠ 返回的是**多行 Note**（一行一条），不是一段散文。
+        //   以前这里返回一整句套在括号里的话，接到 Why 后面就是"150 字无气口"，
+        //   用户原话「这一栏内容优化」。拆成三行之后扫一眼就能拿到三个数。
         public static string RefreshHint()
         {
             int hz = Program.RefreshHz();
@@ -1032,8 +1128,11 @@ namespace Fluxion
             int f = hz / 40;                       // 基础帧 40 时能用的最大倍率
             if (f < 2) f = 2;
             if (f > 6) f = 6;
-            return "（显示器 " + hz + "Hz：生成帧超过 " + hz + " 就是无效帧 —— 基础帧 40 时 " + f
-                 + "X 就够，6X 要基础帧 ≤" + (hz / 6) + " 才不浪费。）";
+            string s = "显示器 " + hz + "Hz：生成帧超过 " + hz + " 就是无效帧\n"
+                     + "基础帧 40 时 " + f + "X 够用；6X 要基础帧 ≤" + (hz / 6) + " 才不浪费";
+            if (hz < 240)
+                s += "\n实测 4X→6X：1% low 243→172、延迟 29.1→37.5ms —— 平均帧更高，手感更差";
+            return s;
         }
 
         // 给它一句话结论 + 当前状态（供「方案推荐」区块那两行动态文字用）
@@ -1055,8 +1154,9 @@ namespace Fluxion
                 else
                 {
                     plan = Plan.PlanName(Plan.Opti);
+                    string nr = NrHint(g.Dir);
                     why = "帧生成走游戏原生 DLSSG（SM86 解锁，实测 6X）+ 可另开 DLSS 5 神经渲染"
-                        + NrHint(g.Dir);
+                        + (nr.Length > 0 ? "；" + nr : "");
                 }
             }
             else if (cat == "aaa")
@@ -1092,36 +1192,14 @@ namespace Fluxion
             if (fg == true)
                 return "显卡：" + gpu + " —— 官方支持 DLSS 帧生成，游戏内直接开原生选项即可（本工具的代理方案主要给 RTX 20/30 系用）。";
 
-            return "显卡：" + gpu + " —— NVIDIA 官方未给这一代开放 DLSS 帧生成。本工具用的是社区开源方案（GitHub）："
-                 + "\n  · OptiScaler（github.com/optiscaler/OptiScaler）—— 拦截并接管上采样 / 帧生成调用"
-                 + "\n  · dlss-unlocked（ShyVortex，含 SM86 MFG 解锁）+ dlssg_for_sm86（sdli1995）—— 帧生成运行时"
-                 + "\n  · fakenvapi + Intel XeSS-FG 运行库（libxess / libxess_fg）—— 实际执行插帧的引擎"
-                 + "\n\n工作链路（三层，这解释了游戏菜单为什么会冒出开关）："
-                 + "\n  ① OptiScaler 把本机显卡伪装成 RTX 5090 → 游戏菜单才肯显示「DLSS 帧生成」"
-                 + "\n  ② 游戏发出的原生 DLSS 帧生成调用被 OptiScaler 拦下（FGInput=DLSSG）"
-                 + "\n  ③ 插帧由谁执行，两个游戏不同："
-                 + "\n     绝区零 → 交给 Intel XeSS 帧生成引擎（FGOutput=XeFG，2-6 倍）；"
-                 + "\n     鸣潮   → 仍走游戏原生 DLSSG，由 SM86 解锁让它在 30 系上能跑（FGOutput=DLSSG，实测可 6X）"
-                 + "\n\n带内核反作弊的二游（绝区零 / 鸣潮）：常规 version.dll 入口会被按【文件名】拦掉（实测报错 11008），"
-                 + "\n改用 d3d12.dll（绝区零）/ dxgi.dll（鸣潮）这两个 DX12 必加载的库名做入口 —— 拦不掉。"
-                 + "\n\n用法：下方「方案 A · OptiScaler 注入」区块 → 选中游戏 → 点「切换到本方案」；游戏内按 F10 呼出 OptiScaler 面板。"
-                 + "\n生效判据：① 游戏菜单出现「DLSS 帧生成」；② F10 面板显示 FG 已启用；③ 帧数明显翻倍。"
-                 + "\n\n提醒：帧生成只提高【显示帧率】，不会降低延迟（插帧必然增加延迟）。基础帧顶到 50-60 以上再开效果最好。"
-                 + "\n\n【本轮联网核实】本轮把 NR 段的上游项目找齐了：它出自 "
-                 + "wilsjo2/OptiScaler-DLSSNR-PreSR-Multipass（基于 OptiScaler + Dagherbou 的 NR fork，"
-                 + "配色合成取自 RenoDX）。该文档给出三条硬前提："
-                 + "\n  · 驱动：上游的 ≥616.56 只对 RTX 50 是硬门槛（见下方纠正）；"
-                 + "20/30/40 系用 ShortFuse 跨代 310.8 运行库（哈希 E67DEE20…），旧驱动也能跑；"
-                 + "\n  · 起步姿势是「先关 NR + 2X 帧生成」，再逐层加 —— 别一上来就堆满；"
-                 + "\n  · 它的若干设计约束原文写着「were paid for with device hangs」→ NR 与帧生成同开有挂死风险。"
-                 + "\n  另外：Reflex 的 FPS 上限会连带限制生成帧（150 的限制在 4X 下会把渲染压到约 37.5fps），"
-                 + "提倍率并不会抬高这个上限 —— 测帧数前先把 VSync 关掉、把帧率上限设为 0。"
-                 + "\n\n【2026-09-16 纠正：驱动门槛被我读错了】上一版写「驱动 ≥616.56 是硬前提」，那是把 DLSS5-Swapper 源码里的 OPTI_DRIVER=61656 单独摘出来看了。"
-                 + "完整判据是 driverSupported = blackwell(卡) && 驱动≥61656 —— 只对 RTX 50 生效；其注释原话：模型文件随应用提供、不取自已安装驱动，所以旧驱动照样能跑 OptiScaler 安装。"
-                 + "对 RTX 20/30/40 它不是门槛。真正要避开的是 ≥616.64：NEURAL_FAULT_DRIVER=61664，且该检查对任何 N 卡生效 —— 616.64 与 616.86 上每次 neural evaluate 都在 NVIDIA 自家 NGX 运行时 fault，只有 616.56 能跑完（DLSS5-Feeder issue #54）。"
-                 + "版本序列：610.88（本机）→ 616.56（08-26）→ 616.64（09-03）→ 616.86（09-04 hotfix）→ 616.92（09-09 最新）。所以既≥616.56、NR 又能跑完的只有 616.56 一个版本。"
-                 + "而 616.56 自己带着两个已确认问题（升级后远程桌面 RDP 黑屏、无法创建虚拟显示器，均到 616.86 hotfix 才修；另有「优先最高性能」电源模式可能不生效）。"
-                 + "结论：常驻远程控制（UU远程 / GameViewer）的机器，升 616.56 风险大于收益 —— 而且这次鸣潮崩溃不是驱动版本造成的，升级解决不了。";
+            return "显卡：" + gpu + " —— 官方未给这一代开放 DLSS 帧生成，本工具用社区开源方案："
+                 + "\n  · OptiScaler —— 接管上采样 / 帧生成调用"
+                 + "\n  · dlssg_for_sm86（sdli1995）—— 帧生成运行时"
+                 + "\n  · fakenvapi + Intel XeSS-FG —— 实际插帧引擎"
+                 + "\n\n用法：选中游戏 → 下方方案区块点「切换到本方案」→ 完全退出游戏再重启；游戏内按 F10 呼出面板。"
+                 + "\n生效判据：① 菜单出现「DLSS 帧生成」② F10 面板 FG 已启用 ③ 帧数明显翻倍。"
+                 + "\n提醒：帧生成只提高显示帧率，不降延迟；基础帧 50-60 以上再开效果最好。"
+                 + "\n带内核反作弊的二游：常规 version.dll 会被按文件名拦掉，改用 d3d12.dll（绝区零）/ dxgi.dll（鸣潮）。";
         }
 
         // ==================== 注入前的收益 / 风险评估 ====================
@@ -1230,6 +1308,24 @@ namespace Fluxion
         // 短词必须带边界匹配："git" 会子串命中 "Digital"、"gh" 会命中一堆随便的名字
         static readonly Regex ToolShortRe = new Regex(@"(^|[\s\-\._\d])(git|gh|bash|cmd|obs|jdk|java|adb)([\s\-\._\d]|$)");
 
+        // 对战 / 匹配平台**不是游戏**（2026-10-23 用户："5e和完美就不是游戏，他们是对战平台"）。
+        //  为什么不能靠"有 exe + 大文件"那套判定：这类客户端体积、目录结构、自带反作弊都跟游戏
+        //  没区别（5EClient 甚至带一堆子进程），唯一确定的区别就是**它是给某个游戏做匹配的**。
+        //  留在库里代价不小：封面永远配不对（官网只有横版主视觉）、启动方式不是"开游戏"、
+        //  优化目标也会错位。所以在**自动发现**这一层就剔掉；用户手动添加的路径不走这个判定。
+        static readonly string[] PlatformClientWords = new string[] {
+            "5eclient", "5ebox", "5e对战", "5e平台", "5eplay",
+            "perfectworld", "完美世界", "esportal", "faceit",
+            "对战平台", "电竞平台", "匹配平台", "游戏平台"
+        };
+        public static bool IsPlatformClient(string name)
+        {
+            if (name == null || name.Length == 0) return false;
+            string n = name.ToLowerInvariant();
+            foreach (var w in PlatformClientWords) if (n.Contains(w)) return true;
+            return false;
+        }
+
         static bool ToolNamed(string name)
         {
             if (name == null || name.Length == 0) return false;
@@ -1242,6 +1338,9 @@ namespace Fluxion
         class DirProbe
         {
             public bool Unity, Unreal, Pck, DataWin, SteamApi, AntiCheat, ShippingExe, RpgMaker, RenPy, Hoyo;
+            //  浏览器壳标记（Electron / CEF）：对战平台、启动器、加速器几乎全是这个形态。
+            //  Electron 的特征文件在根目录，和"游戏"没关系，但和"桌面客户端"强相关。
+            public bool Cef;
         }
 
         // 浅层探一遍目录（深度 ≤2 层、至多 ~5000 个文件），收集"这是不是游戏"的特征。
@@ -1285,6 +1384,9 @@ namespace Fluxion
                     }
                     else if (n == "data.win") pr.DataWin = true;
                     else if (n == "steam_api64.dll" || n == "steam_api.dll") pr.SteamApi = true;
+                    // Electron / CEF 桌面客户端的固定文件（对战平台 100% 命中，游戏极少见）
+                    else if (n == "icudtl.dat" || n == "license.electron.txt" || n == "libcef.dll"
+                             || n == "chrome_100_percent.pak" || n == "chrome_200_percent.pak") pr.Cef = true;
                     else if (n.IndexOf("easyanticheat") >= 0 || n.IndexOf("battleye") >= 0) pr.AntiCheat = true;
                     else if (n.EndsWith("shipping.exe") && n.IndexOf("crash") < 0) pr.ShippingExe = true;
                     else if (n == "game.js" || n.EndsWith(".rpgsave")) pr.RpgMaker = true;
@@ -1315,6 +1417,15 @@ namespace Fluxion
             if (pr.Unreal) return true;                                     // ≥50MB 的 .pak / Engine 目录
             if (pr.Pck || pr.DataWin) return true;                          // Godot .pck / GameMaker data.win
             if (pr.RpgMaker || pr.RenPy) return true;                       // RPG Maker www/game.js、Ren'Py .rpa
+
+            //  ★ 浏览器壳反向判据（2026-10-23）：**引擎特征一条都没有、却带着 Electron/CEF**
+            //    的目录是桌面客户端（对战平台 / 启动器 / 加速器），不是游戏。
+            //    为什么需要这层：这类客户端根目录带 `steam_api64.dll`（要校验游戏归属），
+            //    而 steam_api 在本函数末尾是"单独成立"的强证据 —— 实测 5EClient / 完美世界
+            //    竞技平台就是靠这一条混进游戏库的（名字换成别家平台就漏）。
+            //    保守起见：带 UE 的 *-Shipping.exe 时仍按游戏算（有些游戏内嵌 CEF 做网页公告）。
+            if (pr.Cef && !pr.ShippingExe) return false;
+
             if (pr.SteamApi || pr.AntiCheat || pr.ShippingExe) return true; // steam_api / EAC·BattlEye / UE shipping
             return false;
         }
@@ -1592,7 +1703,11 @@ namespace Fluxion
                 if (pick == null) return null;
 
                 // ① 工具名黑名单：目录名或主程序名命中直接排除（放在最前面，省掉后续的深度探测）
-                if (gate && (ToolNamed(Path.GetFileName(gameDir)) || ToolNamed(Path.GetFileName(pick))))
+                //    对战平台（5EClient / 完美世界竞技平台…）同理：它们给某个游戏做匹配，
+                //    体积和目录结构跟游戏一样，只能靠名字判。放在判定入口而不是只放在扫描里，
+                //    这样「被忽略的目录」页、手动放行等入口看到的结论是一致的。
+                if (gate && (ToolNamed(Path.GetFileName(gameDir)) || ToolNamed(Path.GetFileName(pick))
+                             || IsPlatformClient(Path.GetFileName(gameDir)) || IsPlatformClient(Path.GetFileName(pick))))
                     return null;
 
                 var g = new DlssgGame();
@@ -1669,6 +1784,144 @@ namespace Fluxion
         {
             foreach (var s in set) if (s == name) return true;
             return false;
+        }
+
+        // 同 FindFile，但返回**路径**（读版本号要用）。找到第一个就返回，找不到给 null。
+        static string FindPath(string dir, string name, int depth)
+        {
+            try
+            {
+                string p = Path.Combine(dir, name);
+                if (File.Exists(p)) return p;
+                if (depth <= 0) return null;
+                foreach (var sub in SafeDirs(dir))
+                {
+                    string bn = Path.GetFileName(sub).ToLowerInvariant();
+                    if (bn == "redist" || bn == "redistributable" || bn == "directx") continue;
+                    string hit = FindPath(sub, name, depth - 1);
+                    if (hit != null) return hit;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        // 文件版本 → "310.6.0"。读不到就返回空串（自编译的 DLL 常常没有版本资源）。
+        //  ⚠ 版本资源的字符串**不一定是点分隔**：实测 nvngx_dlss.dll 读出来是 "310, 6, 0, 0"
+        //    （逗号 + 尾部 .0），直接显示就是 "310,6,0,0" —— 又脏又没法比大小。
+        static string FileVer(string path)
+        {
+            try
+            {
+                var v = FileVersionInfo.GetVersionInfo(path);
+                string raw = v.FileVersion;
+                if (string.IsNullOrEmpty(raw)) raw = v.ProductVersion;
+                if (string.IsNullOrEmpty(raw)) return "";
+                string[] parts = raw.Split(new char[] { '.', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var nums = new List<int>();
+                foreach (string p in parts)
+                {
+                    int n;
+                    if (int.TryParse(p, out n)) nums.Add(n);
+                }
+                if (nums.Count == 0) return "";
+                while (nums.Count > 3 && nums[nums.Count - 1] == 0) nums.RemoveAt(nums.Count - 1);
+                var sb = new StringBuilder();
+                foreach (int n in nums)
+                {
+                    if (sb.Length > 0) sb.Append('.');
+                    sb.Append(n);
+                }
+                return sb.ToString();
+            }
+            catch { return ""; }
+        }
+
+        //  版本比较：a 比 b 新返回 >0。段数不齐按 0 补（"310.7" vs "310.7.0.0"）。
+        static int VerCmp(string a, string b)
+        {
+            string[] x = (a ?? "").Split('.'), y = (b ?? "").Split('.');
+            for (int i = 0; i < 4; i++)
+            {
+                int va = 0, vb = 0;
+                if (i < x.Length) int.TryParse(x[i], out va);
+                if (i < y.Length) int.TryParse(y[i], out vb);
+                if (va != vb) return va - vb;
+            }
+            return 0;
+        }
+
+        //  这个游戏目录里自带的 DLSS 运行库版本（只读）。
+        //  为什么值得做：DLSS Swapper 那类工具的核心价值就是"让我看见每个游戏的库版本"——
+        //  同一个游戏补丁前是 310.6、补丁后可能被覆盖回旧版，而界面上完全看不出来。
+        //  这里额外跟**本工具包内**那份 nvngx_dlss.dll 比一版，落后就标"可升级"。
+        //  结果按目录缓存 10 秒：切页/刷新会频繁调它，每次两层目录遍历 + 读版本太重。
+        static readonly Dictionary<string, string> libVerCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        static readonly Dictionary<string, int> libVerAt = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        public static string LibVersions(string dir)
+        {
+            if (string.IsNullOrEmpty(dir)) return "";
+            int now = Environment.TickCount;
+            int at;
+            if (libVerAt.TryGetValue(dir, out at) && unchecked(now - at) >= 0 && now - at < 10000)
+            {
+                string cached;
+                if (libVerCache.TryGetValue(dir, out cached)) return cached;
+            }
+
+            string sr = FindPath(dir, "nvngx_dlss.dll", 2);
+            string fg = FindPath(dir, "nvngx_dlssg.dll", 2);
+            string vsr = sr == null ? "" : FileVer(sr);
+            string vfg = fg == null ? "" : FileVer(fg);
+
+            //  ⚠ 2026-10-20 修：原来只比 `Dlssg040.PackRoot\sr\nvngx_dlss.dll`，而现役 040 包里
+            //    **根本没有 sr 目录**（只有 alternatives/ · dlssg_sm86/ · version.dll）⇒ File.Exists
+            //    恒为假、packSr 恒为空 ⇒ 下面那句"可升级"**永远不显示**，不报错也没人看得出来
+            //    （本机实测：绝区零自带 310.6，包内其实有 310.9.1，却一直没提示）。
+            //    改成在包内**真实存在的几个位置**里挑版本最高的那份当基准，并记住它从哪来。
+            string packSr = "", packSrFrom = "";
+            string[] packCands = new string[] {
+                Path.Combine("dlssg040-pack", "dlssg_sm86", "sr", "nvngx_dlss.dll"),
+                Path.Combine("dlssg040-pack", "sr", "nvngx_dlss.dll"),
+                Path.Combine("dlssg030-pack", "asi", "nvngx_dlss.dll"),
+                Path.Combine("dlssg030-pack", "common", "nvngx_dlss.dll"),
+                Path.Combine("xess-pack", "wuwa", "OptiScaler", "streamline", "nvngx_dlss.dll"),
+            };
+            foreach (string rel in packCands)
+            {
+                try
+                {
+                    string p = Path.Combine(Program.DataDir, rel);
+                    if (!File.Exists(p)) continue;
+                    string v = FileVer(p);
+                    if (v.Length > 0 && (packSr.Length == 0 || VerCmp(v, packSr) > 0))
+                    {
+                        packSr = v;
+                        packSrFrom = Path.GetDirectoryName(rel);
+                    }
+                }
+                catch { }
+            }
+
+            var sb = new StringBuilder();
+            sb.Append("DLSS 库：");
+            if (sr == null) sb.Append("未找到 nvngx_dlss.dll");
+            else
+            {
+                sb.Append("nvngx_dlss ").Append(vsr.Length > 0 ? vsr : "版本未知");
+                if (packSr.Length > 0 && vsr.Length > 0 && VerCmp(packSr, vsr) > 0)
+                    //  把包内那份的位置也写出来：本工具不做自动替换（会和我们自己装的 OptiScaler
+                    //  代理撞车），但用户可以自己拿去覆盖 —— 入口要留给人。
+                    sb.Append("（可升级：包内 ").Append(packSr).Append("，在 ").Append(packSrFrom).Append("）");
+            }
+            sb.Append("　·　");
+            sb.Append(fg == null ? "未找到 nvngx_dlssg.dll" : ("nvngx_dlssg " + (vfg.Length > 0 ? vfg : "版本未知")));
+
+            string r = sb.ToString();
+            libVerCache[dir] = r;
+            libVerAt[dir] = now;
+            return r;
         }
 
         static bool FindAnyFile(string dir, string[] names, int depth)
@@ -2437,8 +2690,6 @@ namespace Fluxion
                 string repo = Program.Cfg.DlssgRepo.Length > 0
                     ? Program.Cfg.DlssgRepo
                     : "https://raw.githubusercontent.com/sdli1995/dlssg_for_sm86/main";
-                string rel = Eq(proxy, "version.dll") ? "version.dll" : "altnative/" + proxy;
-                string url = repo.TrimEnd('/') + "/" + rel;
                 string outFile = SourceFile(proxy);
                 if (progress != null) progress("下载 " + proxy + " ...");
 
@@ -2457,7 +2708,31 @@ namespace Fluxion
                         wc.Proxy = new WebProxy(Program.Cfg.DlssgProxy);
                         if (progress != null) progress("经代理 " + Program.Cfg.DlssgProxy);
                     }
-                    byte[] data = wc.DownloadData(url);
+                    //  上游在 2026-10 把 `altnative/` 改名成了 `alternatives/`（实测老路径 404、
+                    //  新路径 200）。这里两个都试：新路径优先，失败再退回老路径，
+                    //  自建镜像/旧 fork 也还能用。错误信息里带上两个 URL，出问题一眼能看出卡在哪。
+                    string[] rels = Eq(proxy, "version.dll")
+                        ? new string[] { "version.dll" }
+                        : new string[] { "alternatives/" + proxy, "altnative/" + proxy };
+                    byte[] data = null;
+                    string lastErr = "";
+                    foreach (string rel in rels)
+                    {
+                        string url = repo.TrimEnd('/') + "/" + rel;
+                        try
+                        {
+                            data = wc.DownloadData(url);
+                            if (data != null && data.Length >= DllSizeMin) break;
+                            lastErr = rel + " 内容异常（" + (data == null ? 0 : data.Length) + " 字节）";
+                            data = null;
+                        }
+                        catch (Exception exOne)
+                        {
+                            lastErr = rel + "：" + exOne.Message;
+                            data = null;
+                        }
+                    }
+                    if (data == null) return "下载失败：" + lastErr;
                     if (data == null || data.Length < DllSizeMin)
                         return "下载内容异常（" + (data == null ? 0 : data.Length) + " 字节），请检查网络或代理";
                     File.WriteAllBytes(outFile, data);
@@ -2596,7 +2871,54 @@ namespace Fluxion
         // 扫一个游戏目录，返回**最近一次代理活动**的快照：
         //  · 最近那份日志有内容 → 直接解析它（可能是有效记录 / 上限 / 配置错误）
         //  · 最近那份是 0 字节 → 判为"加载了但没跑"，并把上一份有内容的记录附在 Prev* 里
+        //
+        //  ★ 第 144 轮：外面包一层**缓存**。原因：结论要画在封面卡上（每帧都读），
+        //    而 Check 是扫目录 + 读文件。所以 Check 照旧负责 IO，顺手把结果按目录存进表里；
+        //    界面只调 MeasuredGen() / MeasuredWhen() 纯查表 —— 绘制路径里**绝不允许有文件 IO**。
+        static readonly Dictionary<string, FgResult> cache =
+            new Dictionary<string, FgResult>(StringComparer.OrdinalIgnoreCase);
+
         public static FgResult Check(string gameDir)
+        {
+            FgResult r = CheckRaw(gameDir);
+            if (r != null && r.Dir.Length > 0)
+            {
+                lock (cache) cache[r.Dir] = r;
+            }
+            return r;
+        }
+
+        //  最近一次"真的跑起来"的倍率（UI 用，无 IO）。
+        //  返回 -1 = 没有可信读数（没进过游戏 / 代理没被加载 / 日志是空的）。
+        //  为什么要回看 Prev*：最近一份日志可能是空的（代理加载了但没跑帧生成），
+        //  这时上一次的真实读数才是用户关心的（同 Check 里 HasPrev 的语义）。
+        public static int MeasuredGen(DlssgGame g)
+        {
+            FgResult r = CacheOf(g);
+            if (r == null) return -1;
+            if (r.GenCount >= 0) return r.GenCount;
+            if (r.IsEmpty && r.HasPrev && r.PrevGenCount >= 0) return r.PrevGenCount;
+            return -1;
+        }
+
+        public static DateTime MeasuredWhen(DlssgGame g)
+        {
+            FgResult r = CacheOf(g);
+            if (r == null) return DateTime.MinValue;
+            if (r.GenCount >= 0) return r.When;
+            if (r.IsEmpty && r.HasPrev && r.PrevGenCount >= 0) return r.PrevWhen;
+            return DateTime.MinValue;
+        }
+
+        static FgResult CacheOf(DlssgGame g)
+        {
+            if (g == null || g.Dir == null || g.Dir.Length == 0) return null;
+            FgResult r;
+            lock (cache) { if (!cache.TryGetValue(g.Dir, out r)) return null; }
+            return r;
+        }
+
+        static FgResult CheckRaw(string gameDir)
         {
             var none = new FgResult();
             none.Dir = gameDir == null ? "" : gameDir;
@@ -2674,7 +2996,11 @@ namespace Fluxion
         //  解析结论按（路径,大小,修改时间）缓存：同一份日志内容不变就不重读 —— Check 会把目录里
         //  时间递增的每个历史 pid 日志全文解析一遍，Summary 又对全部游戏执行、每次进帧生成页都跑，
         //  游戏一多这就是切页卡顿的大头（2026-09-30 体检 medium）。条目 256 封顶，满表即清。
-        class ParsedLog { public int MaxGen, GenCount; public string Note = ""; }
+        //  ⚠ 两个字段必须**默认 -1**（2026-10-25 第 144 轮修）：它们表示"没见到该事件"。
+        //    默认 0 的话，"有 configuration、没有 evaluate"的日志会被读成"跑过 0 次"，
+        //    于 Summary 变成「最近生效：某游戏 · 实际 1X」、封面卡变成「实测 1X」——
+        //    把"代理加载了但压根没跑帧生成"谎报成生效。fg_probe 第 2/4 节一直红着，就是这条。
+        class ParsedLog { public int MaxGen = -1, GenCount = -1; public string Note = ""; }
         static readonly System.Collections.Generic.Dictionary<string, ParsedLog> parsedLogCache =
             new System.Collections.Generic.Dictionary<string, ParsedLog>(StringComparer.OrdinalIgnoreCase);
 
@@ -3255,6 +3581,34 @@ namespace Fluxion
             return a;
         }
 
+        // 这次部署会往游戏目录写的源文件（入口 + ini [+ 运行库]）。
+        //  与 Install() 真正复制的件一一对应：专用模式（zzz / wuwa）带运行库，
+        //  通用模式按作者文档**不覆盖游戏自带的 nvngx**，所以不带。
+        public static List<string> Planned030Sources(string gameDir, string kind)
+        {
+            List<string> r = new List<string>();
+            string src = PackProxyPath(kind);
+            if (File.Exists(src)) r.Add(src);
+            string ini = Path.Combine(CommonDir, "dlssg_sm86.ini");
+            if (File.Exists(ini)) r.Add(ini);
+            if (kind != null && kind.Length > 0)
+            {
+                foreach (string f in CommonFiles)
+                {
+                    if (f.Equals("dlssg_sm86.ini", StringComparison.OrdinalIgnoreCase)) continue;
+                string q = Path.Combine(CommonDir, f);
+                    if (File.Exists(q)) r.Add(q);
+                }
+            }
+            return r;
+        }
+
+        //  ⚠ 零调用点（2026-10-26 复核：全库没有一处 `Dlssg.Install(`）。
+        //  界面自 2026-09-18 起一律走 `Plan.SwitchTo`，方案 A 的部署实际由 `XeMfg.Install` 执行。
+        //  两份实现的差别不只是代码量：这里用 `PackProxyPath` + `EntryFor`（0.3.x 代理包那套取件），
+        //  `XeMfg.Install` 用 `PackDir` + 自己的 files/dirs 表 —— 是否语义等价**没有验证过**，
+        //  所以这轮没删。留着不是"忘了"，是"删之前要先用探针证明两条路径等价"，见
+        //  功能缺口与路线图.md 的「已知死代码」一节。
         public static string Install(string gameDir, bool force = false)
         {
             string kind = XeMfg.Detect(gameDir);
@@ -3555,6 +3909,10 @@ namespace Fluxion
     {
         public const string Opti = "opti";      // 方案 A · OptiScaler 注入
         public const string D030 = "030";       // DLSS MFG 0.3.x 代理
+        //  D040（2026-10-18）：0.4.x 换了发布结构 —— 代理从 30 MB 缩到 0.8 MB，运行库 / 后端 /
+        //  内核包搬到 dlssg_sm86\ 下单独带。它不是"0.3.x 换个资源包"，部署清单与判据都不一样。
+        public const string D040 = "040";       // DLSS MFG 0.4.x 代理 + dlssg_sm86\ 资源目录
+        public const string Nvbr = "nvbr";      // 方案 B · nvidia_mfg_bridge（单文件 nvngx.dll）
         public const string Legacy = "legacy";  // 早期 dlssg_for_sm86 的 version/dinput8 等
         public const string None = "none";      // 原生（所有代理都停放）
 
@@ -3596,12 +3954,18 @@ namespace Fluxion
                 string n = Path.GetFileName(path);
                 if (n.EndsWith(".parked." + Opti, StringComparison.OrdinalIgnoreCase)) return Opti;
                 if (n.EndsWith(".parked." + D030, StringComparison.OrdinalIgnoreCase)) return D030;
+                if (n.EndsWith(".parked." + D040, StringComparison.OrdinalIgnoreCase)) return D040;
+                if (n.EndsWith(".parked." + Nvbr, StringComparison.OrdinalIgnoreCase)) return Nvbr;
                 if (n.EndsWith(".parked." + Legacy, StringComparison.OrdinalIgnoreCase)) return Legacy;
                 long len = new FileInfo(path).Length;
-                //  只在体积可能判成"本方案"或"方案 A"时才去取签名 —— 游戏自带的同名小 dll
-                //  不必为此多开一次文件（一次全库扫描是 游戏数 × 7 个入口名）。
-                string sv = (Dlssg030.IsProxySize(len) || len > Catalog.OptiMin)
+                //  只在体积可能判成某个方案时才去取签名 —— 游戏自带的同名小 dll
+                //  不必为此多开一次文件（一次全库扫描是 游戏数 × 入口名数量）。
+                //  0.4.x 的入口只有 0.8 MB，必须把它的窗口也算进来，否则新版代理认不出来。
+                string sv = (Dlssg030.IsProxySize(len) || len > Catalog.OptiMin || Dlssg040.MaybeSize(len))
                           ? ProxySign.Of(path).Verdict : "";
+                //  方案 B 不靠体积认（它只有一个 nvngx.dll，改名后连文件名都不固定），
+                //  靠"工具自己落过盘的 sha256"，所以放在体积判据之前。
+                if (MfgBridge.IsMine(path)) return Nvbr;
                 return OwnerOfCore(len, sv);
             }
             catch { return ""; }
@@ -3610,6 +3974,9 @@ namespace Fluxion
         // 纯函数：体积 + 签名结论 → 归属。判据只这一处，探针可以任意组合喂进去。
         public static string OwnerOfCore(long len, string signVerdict)
         {
+            //  ⚠ 这一条必须在 LooksProxy 之前：0.4.x 的代理只有 0.8 MB，被"代理至少 14 MB"
+            //  那条老经验挡在外面 → 认不出、也停不掉，于是两代代理会在同一个目录里并存。
+            if (signVerdict == "upstream" && Dlssg040.IsProxySize(len)) return D040;
             if (!LooksProxy(len)) return "";
             if (signVerdict == "upstream") return D030;
             if (signVerdict == "nvidia" || signVerdict == "other") return "";
@@ -3640,6 +4007,8 @@ namespace Fluxion
                 string o = OwnerOf(f);
                 if (o.Length > 0) return o;
             }
+            //  方案 B 兜底：它只有一个 nvngx.dll，部署后连文件名都被改掉了。
+            if (MfgBridge.Installed(gameDir)) return Nvbr;
             return None;
         }
 
@@ -3835,6 +4204,7 @@ namespace Fluxion
         {
             if (plan == Opti) return "方案 A · OptiScaler 注入";
             if (plan == D030) return "DLSS MFG " + Dlssg030.Ver;
+            if (plan == D040) return "DLSS MFG " + Dlssg040.Ver + "（新结构）";
             //  legacy 必须单列一条：原来只有 Opti / D030 两个分支，legacy 走到最后一条 return，
             //  于是"装着 0.2.x 代理"被说成"原生（所有代理都已停放）"—— 巡检把它并列出来就露馅了
             //  （2026-09-21 plan_probe 第 13 节抓到）。
@@ -3851,6 +4221,12 @@ namespace Fluxion
         {
             if (plan == Opti) { files = XeMfg.ComponentsOf(kind, true); dirs = XeMfg.ComponentsOf(kind, false); }
             else if (plan == D030) { files = new string[] { "dlssg_sm86.ini" }; dirs = new string[] { "dlssg_sm86" }; }
+            //  0.4.x 的配套件名字与 0.3.x 相同（ini + dlssg_sm86\），但内容完全不同 ——
+            //  3.x 那份里面只有日志，4.x 那份装着后端、内核包与运行库。
+            //  停放时靠后缀区分（.parked.030 / .parked.040），所以同名不冲突。
+            else if (plan == D040) { files = new string[] { Dlssg040.IniName }; dirs = new string[] { Dlssg040.ResDirName }; }
+            //  方案 B：入口 DLL 之外只有一个可选 ini（dll 自己解包，不往游戏目录放别的）
+            else if (plan == Nvbr) { files = new string[] { MfgBridge.IniName }; dirs = new string[0]; }
             else { files = new string[0]; dirs = new string[0]; }
         }
 
@@ -3909,7 +4285,7 @@ namespace Fluxion
                 ParkOne(f, owner, false, parked, failed);
             }
             // 配套组件：只停"别家"那套的；keep 那套的留原位，切回来时由 UnparkComponents 复原。
-            foreach (string plan in new string[] { Opti, D030 })
+            foreach (string plan in new string[] { Opti, D030, D040, Nvbr })
             {
                 if (plan == keep) continue;
                 string[] cfs, cds;
@@ -3923,7 +4299,16 @@ namespace Fluxion
                 foreach (string nm in cds)
                 {
                     string p = Path.Combine(dir, nm);
-                    if (Directory.Exists(p)) ParkOne(p, plan, true, parked, failed);
+                    if (!Directory.Exists(p)) continue;
+                    //  dlssg_sm86\ 这个目录名两代都在用，内容却完全不同：
+                    //   0.3.x 那份里面只有日志；0.4.x 那份装着后端 / 内核包 / 运行库。
+                    //   不按内容分的话，0.4.x 那份会被停成 .parked.030 —— 切回 0.4.x 时
+                    //   就找不到自己的 .parked.040，只能把几十 MB 的资源重新抄一遍（实测过，慢且占双份）。
+                    string owner = plan;
+                    if (plan == D030 && nm == Dlssg040.ResDirName
+                        && File.Exists(Path.Combine(p, "kernels\\fg_kernels.dll")))
+                        owner = D040;
+                    ParkOne(p, owner, true, parked, failed);
                 }
             }
             return parked;
@@ -3966,6 +4351,18 @@ namespace Fluxion
                     return ent && File.Exists(Path.Combine(dir, "fakenvapi.dll"))
                                && File.Exists(Path.Combine(dir, "OptiScaler.ini"));
                 }
+                if (target == Nvbr)
+                {
+                    bool e5 = MfgBridge.InstalledEntry(dir).Length > 0;
+                    return e5;
+                }
+                if (target == D040)
+                {
+                    // 0.4.x 的三样缺一不可：入口 + ini + 资源目录里的内核包
+                    bool e4 = (File.Exists(cur) && OwnerOf(cur) == D040) || File.Exists(cur + ".parked." + D040);
+                    return e4 && File.Exists(Path.Combine(dir, Dlssg040.IniName))
+                               && File.Exists(Dlssg040.KernelPath(dir));
+                }
                 bool e2 = (File.Exists(cur) && OwnerOf(cur) == D030) || File.Exists(cur + ".parked." + D030);
                 // 通用游戏不覆盖 nvngx（作者文档只要求入口 + ini），所以这里不能强求 nvngx 存在
                 bool needNvngx = entry != "version.dll" || File.Exists(Path.Combine(dir, "nvngx_dlssg.dll"));
@@ -3987,7 +4384,9 @@ namespace Fluxion
         {
             string kind = XeMfg.Detect(gameDir);
             string dir = XeMfg.TargetDir(gameDir, kind);
-            string entry = EntryName(kind);
+            //  0.4.x 不跟着游戏变入口（作者不再按游戏推荐入口名，只有"加载不到就换一个"），
+            //  它的入口名统一走自己的配置；0.3.x / 方案 A 才按游戏类型挑槽位。
+            string entry = target == D040 ? Dlssg040.EntryPref() : EntryName(kind);
             string before = Current(gameDir);
             // 启动器根目录护栏（2026-09-18 从被删掉的 Dlssg.Install 搬到这里 —— 现在只有这一条部署路径，
             //  护栏也必须落在这条路上）。装进"容器"目录会同时作用于它下面的所有游戏
@@ -4012,7 +4411,7 @@ namespace Fluxion
             List<string> notes = new List<string>();
             List<string> restored = new List<string>();
 
-            if (target == Opti || target == D030)
+            if (target == Opti || target == D030 || target == D040 || target == Nvbr)
             {
                 // 先把目标方案的配套件复原，再判断"是否已在位"。顺序不能反：
                 //   XeMfg.Install 对已存在的 OptiScaler.ini 是"永不覆盖"（要保住用户调好的伪装与 NR 参数），
@@ -4024,13 +4423,22 @@ namespace Fluxion
                 string pk = cur + ".parked." + target;
                 if (!force && !File.Exists(cur) && File.Exists(pk))
                 {
-                    try { File.Move(pk, cur); notes.Add("把停放中的 " + entry + " 改回原名（未重抄，秒完成）"); ok = true; }
+                    try
+                    {
+                        File.Move(pk, cur);
+                        notes.Add("把停放中的 " + entry + " 改回原名（未重抄，秒完成）");
+                        //  0.4.x 不能因为入口回来了就判定"齐了"：它的运行库 / 内核包在 dlssg_sm86\ 下，
+                        //  入口单独回去而资源没跟上，代理加载后照样什么都不做（作者那条 kernel_pack_missing）。
+                        if (target != D040) ok = true;
+                    }
                     catch (Exception ex) { failed.Add(entry + " 复原失败：" + ex.Message); }
                 }
                 if (!ok)
                 {
                     string r;
                     if (target == Opti) r = XeMfg.Install(gameDir);
+                    else if (target == D040) r = Dlssg040.Install(dir, entry, force);   // 入口 + ini + 整个资源目录
+                    else if (target == Nvbr) r = MfgBridge.Install(dir, entry, force);   // 单文件改名放入
                     else if (kind.Length == 0)
                         r = Dlssg030.InstallGeneric(dir, entry, Program.Cfg.DlssgMaxFrames, force);   // 通用：只放两个文件
                     else r = Dlssg030.Install(gameDir, force);
@@ -4042,6 +4450,7 @@ namespace Fluxion
             //   「关闭帧生成」会删掉 dlssg_sm86.ini，而上面那条"把停放的改回原名、秒完成"的快速路径
             //   不重抄任何文件 —— 不在这里补一刀，ini 就永远回不来（2026-09-16 实测的绝区零）。
             if (target == D030) Dlssg030.EnsureFactoryIni(dir);
+            if (target == D040) Dlssg040.EnsureIni(dir, false);
 
             string now = Current(gameDir);
             StringBuilder sb = new StringBuilder();
@@ -4126,7 +4535,11 @@ namespace Fluxion
             return -1;
         }
 
-        public static string SetNrEnabled(string gameDir, bool on)
+        //  改 OptiScaler.ini 里某一段的一行（只动 key=value；段落不存在就补一个）。
+        //  为什么抽出来：NR 现在有两个开关（Enabled / RunBeforeSR），每个都抄一遍"找段-找键-改行-
+        //  没有就插"的逻辑，抄到第二个已经在重复，第三个必然漏分支。
+        //  ⚠ 键名要**整串比**，不能用 StartsWith —— RunBeforeSR 与 RunBeforeSRX 会互相串。
+        static string SetSectionKey(string gameDir, string section, string key, string value, string okMsg)
         {
             try
             {
@@ -4134,30 +4547,59 @@ namespace Fluxion
                 if (kind.Length == 0) return "该游戏不在支持列表（绝区零 / 鸣潮）";
                 string p = Path.Combine(TargetDir(gameDir, kind), "OptiScaler.ini");
                 if (!File.Exists(p)) return "找不到 OptiScaler.ini（方案 A 未部署？）";
-                List<string> lines = new List<string>(File.ReadAllLines(p));
+                if (!SetIniKey(p, section, key, value)) return "改写失败：" + key + "（写文件出错）";
+                return okMsg;
+            }
+            catch (Exception ex) { return "改写失败：" + ex.Message; }
+        }
+
+        //  只做"改文件"这一段：把 [section] 里的 key 改成 value；键不存在就补在段首，段不存在就补一段。
+        //  与"这是哪个游戏、ini 在哪"解耦，探针可以拿一份副本来验（不碰真实游戏目录）。
+        public static bool SetIniKey(string iniPath, string section, string key, string value)
+        {
+            try
+            {
+                string sec = "[" + section + "]";
+                List<string> lines = new List<string>(File.ReadAllLines(iniPath));
                 bool ins = false, hit = false;
                 for (int i = 0; i < lines.Count; i++)
                 {
                     string s = lines[i].Trim();
                     if (s.StartsWith("[", StringComparison.Ordinal))
-                    { ins = string.Equals(s, "[DlssNr]", StringComparison.OrdinalIgnoreCase); continue; }
-                    if (ins && s.StartsWith("Enabled", StringComparison.OrdinalIgnoreCase) && s.IndexOf('=') >= 0)
-                    { lines[i] = "Enabled=" + (on ? "true" : "false"); hit = true; break; }
+                    { ins = string.Equals(s, sec, StringComparison.OrdinalIgnoreCase); continue; }
+                    if (!ins || s.IndexOf('=') < 0) continue;
+                    if (!string.Equals(s.Substring(0, s.IndexOf('=')).Trim(), key, StringComparison.OrdinalIgnoreCase)) continue;
+                    lines[i] = key + "=" + value; hit = true; break;
                 }
                 if (!hit)
                 {
                     int at = -1;
                     for (int i = 0; i < lines.Count; i++)
-                        if (lines[i].Trim().Equals("[DlssNr]", StringComparison.OrdinalIgnoreCase)) { at = i; break; }
-                    if (at < 0) { lines.Add("[DlssNr]"); at = lines.Count - 1; }
-                    lines.Insert(at + 1, "Enabled=" + (on ? "true" : "false"));
+                        if (lines[i].Trim().Equals(sec, StringComparison.OrdinalIgnoreCase)) { at = i; break; }
+                    if (at < 0) { lines.Add(sec); at = lines.Count - 1; }
+                    lines.Insert(at + 1, key + "=" + value);
                 }
-                File.WriteAllLines(p, lines.ToArray(), new UTF8Encoding(false));
-                return on
-                    ? "DLSS 5 神经渲染已开启（下一局生效；开着吃性能，且与帧生成同开有设备挂死风险）"
-                    : "DLSS 5 神经渲染已关闭（帧生成不受影响）";
+                File.WriteAllLines(iniPath, lines.ToArray(), new UTF8Encoding(false));
+                return true;
             }
-            catch (Exception ex) { return "改写失败：" + ex.Message; }
+            catch { return false; }
+        }
+
+        public static string SetNrEnabled(string gameDir, bool on)
+        {
+            return SetSectionKey(gameDir, "DlssNr", "Enabled", on ? "true" : "false", on
+                ? "DLSS 5 神经渲染已开启（下一局生效；开着吃性能，且与帧生成同开有设备挂死风险）"
+                : "DLSS 5 神经渲染已关闭（帧生成不受影响）");
+        }
+
+        //  NR 跑在超分之前（Pre-SR）：键 RunBeforeSR，取自包内 OptiScaler.ini 的注释
+        //  「run NR before ordinary SR or combined RR+SR on the active colour input」。
+        //  2026-09 社区热的就是这条 —— 更省，但画质与稳定性要自己试。
+        public static string SetNrPreSR(string gameDir, bool on)
+        {
+            return SetSectionKey(gameDir, "DlssNr", "RunBeforeSR", on ? "true" : "false", on
+                ? "NR 位置已改为「超分之前」（Pre-SR，下一局生效；画质与稳定性请自行对比）"
+                : "NR 位置已改回「超分之后」（默认）");
         }
 
 

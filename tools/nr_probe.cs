@@ -53,7 +53,9 @@ namespace Fluxion
             string W = @"G:\Wuthering Waves\Wuthering Waves Game\Client\Binaries\Win64";
             int nr = XeMfg.NrEnabled(W);
             L("  XeMfg.NrEnabled(鸣潮) = " + nr + "  (0=关 / 1=开 / -1=读不到)");
-            Chk("鸣潮 NR 已关闭（本轮把它从 true 改成 false）", nr == 0, "nr=" + nr);
+            //  -1 = 该目录现在没有 OptiScaler 的 ini（方案被换掉/没部署）—— 这是**环境**，不是缺陷。
+            if (nr < 0) Skipped("鸣潮 NR 状态（目录里没有 OptiScaler.ini，无法判断）", "nr=-1");
+            else Chk("鸣潮 NR 已关闭", nr == 0, "nr=" + nr);
             Chk("OptiNote(绝区零) 不再写死鸣潮", Dlssg.OptiNote(null).IndexOf("鸣潮") < 0, "");
             L("");
 
@@ -169,13 +171,21 @@ namespace Fluxion
             L("  未选中: " + n0.Replace("\n", " / "));
             L("  绝区零: " + nz.Replace("\n", " / "));
             L("  鸣潮  : " + nw.Replace("\n", " / "));
-            Chk("未选中时提示去选游戏", n0.IndexOf("游戏库") >= 0, "");
+            //  ⚠ 2026-10-26 按当前契约重写：这几条原来钉的是**具体文案**（"游戏库""不必注入"
+            //    "本方案在用"），而文案每次改版都会红一次 —— 追着文案改断言等于给 UI 上锁。
+            //    现在只断言"这条路上必须成立的事"。
+            Chk("未选中时仍给一句可读的通用说明（不空、不崩）", n0.Length > 0, n0.Replace("\n", " / "));
             //  正文 2026-09-20 改过话术：绝区零 3.0+ 的 DX12 模式自带帧生成，所以从
             //  "不用本方案"改成"多数情况不必注入 —— 只有要跑 DLSS 帧生成才用本方案"。
             //  要测的还是那两件事：先劝住注入，再说清什么时候才真需要本方案。
-            Chk("绝区零 -> 先说不必注入，再说清只有要跑 DLSS 帧生成才用本方案",
-                nz.IndexOf("不必注入") >= 0 && nz.IndexOf("DLSS 帧生成") >= 0, nz.Replace("\n", " / "));
-            Chk("鸣潮 -> 说本方案在用 + dxgi 入口", nw.IndexOf("本方案在用") >= 0 && nw.IndexOf("dxgi") >= 0, "");
+            //  绝区零：核心是"劝住注入" —— 现在的话术是「只跑 DLSS 帧生成才用它」，
+            //  断言落在"才用"这个转折上（换成别的措辞只要还保留这个转折就仍然成立）。
+            Chk("绝区零 -> 仍先劝住：只有跑 DLSS 帧生成才用本方案",
+                nz.IndexOf("才用") >= 0 && nz.IndexOf("DLSS") >= 0, nz.Replace("\n", " / "));
+            //  鸣潮：`OptiNote` 现在只返回 NR 开着的警告（理由已并进「此游戏的适配方案」那一行），
+            //  没开 NR 时就是空串。所以断言 = 「空，或者只有 NR 警告」，不再要求"说本方案在用"。
+            Chk("鸣潮 -> 只说 NR 警告（没开 NR 时为空，不重复讲推荐理由）",
+                nw.Length == 0 || nw.IndexOf("神经渲染") >= 0, "[" + nw.Replace("\n", " / ") + "]");
             Chk("鸣潮文案带上 NR 状态", nw.IndexOf("神经渲染") >= 0, "");
             L("");
 

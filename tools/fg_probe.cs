@@ -207,6 +207,27 @@ namespace Fluxion
             Chk("提示\"尚无代理日志\"", sumF.Contains("尚无代理日志"), sumF);
             L("");
 
+            // ---------- H：界面用的缓存读数（MeasuredGen / MeasuredWhen）----------
+            //  第 144 轮把"实际几倍"画到了封面卡右上角。绘制路径里不能读文件，
+            //  所以界面读的是 Check() 顺手填的缓存 —— 这里断言缓存与 Check 结果一致。
+            L("=== 8. 封面卡用的缓存读数（MeasuredGen，纯查表无 IO）===");
+            var gA = new DlssgGame { Title = "GameA", Dir = A };
+            var gB = new DlssgGame { Title = "GameB", Dir = B };
+            var gC = new DlssgGame { Title = "GameC", Dir = C };
+            Chk("GameA（有 evaluate）→ 实测 3（= 4X）", FgVerify.MeasuredGen(gA) == 3, "" + FgVerify.MeasuredGen(gA));
+            Chk("GameA 的实测时间 = 日志时间", FgVerify.MeasuredWhen(gA) == ra.When,
+                FgVerify.MeasuredWhen(gA).ToString("MM-dd HH:mm:ss"));
+            Chk("GameB（只有 configuration）→ 无读数", FgVerify.MeasuredGen(gB) == -1, "" + FgVerify.MeasuredGen(gB));
+            Chk("GameC（0 字节且无上次成功）→ 无读数", FgVerify.MeasuredGen(gC) == -1, "" + FgVerify.MeasuredGen(gC));
+            //  E 是"最新那份空、之前成功过" —— 卡上应该显示上次的倍率，而不是什么都不显示
+            int genE = -1;
+            foreach (DlssgGame gg in glE) if (gg.Title == "GameE") genE = FgVerify.MeasuredGen(gg);
+            Chk("GameE（最新空 + 上次成功）→ 回看上次倍率", genE >= 0, "" + genE);
+            Chk("从未 Check 过的目录 → 无读数",
+                FgVerify.MeasuredGen(new DlssgGame { Title = "x", Dir = Path.Combine(Tmp, "nope") }) == -1, "");
+            Chk("null 条目不抛异常", FgVerify.MeasuredGen(null) == -1, "");
+            L("");
+
             // ---------- G：真实环境只读核对 ----------
             L("=== 7. 真实游戏目录只读核对（不断言具体值，只报告）===");
             string[] real = new string[] {

@@ -274,7 +274,12 @@ namespace Fluxion
                 {
                     if (k.Labels == null || k.Values == null || k.Labels.Length != k.Values.Length) lenOk = false;
                     if (string.IsNullOrEmpty(k.Hint)) hintOk = false;
-                    if (k.Apply != "drv" && k.Apply != "hags" && k.Apply != "sched" && k.Apply != "proc" && k.Apply != "net") applyOk = false;
+                    //  白名单要与 `Program.SaveKnobs` 里的 switch（Core.cs 的 `case "<apply>"`）同一步调：
+                    //  2026-10-26 新增了 `scheme`（电源计划名）与 `hetero`（异类线程策略），
+                    //  这个白名单没跟着更新 → 报"未知动作"，其实保存时是有人接的。
+                    if (k.Apply != "drv" && k.Apply != "hags" && k.Apply != "sched"
+                        && k.Apply != "proc" && k.Apply != "net"
+                        && k.Apply != "scheme" && k.Apply != "hetero") applyOk = false;
                     if (seen.ContainsKey(k.Key)) dupKey = true; else seen[k.Key] = true;
                 }
                 Chk("每项 Labels.Length == Values.Length", lenOk, "");

@@ -36,7 +36,7 @@ def clean_env():
 def main():
     os.makedirs(Sand, exist_ok=True)
     exe = os.path.join(WORK, 'JunkProbe.exe')
-    srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Lib.cs', 'Ui.cs')]
+    srcs = [os.path.join(SRC, f) for f in ('Core.cs', 'Pack.cs', 'Dlssg.cs', 'Dlssg040.cs', 'MfgBridge.cs', 'Lib.cs', 'Ui.cs')]
     args = [FW, '/nologo', '/target:exe', '/out:' + exe, '/unsafe+',
             '/main:Fluxion.JunkProbe',
             '/r:System.dll', '/r:System.Drawing.dll', '/r:System.Windows.Forms.dll',

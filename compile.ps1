@@ -7,6 +7,8 @@ $srcs  = @(
     (Join-Path $root "src\Core.cs"),
     (Join-Path $root "src\Pack.cs"),
     (Join-Path $root "src\Dlssg.cs"),
+    (Join-Path $root "src\Dlssg040.cs"),
+    (Join-Path $root "src\MfgBridge.cs"),
     (Join-Path $root "src\Lib.cs"),
     (Join-Path $root "src\Ui.cs")
 )
@@ -56,6 +58,19 @@ try {
         "/r:System.IO.Compression.dll", "/r:System.IO.Compression.FileSystem.dll"
     )
     if (Test-Path $ico) { $args += "/win32icon:`"$ico`"" }
+
+    # Embedded UI font (MiSans subset, ~1.6 MB per weight). MUST be listed here too:
+    # without it a fresh clone builds an app that silently falls back to Noto Sans SC,
+    # or to the system default font when Noto is absent -- i.e. exactly the "ugly font"
+    # state the project spent a round fixing. See tools/make_font_subset.py for how the
+    # subsets are produced, and README for the MiSans license note.
+    foreach ($fn in @("MiSans-Regular.ttf","MiSans-Medium.ttf","MiSans-Bold.ttf")) {
+        $fp = Join-Path $root "src\fonts\$fn"
+        if (Test-Path $fp) {
+            $resId = "Font." + ($fn -replace "\.ttf$", "" -replace "-", "")
+            $args += "/resource:`"$fp`",$resId"
+        }
+    }
     # UAC manifest (requireAdministrator): makes the built exe request elevation itself,
     # so shortcuts show the shield and there is exactly one UAC prompt per launch.
     $mf = Join-Path $root "src\app.manifest"

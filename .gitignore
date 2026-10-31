@@ -29,7 +29,49 @@ tools/_scan_dlssfg_result.json
 
 # 本地运行时数据（含个人游戏路径）
 config.json
+config.local.json
 library.json
+*.bak
+*.bak*
+*-pack/
+dlssg/
+verify_round5.exe
+tools/_*
+tools/*probe*
+tools/run_*
+tools/patch_*
+tools/verify_*
+tools/test_*
+tools/audit_*
+tools/check_*
+tools/analyze_*
+tools/custom_*
+tools/d040_*
+tools/e2e_*
+tools/find_*
+tools/fix_*
+tools/grey_*
+tools/hero_*
+tools/hit_*
+tools/icon_sheet.*
+tools/identify_*
+tools/inspect_*
+tools/launchcfg_*
+tools/leak_*
+tools/libver_*
+tools/make_portable_zip.py
+tools/mem_*
+tools/migrate_*
+tools/motion_*
+tools/nr_ini_*
+tools/optimize_*
+tools/restore_*
+tools/seam_*
+tools/shell_*
+tools/status_*
+tools/stress_*
+tools/ui_perf_*
+tools/wheel_*
 
 rebuild.bat
 
