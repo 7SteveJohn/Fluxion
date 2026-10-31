@@ -3014,6 +3014,106 @@ namespace Fluxion
             g.LaunchEnv = env;
         }
 
+        // ---- 已知游戏的内置启动参数（2026-10-31）----
+        //  为什么要有：鸣潮 3.7 起 Client-Win64-Shipping.exe 直启必须带画质档参数
+        //  -krqlv=<sd|hd|uhd>（官方启动器会传；不带就弹「kuro: Use launcher to start game!」）。
+        //  "每个游戏自己的启动规矩"不该指望用户知道 —— 软件内置（用户原话：参数不是让你内置了吗）。
+        //  档位从游戏上层的 launcherDownloadConfig.json 读（bundles 键 = UHD/HD/SD，取最高档），
+        //  读不到按官方下载器默认档 hd。返回 "" = 该游戏没有内置参数。
+        public static string KnownLaunchArgs(DlssgGame g)
+        {
+            try
+            {
+                if (g == null) return "";
+                bool wuwa = "Client-Win64-Shipping.exe".Equals(g.Exe ?? "", StringComparison.OrdinalIgnoreCase);
+                if (!wuwa)
+                {
+                    string t = (g.Title ?? "").ToLowerInvariant();
+                    wuwa = t.IndexOf("鸣潮", StringComparison.Ordinal) >= 0
+                        || t.IndexOf("wuthering", StringComparison.Ordinal) >= 0;
+                }
+                if (!wuwa) return "";
+                string dir = g.Dir;
+                for (int i = 0; i < 6 && !string.IsNullOrEmpty(dir); i++)
+                {
+                    string p = Path.Combine(dir, "launcherDownloadConfig.json");
+                    if (File.Exists(p)) return "-krqlv=" + WuWaTier(p);
+                    string up = Path.GetDirectoryName(dir);
+                    if (up == null || up == dir) break;
+                    dir = up;
+                }
+                return "-krqlv=hd";          // 官方下载器默认档
+            }
+            catch { return ""; }
+        }
+
+        static string WuWaTier(string jsonPath)
+        {
+            try
+            {
+                var d = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(
+                    File.ReadAllText(jsonPath, Encoding.UTF8));
+                object o;
+                if (d == null || !d.TryGetValue("bundles", out o)) return "hd";
+                var b = o as Dictionary<string, object>;
+                if (b == null) return "hd";
+                if (b.ContainsKey("UHD")) return "uhd";
+                if (b.ContainsKey("HD")) return "hd";
+                if (b.ContainsKey("SD")) return "sd";
+            }
+            catch { }
+            return "hd";
+        }
+
+        //  启动时真正生效的参数 / 环境变量：①磁盘上用户设置的优先（以磁盘为准，不吃内存旧值 ——
+        //  扫描期并进 g 的字段可能落后于用户刚保存/手改的 library.json）②没设过 → 内置预设
+        //  （仅参数；环境变量没有预设）。Lib.Launch、启动日志、游戏信息卡状态行三方共用这一份，
+        //  别处不许再各自拼。
+        public static string EffectiveLaunchArgs(DlssgGame g)
+        {
+            try
+            {
+                GameMeta m;
+                if (MetaStore.Load().TryGetValue(MetaStore.KeyOf(g), out m))
+                {
+                    string a = m.LaunchArgs == null ? "" : m.LaunchArgs.Trim();
+                    if (a.Length > 0) return a;
+                }
+            }
+            catch { }
+            return KnownLaunchArgs(g);
+        }
+
+        public static string EffectiveLaunchEnv(DlssgGame g)
+        {
+            try
+            {
+                GameMeta m;
+                if (MetaStore.Load().TryGetValue(MetaStore.KeyOf(g), out m))
+                    return m.LaunchEnv == null ? "" : m.LaunchEnv;
+            }
+            catch { }
+            return "";
+        }
+
+        //  界面显示用：一次取齐"用户自定义参数 / 内置预设 / 环境变量条数"（都按磁盘为准）。
+        public static void LaunchConfigView(DlssgGame g, out string custom, out string preset, out int envCount)
+        {
+            custom = "";
+            preset = KnownLaunchArgs(g);
+            envCount = 0;
+            try
+            {
+                GameMeta m;
+                if (MetaStore.Load().TryGetValue(MetaStore.KeyOf(g), out m))
+                {
+                    custom = m.LaunchArgs == null ? "" : m.LaunchArgs.Trim();
+                    envCount = ParseEnv(m.LaunchEnv).Count;
+                }
+            }
+            catch { }
+        }
+
         // 写入「每游戏帧生成参数」（第 160 轮）：一次落盘 + 同步到运行时对象。
         //  覆盖语义见 DlssgGame 的字段注释（0/""/-1 = 跟随全局）；应用（写 INI）由调用方做 ——
         //  这里只管元数据，因为"装没装、装的是哪一代"只有 UI 层知道。
@@ -3053,8 +3153,12 @@ namespace Fluxion
                     string exe = LaunchTargetOf(g);
                     if (exe.Length > 0)
                     {
-                        string args = (g.LaunchArgs == null ? "" : g.LaunchArgs).Trim();
-                        List<KeyValuePair<string, string>> env = ParseEnv(g.LaunchEnv);
+                        //  ★ 2026-10-31：启动前以磁盘为准重读（EffectiveLaunch*）。
+                        //    g.LaunchArgs 是扫描期并进来的内存值：用户刚保存 / 手改过 library.json、
+                        //    或后台保存没同步到本对象时，直用内存值会把参数丢掉（用户报"填了会被擦"的
+                        //    另一半根因）。EffectiveLaunchArgs 还带已知游戏的内置预设（鸣潮画质档）。
+                        string args = EffectiveLaunchArgs(g);
+                        List<KeyValuePair<string, string>> env = ParseEnv(EffectiveLaunchEnv(g));
                         if (env.Count == 0)
                         {
                             // 没有环境变量：沿用原来的启动方式。

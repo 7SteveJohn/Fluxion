@@ -2648,7 +2648,8 @@ namespace Fluxion
         }
 
         public readonly ItemList Items;
-        readonly ToolStripDropDown drop = new ToolStripDropDown();
+        ToolStripDropDown openMenu;                 // 当前实际弹出的下拉（每次 ShowDrop 新建）
+        static RoundCombo openOwner;                // 全局唯一弹出者：滚动发生时要能找到并收掉它
         int sel = -1;
         bool hover;
 
@@ -2664,8 +2665,6 @@ namespace Fluxion
             BackColor = Theme.Panel;   // 工具条里经 SetCorner 改为页面底色（四角不露白）
             Font = Theme.F(10f);             // 下拉值文字（第 158 轮 9→10，与输入框同层）
             Cursor = Cursors.Hand;
-            drop.AutoSize = false;
-            drop.Padding = Padding.Empty;
         }
 
         // 圆角外四角颜色（工具条里改为页面底色，四角不露白）
@@ -2728,7 +2727,33 @@ namespace Fluxion
             }
             //  用**屏幕坐标**定位：原来传的是控件客户区坐标，控件处在滚动容器里时会被算到别的控件旁边
             //  （截图里 SM86 列表飘到"架构(Router)"下拉右上、压住按钮，就是这么来的）。
+            //  ⚠ 顶层窗口 + 一次性坐标 = 只在**打开那一刻**是对的：页面一滚，锚点跟着内容搬走，
+            //    菜单还钉在旧屏幕位置上（2026-10-31 用户："滑动页面时菜单到处乱晃"）。
+            //    修法不是让它跟着挪（补间期间每帧重定位只会更乱），是**内容一动就收**——
+            //    Pg.SetScrollY 值变化时调 CloseOpenPopup()，和浏览器/系统菜单的直觉一致。
+            CloseOpenPopup();                        // 互斥保险：理论上 AutoClose 已收掉旧弹层
+            openMenu = m; openOwner = this;
+            m.Closed += delegate
+            {
+                if (openMenu == m) openMenu = null;
+                if (openOwner == this) openOwner = null;
+                Invalidate();                        // 弹出态边框高亮随关闭恢复
+            };
             m.Show(PointToScreen(new Point(0, Height + 2)));
+        }
+
+        //  内容滚动时的统一收口（Pg.SetScrollY 调用）：收掉还钉在旧屏幕坐标上的下拉。
+        //  菜单实例是私有字段，外层摸不到，所以做成静态方法。
+        public static void CloseOpenPopup()
+        {
+            RoundCombo c = openOwner;
+            if (c == null) return;
+            openOwner = null;
+            ToolStripDropDown m = c.openMenu;
+            c.openMenu = null;
+            //  换主题会重建整棵控件树：登记链上可能残留已 Dispose 的组合框，只清登记不动它
+            if (m != null && !m.IsDisposed && m.Visible) { try { m.Close(); } catch { } }
+            if (!c.IsDisposed) c.Invalidate();
         }
 
         protected override void OnMouseDown(MouseEventArgs e)
@@ -2747,7 +2772,7 @@ namespace Fluxion
             var r = new Rectangle(0, 0, Width - 1, Height - 1);
             Theme.FillRound(g, r, Theme.RField, Theme.FieldOn(BackColor));
             Theme.EdgeRound(g, r, Theme.RField,
-                (hover || drop.Visible) && Enabled ? Theme.Accent : Theme.FieldEdge, 1f);
+                (hover || openMenu != null) && Enabled ? Theme.Accent : Theme.FieldEdge, 1f);
             string tx = Text;
             if (tx.Length == 0) tx = "—";
             Theme.DrawTxt(g, tx, Font, new Rectangle(Theme.S(10), 0, Width - Theme.S(30), Height),
@@ -3011,6 +3036,13 @@ namespace Fluxion
                 if (fading || !Motion.Enabled || !dlg.IsHandleCreated || dlg.IsDisposed) return;
                 e.Cancel = true;                  // 先拦住这次 Close，淡完再真关
                 fading = true;
+                //  ★ 2026-10-31 修复（save_dialog_probe §1 复现的保存丢失 bug）：
+                //    保存按钮刚把 DialogResult 设为 OK，而 WinForms 对**模态窗**的 Close()
+                //    会把它改写成 Cancel —— 淡出收尾若直接 dlg.Close()，ShowDialog 就返回
+                //    Cancel，调用方 `!= OK 则 return` → 保存分支被静默跳过（不落盘、无日志），
+                //    用户看到的就是"填了参数，它自己会擦掉"。
+                //    记住按钮结果，收尾用它关窗；点 X（此刻仍是 None）按取消处理。
+                DialogResult keep = dlg.DialogResult;
                 var t = new Timer { Interval = 25 };
                 int step = 0;
                 t.Tick += delegate
@@ -3018,7 +3050,17 @@ namespace Fluxion
                     if (dlg.IsDisposed) { t.Stop(); t.Dispose(); return; }
                     step++;
                     double x = step / 8.0;
-                    if (x >= 1.0) { t.Stop(); t.Dispose(); dlg.Close(); return; }
+                    if (x >= 1.0)
+                    {
+                        t.Stop(); t.Dispose();
+                        if (dlg.Modal)
+                        {
+                            // 模态窗：设置 DialogResult 即以此结果关窗，避开会改写结果的 Close()
+                            dlg.DialogResult = keep == DialogResult.None ? DialogResult.Cancel : keep;
+                        }
+                        else dlg.Close();   // 非模态：DialogResult 没有关窗语义，维持原路径
+                        return;
+                    }
                     dlg.Opacity = 1.0 - 0.98 * Motion.Ease(Motion.Accel, x);
                 };
                 t.Start();
@@ -7452,6 +7494,7 @@ namespace Fluxion
         public int ScrollY { get { return sb.Value; } }
         public void SetScrollY(int v)
         {
+            int prev = sb.Value;
             try
             {
                 //  ★ 保险（2026-10-24 第 127 轮）：滚动上界以**子控件实测位置**为准。
@@ -7477,6 +7520,10 @@ namespace Fluxion
                 if (!chasing) scrollTarget = sb.Value;   // 程序性滚动随时收回追踪目标，两边不打架
             }
             catch { }
+            //  内容真的动了 → 收掉还钉在旧屏幕坐标上的下拉菜单（2026-10-31 用户"菜单乱晃"）。
+            //  挂在这里一个钩子就覆盖了全部滚动路径：滚轮（直通/惯性）、拖滚动条、程序性滚动。
+            //  值没变（布局中间态反复夹到同一点）不动它，避免无谓的 Invalidate。
+            if (sb.Value != prev) RoundCombo.CloseOpenPopup();
         }
 
         //  标签栏用：按标题关键词找分区 + 滚过去。
@@ -8537,6 +8584,7 @@ namespace Fluxion
         Panel titleBar, titleBtnBox;
         WinBtn btnMin, btnMax, btnClose;
         FlatBtn btnScanTop;
+        FlatBtn btnAddTop;                             // 页头「添加游戏」——手动添加的可见入口（2026-11-01）
         Control btnSideMore, btnRailExpand;
         string crumbText = "";      // 初值必须空：Switch 幂等返回时不会调 SetCrumb，写死页名会漏到首帧
         int crumbIcon;
@@ -8617,6 +8665,8 @@ namespace Fluxion
         MetaLine lblDashSub;           // 仪表盘「快捷操作」工具条右端的元信息行（第 154 轮从 Body 行挪进来）
         string dashOpt = "";           // 摘要里的优化状态（体检表读完后才有值）
         FlatBtn btnWebCover, btnSetCover, btnPasteCover, btnClearCover;   // 概览「游戏信息」卡里的自定义封面入口
+        Label lblGiArgs;               // 概览「游戏信息」卡：当前启动参数/环境变量状态行（2026-10-31）
+        FlatBtn btnLaunchCfg;          // 同卡「启动参数与环境变量…」可见入口 —— 原来只在右键菜单里，用户找不到
         // 资源包版本结论上次报的是什么 —— 只在变化时写一行日志，避免每次刷新刷满日志
         string packVerdictSeen = "";
         RoundCombo cbEntry;                                  // 3A 通用模式的入口名（6 选 1）
@@ -9216,21 +9266,31 @@ namespace Fluxion
             btnScanTop.Height = Theme.S(32);
             btnScanTop.Click += delegate { RunScan(true); };
 
+            //  「添加游戏」提升为页头可见按钮（2026-11-01）：手动添加功能一直藏在 btnMore 菜单里，
+            //  用户从来没发现过（"手动导入游戏到底在哪儿"）。放页头与「扫描游戏」并列。
+            btnAddTop = new FlatBtn();
+            btnAddTop.Text = "添加游戏";
+            btnAddTop.Width = Theme.S(92);
+            btnAddTop.Height = Theme.S(32);
+            btnAddTop.Click += delegate { DoAddGame(); };
+
             var box = new CaptionPanel();
             box.Dock = DockStyle.None;
             box.BackColor = Theme.Bg;
             box.Margin = Padding.Empty;
             box.Height = Theme.S(TitleH);
             int scanGap = Theme.S(14);                       // 业务按钮 ↔ 窗口按钮的距离
-            box.Width = Theme.S(12) + btnScanTop.Width + scanGap + lead + bw * 3 + gap * 2 + Theme.S(12);
+            box.Width = Theme.S(12) + btnScanTop.Width + Theme.S(8) + btnAddTop.Width + scanGap + lead + bw * 3 + gap * 2 + Theme.S(12);
             Buffered(box);
             box.MouseDown += dragDown;
             box.DoubleClick += dblMax;
 
-            //  从左到右：扫描游戏 (间距) 最小化 最大化 关闭
+            //  从左到右：扫描游戏 添加游戏 (间距) 最小化 最大化 关闭
             btnScanTop.Left = Theme.S(12);
             btnScanTop.Top = (box.Height - btnScanTop.Height) / 2;
-            int sepX = btnScanTop.Right + scanGap;
+            btnAddTop.Left = btnScanTop.Right + Theme.S(8);
+            btnAddTop.Top = btnScanTop.Top;
+            int sepX = btnAddTop.Right + scanGap;
             box.Paint += delegate(object s2, PaintEventArgs e)
             {
                 var g = e.Graphics;
@@ -9249,6 +9309,7 @@ namespace Fluxion
             box.Controls.Add(btnMax);
             box.Controls.Add(btnMin);
             box.Controls.Add(btnScanTop);
+            box.Controls.Add(btnAddTop);   // 2026-11-01：创建+定位了却没挂进容器，按钮永远不显示（漏加 Controls.Add）
             bar.Controls.Add(box);
             titleBtnBox = box;
             Action placeBtnBox = delegate
@@ -9258,7 +9319,7 @@ namespace Fluxion
                 box.Left = bar.Width - box.Width;
                 box.Top = 0;
                 btnScanTop.Top = (box.Height - btnScanTop.Height) / 2;
-                int bx2 = btnScanTop.Right + scanGap + lead;
+                int bx2 = btnAddTop.Right + scanGap + lead;   // 2026-11-01：从「添加游戏」右边起摆 —— 旧的按扫描游戏算会叠在添加游戏上
                 foreach (WinBtn b in new WinBtn[] { btnMin, btnMax, btnClose })
                 {
                     if (b != null)
@@ -10569,6 +10630,22 @@ namespace Fluxion
             lblGi = sGi.Body("");
             lblGi.Font = Theme.F(9.5f);
             lblGi.ForeColor = Theme.TextDim;
+            //  每游戏「启动参数」的**可见入口**（2026-10-31）：对话框第 148 轮就做好了，
+            //  但入口只埋在右键菜单里 —— 用户直接问"填参数的地方在哪"
+            //  （现实需求：鸣潮 3.7 起直启 exe 必须带 -krqlv=uhd 这类画质档参数）。
+            //  状态行 + 编辑按钮放进「游戏信息」卡，选中游戏就能看到；保存后经 RefreshFgSummary 回显。
+            //  与右键菜单同一闸（!ShareBuild）：分享构建没有编辑入口，就别摆一行"未设置"干瞪眼。
+            if (!Program.ShareBuild)
+            {
+                lblGiArgs = sGi.Body("");
+                lblGiArgs.Font = Theme.F(9.5f);
+                lblGiArgs.ForeColor = Theme.TextDim;
+                btnLaunchCfg = new FlatBtn();
+                btnLaunchCfg.Text = "启动参数与环境变量…";
+                btnLaunchCfg.Width = Theme.S(150);
+                btnLaunchCfg.Click += delegate { ShowLaunchConfigDialog(); };
+                sGi.Buttons(btnLaunchCfg);
+            }
             //  自定义封面的**显眼入口**（2026-10-23）：功能一直在，但只在卡片右键菜单里，
             //  用户直接问"能不能添加自定义封面" —— 说明藏得太深。选中游戏后这里就能看到：
             //  选一张本地图片，或按 Ctrl+V 直接把剪贴板里的截图贴成封面。
@@ -10614,6 +10691,9 @@ namespace Fluxion
             //  合并成一张，并且整张挪进「诊断」—— 概览页只需要"装 / 卸"两个动作。
             //  删掉「目标游戏」下拉：左栏游戏列表一直可见，hero 也写着当前游戏名，第三处重复没意义。
             var s2 = new Sec("运行时状态与操作");
+            //  4 行（2026-11-01）：前 3 行是"状态"，第 2 行是普通人看得懂的解释 ——
+            //  用户原话"参数说明太极客化了，很多游戏玩家并不了解"。每项按「结论 + 人话注解」成对出现，
+            //  注解用括号、与结论同色系，不额外加字号层级。
             lblRt = s2.BodyFixed("检查中…", 3);
             //  DLSS 运行库版本（只读体检，2026-10-20）：DLSS Swapper 那类工具的核心价值就是
             //  "让我看见每个游戏的库版本" —— 补丁覆盖回来时界面上完全看不出来。这里额外跟包内版本比一版。
@@ -10641,7 +10721,7 @@ namespace Fluxion
             btnParkStray.Click += delegate { DoParkStrays(); };
             s2.Buttons(btnOn, btnOff, btnSwitch, btnDiag, btnIgnored, btnParkStray);
             lblD3d12 = s2.BodyFixed("d3d12 入口：检查中…", 1);
-            lblPatrol = s2.BodyFixed("入口巡检：检查中…", 2);
+            lblPatrol = s2.BodyFixed("入口巡检：检查中…", 1);
             AddDetail(p, s2, 2);
 
             // ---------- 方案区块（5 套只显示一套）----------
@@ -10754,9 +10834,39 @@ namespace Fluxion
             btn040Apply.Click += delegate { Do040Tuning(); };
             var btn040Check = new FlatBtn(); btn040Check.Text = "检查是否生效（读日志）"; btn040Check.Width = Theme.S(176);
             btn040Check.Click += delegate { DoFgLogCheck(); };
-            var btnNetDisk = new FlatBtn(); btnNetDisk.Text = "网盘下载源（3 个）"; btnNetDisk.Width = Theme.S(150);
+            var btnNetDisk = new FlatBtn(); btnNetDisk.Text = "网盘下载源"; btnNetDisk.Width = Theme.S(150);
             btnNetDisk.Click += delegate { DoNetDiskSources(); };
-            s040.Buttons(btn040Apply, btn040Check, btnNetDisk);
+            //  「导入资源包…」（2026-11-01）：拖拽这条路对**管理员窗口**走不通 —— Windows 的 UIPI
+            //  会把普通权限资源管理器发来的拖放**静默丢弃**（实测两次都没进程序，日志里连"拖入"都没有）。
+            //  所以给一条不依赖拖拽的路：文件选择对话框（程序自己弹的，没有 UIPI 问题）。
+            var btnPackImport = new FlatBtn(); btnPackImport.Text = "导入资源包…"; btnPackImport.Width = Theme.S(120);
+            btnPackImport.Click += delegate
+            {
+                //  2026-11-01 推倒自造列表：直接用产品现成的文件夹浏览器（改数据目录/扫描/导出四处
+                //  都在用、本机实测可用），浏览到包所在的文件夹 → 里面的 zip 自动列出：
+                //  只有 1 个直接导；多个弹小列表挑；0 个明确说"没有 zip"。
+                string folder = ModernFolderPicker.PickFolder(this.Handle,
+                    "选择插件包所在的文件夹（里面的 zip 会被列出）",
+                    lastPackDir.Length > 0 ? lastPackDir : "");
+                if (folder == null || folder.Length == 0) return;   // 取消
+                lastPackDir = folder;
+                var zips = new List<string>();
+                try { zips.AddRange(Directory.GetFiles(folder, "*.zip")); }
+                catch (Exception ex) { Log("  读不了这个文件夹：" + ex.Message); return; }
+                zips.Sort(delegate(string a, string b) { return File.GetLastWriteTime(b).CompareTo(File.GetLastWriteTime(a)); });
+                if (zips.Count == 0)
+                {
+                    //  没有 zip ≠ 导不了：用户选的可能是**解压后的散装包目录**（extracted\ 那种，
+                    //  version.dll + dlssg_sm86\ 平铺）—— 识别器本来就吃这种目录。
+                    //  直接交给识别器：认得出就正常导入，认不出会明确说"不在导入范围"。
+                    Log("  文件夹里没有 zip，按散装包目录识别：" + folder);
+                    StartPackImport(new List<string> { folder });
+                    return;
+                }
+                if (zips.Count == 1) { StartPackImport(new List<string> { zips[0] }); return; }
+                ShowPackZipList(zips, folder);                      // 多个包 → 列表挑一个
+            };
+            s040.Buttons(btn040Apply, btn040Check, btnPackImport, btnNetDisk);
             AddDetail(p, s040, 1);
 
             // ---------- 方案 B · MFG Bridge（第三方，单文件 nvngx.dll）----------
@@ -11148,6 +11258,22 @@ namespace Fluxion
                       + "\n② 游戏里出现「DLSS 帧生成」= 成功；只有 FSR = 入口没被调用，换入口重试"
                       + "\n③ 回工具点「运行诊断」，日志里有 evaluate 才算真的在补帧");
                 p.Add(s2);
+            }
+
+            if (!Program.ShareBuild)
+            {
+                //  手动资源（2026-11-01）：网盘里那两个"不是帧生成插件、需要自己动手放"的包。
+                //  数据目录里各放一份原样文件，说明页讲清"在哪、干嘛、怎么用"。
+                //  刻意不做自动部署：RE 框架必须与游戏版本匹配，超分模型替换也要用户自己确认。
+                var sManual = new Sec("手动资源（不是插件，按需自己拿）");
+                sManual.Body("· DLSS 超分模型 4 / 4.5 —— 游戏画面发糊、有拖影时用"
+                    + "\n  在 " + Path.Combine(Program.DataDir, @"manual-pack\dlss4-4.5\nvngx_dlss.dll")
+                    + "\n  用法：复制到游戏 exe 同目录覆盖同名文件（先备份原文件）"
+                    + "\n· RE 框架 —— 只给卡普空的游戏（生化、鬼武者、龙之信条2、怪猎）"
+                    + "\n  在 " + Path.Combine(Program.DataDir, @"manual-pack\re-framework\dinput8.dll")
+                    + "\n  用法：复制到游戏 exe 同目录（它按 dinput8.dll 这个名字加载）"
+                    + "\n⚠ 两个都要和游戏版本匹配，工具不代装；放错了游戏起不来，删掉那两份文件即可恢复");
+                p.Add(sManual);
             }
 
             if (!Program.ShareBuild)
@@ -13178,7 +13304,24 @@ namespace Fluxion
                 FgResult r = null;
                 try { r = FgVerify.Check(g.Dir); } catch { }   // 后台 IO，顺带把结果填进缓存
                 string line;
-                if (r == null || !r.HasLog) line = "没有代理日志 —— 代理没被游戏加载（换入口 / 看「运行诊断」）";
+                if (r == null || !r.HasLog)
+                {
+                    //  ★ 2026-10-31 分层（用户原话"云里雾里"）：FgVerify 只认 SM86 的 jsonl
+                    //    **会话日志**，没有它 ≠ 代理没加载 —— OptiScaler.log 是代理一注入就写的，
+                    //    它在刚跑过的时间窗内有更新 = 已加载。原来一刀切报"没被游戏加载"，
+                    //    和游戏目录里明明有 OptiScaler.log 自相矛盾。
+                    bool loaded = false;
+                    try
+                    {
+                        string ol = Path.Combine(g.Dir, "OptiScaler.log");
+                        if (File.Exists(ol) && (DateTime.Now - File.GetLastWriteTime(ol)).TotalMinutes <= 30)
+                            loaded = true;
+                    }
+                    catch { }
+                    line = loaded
+                        ? "代理已加载，但还没有帧生成会话记录 —— 进游戏把「帧生成」打开跑一局，退出后再看"
+                        : "没有代理日志 —— 代理没被游戏加载（换入口 / 看「运行诊断」）";
+                }
                 else if (r.GenCount >= 0) line = "实测 " + (r.GenCount + 1) + "X（" + r.When.ToString("MM-dd HH:mm") + "）";
                 else if (r.IsEmpty && r.HasPrev && r.PrevGenCount >= 0)
                     line = "这次没跑帧生成；上次实测 " + (r.PrevGenCount + 1) + "X（" + r.PrevWhen.ToString("MM-dd HH:mm") + "）";
@@ -13333,6 +13476,17 @@ namespace Fluxion
                 //  左栏游戏列表跟着库一起刷新（keep=当前选中，不会把用户刚点的行跳走）
                 FillFgList();
 
+                //  方案下拉的版本号是**构建时快照**（BuildPageFrameGen 里那批字面量）：包一换，
+                //  界面还停在上一个版本号，要重启才更新（2026-11-01 用户："你这下拉就只能支持这么多"）。
+                //  这里每次刷新都把两类版本号重读一遍 —— RefreshFgSummary 是导入 / 部署 / 换游戏
+                //  都会走到的地方。Items.Set 只改文案（索引不变、不触发 SelectedIndexChanged），
+                //  与原值相同则内部直接返回，幂等不闪。
+                if (cbScheme != null)
+                {
+                    cbScheme.Items.Set(2, "DLSS MFG " + Dlssg030.Ver + " · 代理");
+                    cbScheme.Items.Set(3, "DLSS MFG " + Dlssg040.Ver + " · 新结构");
+                }
+
                 if (lblGi != null)
                 {
                     if (selected == null) SetBody(lblGi, "");
@@ -13376,6 +13530,25 @@ namespace Fluxion
                     }
                 }
 
+                //  启动参数状态行（与上面 lblGi 同卡）：跟着选中游戏走，保存对话框后立即回显。
+                //  2026-10-31 起区分三态：用户自定义 / 内置预设（鸣潮这类自带启动规矩的游戏，自动带上）/
+                //  未设置 —— 让"到底会不会带参数"在界面上就能看穿，不用翻 library.json。
+                if (lblGiArgs != null)
+                {
+                    if (selected == null) SetBody(lblGiArgs, "");
+                    else
+                    {
+                        string custom, preset; int nEnv;
+                        Lib.LaunchConfigView(selected, out custom, out preset, out nEnv);
+                        string tail = nEnv > 0 ? " · 环境变量 " + nEnv + " 条" : "";
+                        //  文案保持一行能放下（Body 不折行，长句会顶出卡片圆角）；
+                        //  参数怎么写、举什么例，教给对话框正文说。
+                        SetBody(lblGiArgs, custom.Length > 0 ? ("启动参数：" + custom + tail)
+                            : preset.Length > 0 ? ("启动参数：" + preset + "（内置，启动自动带上）" + tail)
+                            : (nEnv > 0 ? "启动参数：无" + tail : "启动参数：未设置"));
+                    }
+                }
+
                 bool src = Dlssg.SourceReady();
                 string hags = Dlssg.HagsText();
                 int hagsWarn = Dlssg.HagsState() == 2 ? 0 : 1;
@@ -13384,10 +13557,22 @@ namespace Fluxion
                     // 固定 3 行（BodyFixed）：文案变化不再改变分区高度，避免整页重排
                     Dlssg030.PackActualInfo pa = Dlssg030.PackActual();
                     string srcHint = Dlssg.SourceHint();
-                    SetBody(lblRt, "运行时文件：" + (src ? "已就绪"
-                                  : (srcHint.Length > 0 ? "未就绪 —— " + srcHint : "未下载（点「下载运行时」）")) +
-                                 "        HAGS：" + hags + (hagsWarn == 1 ? "  ⚠ 需开启" : "  ✓") +
-                                 "\n" + pa.Line());
+                    //  ★ 2026-10-31 文案重写（用户原话"云里雾里"）：每行先回答"能不能用 / 缺什么 / 点哪里"，
+                    //    术语给全称（HAGS → 硬件加速 GPU 调度）。字节级实测（体积 / INI / 备用入口数 /
+                    //    签名）不再堆卡片 —— 异常态才展开原文，常态只留代号与日期，细节在日志与「运行诊断」。
+                    //  ★ 2026-11-01 再改：每项补一行**普通人能听懂**的括号注解（"很多游戏玩家并不了解"）。
+                    string rt = "帧生成运行时：" + (src ? "已就绪"
+                                : (srcHint.Length > 0 ? "未就绪（" + srcHint + "）" : "未安装 → 点「下载运行时」"));
+                    rt += "\n硬件加速 GPU 调度：" + (hagsWarn == 1 ? "未开启 ⚠（帧生成必需）" : "已开启 ✓");
+                    string pk;
+                    if (!pa.Found) pk = "方案包：未导入（点「下载运行时」会自动就位）";
+                    else if (pa.Warn) pk = pa.Line();        // 异常态直接给字节级原文 —— 这种时候细节就是信息
+                    else
+                    {
+                        string when = pa.ImportedAt != null && pa.ImportedAt.Length > 0 ? pa.ImportedAt : pa.EntryTime;
+                        pk = "方案包：" + pa.Code + (when.Length > 0 ? "（" + when + "）" : "");
+                    }
+                    SetBody(lblRt, rt + "\n" + pk);
                     lblRt.ForeColor = (src && !pa.Warn) ? Theme.TextDim : Theme.Warn;
                     //  srcHint 非空 = 源位上有份不对的件，本来就该用告警色，不需要额外条件
                     // 不一致只在**变化时**记一次日志 —— 每次刷新都写会把日志刷满
@@ -13399,12 +13584,16 @@ namespace Fluxion
                     }
                 }
                 if (lblDlssLib != null)
-                    SetBody(lblDlssLib, selected == null ? "" : Dlssg.LibVersions(selected.Dir));
+                {
+                    string lv = selected == null ? "" : Dlssg.LibVersions(selected.Dir);
+                    //  第二行是给普通人的注解：说清"这是个啥、看到可升级该怎么办"（不承诺自动替换 ——
+                    //  产品刻意不做，会和用户自己装的 OptiScaler 代理撞车）。
+                    SetBody(lblDlssLib, lv);
+                }
                 if (lblD3d12 != null)
                 {
                     string dh = Dlssg.D3d12Hint();
-                    SetBody(lblD3d12, "d3d12 入口（反作弊游戏专用）："
-                        + (dh.Length == 0 ? "可用（代理内嵌 + 系统原件 + 载体就绪）" : dh));
+                    SetBody(lblD3d12, "d3d12 入口（反作弊游戏用）：" + (dh.Length == 0 ? "可用 ✓" : dh));
                     lblD3d12.ForeColor = dh.Length == 0 ? Theme.TextDim : Theme.Warn;
                 }
                 if (lblPatrol != null)
@@ -13412,7 +13601,7 @@ namespace Fluxion
                     //  每次进页面 / 换选中游戏都按目录里的真实文件重算一遍（只读）。
                     //  刻意不写日志：巡检只负责"看得见"，要不要处理由用户点按钮决定，
                     //  每次刷页面都记一行会把日志刷满。
-                    string pt = selected == null ? "入口巡检：未选中游戏（先在列表里点一个）"
+                    string pt = selected == null ? "入口状态：未选中游戏（先在列表里点一个）"
                                                  : Plan.PatrolLine(selected.Dir);
                     SetBody(lblPatrol, pt);
                     lblPatrol.ForeColor = pt.IndexOf('\u26a0') >= 0 ? Theme.Warn : Theme.TextDim;
@@ -14790,16 +14979,111 @@ namespace Fluxion
 
         void DoAddGame()
         {
-            using (var dlg = new OpenFileDialog())
+            //  2026-11-01：OpenFileDialog 在本机会挂死（shell 层，与导入资源包同款问题）——
+            //  改用产品现成的文件夹浏览器 + 自家 exe 列表挑件（顶层 + 一层子目录，
+            //  覆盖"启动器在根、游戏本体在子目录"的常见结构，如异环 NTELauncher\NTEGame.exe）。
+            string folder = ModernFolderPicker.PickFolder(this.Handle,
+                "选择游戏所在的文件夹（里面的游戏 exe 会被列出）",
+                lastAddDir.Length > 0 ? lastAddDir : "");
+            if (string.IsNullOrEmpty(folder)) return;
+            lastAddDir = folder;
+
+            var exes = new List<string>();
+            try
             {
-                dlg.Title = "选择游戏主程序（exe）";
-                dlg.Filter = "程序 (*.exe)|*.exe";
-                if (lastAddDir.Length > 0) dlg.InitialDirectory = lastAddDir;
-                if (dlg.ShowDialog(this) != DialogResult.OK) return;
-                try { lastAddDir = Path.GetDirectoryName(dlg.FileName); } catch { }
-                Log(">>> 添加自定义游戏：" + Dlssg.AddCustomGame(dlg.FileName));
+                foreach (string f in Directory.GetFiles(folder, "*.exe"))
+                    if (!Path.GetFileName(f).StartsWith("unins", StringComparison.OrdinalIgnoreCase)) exes.Add(f);
+                foreach (string d in Directory.GetDirectories(folder))
+                    try
+                    {
+                        foreach (string f in Directory.GetFiles(d, "*.exe"))
+                            if (!Path.GetFileName(f).StartsWith("unins", StringComparison.OrdinalIgnoreCase)) exes.Add(f);
+                    }
+                    catch { }
             }
+            catch (Exception ex) { Log("  读不了这个文件夹：" + ex.Message); return; }
+            if (exes.Count == 0)
+            {
+                MessageBox.Show(this, "这个文件夹（含一层子目录）里没有 exe。", "添加游戏",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            exes.Sort(delegate(string a, string b) { return File.GetLastWriteTime(b).CompareTo(File.GetLastWriteTime(a)); });
+            if (exes.Count == 1) { DoAddGameExe(exes[0]); return; }
+            ShowSimplePickList("添加游戏 · " + Path.GetFileName(folder.TrimEnd('\\')) + "（" + exes.Count + " 个 exe）",
+                exes, delegate(string f)
+                {
+                    return Path.GetFileName(f);
+                },
+                delegate(string pick) { DoAddGameExe(pick); });
+        }
+
+        void DoAddGameExe(string exe)
+        {
+            Log(">>> 添加自定义游戏：" + Dlssg.AddCustomGame(exe));
             MergeScanThen(games, delegate { FillGameList(); RefreshFgSummary(); });
+        }
+
+        //  通用单选列表窗（文件夹浏览之后挑一个文件）：标题 + 行格式化 + 选中回调。双击 = 确认。
+        void ShowSimplePickList(string title, List<string> items, Func<string, string> fmt, Action<string> onPick)
+        {
+            var dlg = new Form();
+            Fx.FadeOnClose(dlg);
+            dlg.Text = title;
+            dlg.StartPosition = FormStartPosition.CenterParent;
+            dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+            dlg.MaximizeBox = false; dlg.MinimizeBox = false;
+            dlg.BackColor = Theme.Bg; dlg.ForeColor = Theme.Text;
+            dlg.Font = Theme.F(9f);
+            dlg.AutoScaleMode = AutoScaleMode.None;
+            dlg.ShowInTaskbar = false; dlg.ShowIcon = false;
+            dlg.ClientSize = new Size(Theme.S(600), Theme.S(360));
+            try { Theme.ApplyChrome(dlg.Handle); } catch { }
+
+            var tip = new TxtLbl();
+            tip.Text = "点选一项 → 「确定」；双击同效。";
+            tip.AutoSize = true;
+            tip.ForeColor = Theme.TextDim;
+            tip.Font = Theme.F(9f);
+            tip.Location = new Point(Theme.S(16), Theme.S(12));
+            dlg.Controls.Add(tip);
+
+            var lb = new ListBox();
+            lb.Font = Theme.F(9.5f);
+            lb.ItemHeight = Theme.S(22);
+            lb.BorderStyle = BorderStyle.FixedSingle;
+            lb.HorizontalScrollbar = true;
+            foreach (string it in items)
+            {
+                string row = fmt(it);
+                int maxW = lb.ClientSize.Width - Theme.S(24);
+                while (row.Length > 6 && TextRenderer.MeasureText(row, lb.Font).Width > maxW)
+                    row = row.Substring(0, row.Length - 2).TrimEnd() + "…";
+                lb.Items.Add(row);
+            }
+            if (items.Count > 0) lb.SelectedIndex = 0;
+            lb.Location = new Point(Theme.S(16), Theme.S(40));
+            lb.Size = new Size(dlg.ClientSize.Width - Theme.S(32), dlg.ClientSize.Height - Theme.S(108));
+            dlg.Controls.Add(lb);
+
+            var btnCancel = new FlatBtn(); btnCancel.Text = "取消"; btnCancel.Width = Theme.S(84);
+            btnCancel.Location = new Point(dlg.ClientSize.Width - Theme.S(100), dlg.ClientSize.Height - Theme.S(52));
+            btnCancel.Click += delegate { dlg.Close(); };
+            dlg.Controls.Add(btnCancel);
+
+            var btnGo = new FlatBtn(); btnGo.Text = "确定"; btnGo.Kind = BtnKind.Primary; btnGo.Width = Theme.S(110);
+            btnGo.Location = new Point(dlg.ClientSize.Width - Theme.S(224), dlg.ClientSize.Height - Theme.S(52));
+            btnGo.Click += delegate
+            {
+                if (lb.SelectedIndex < 0 || lb.SelectedIndex >= items.Count) return;
+                string pick = items[lb.SelectedIndex];
+                dlg.Close();
+                onPick(pick);
+            };
+            dlg.Controls.Add(btnGo);
+            lb.DoubleClick += delegate { btnGo.PerformClick(); };
+
+            dlg.ShowDialog(this);
         }
 
         // 移除：自定义条目 → 删记录；自动扫描条目 → 加入忽略清单（下次扫描不再出现）
@@ -15350,7 +15634,9 @@ namespace Fluxion
             string what = (selected.Platform == "steam" && selected.AppId != null && selected.AppId.Length > 0)
                 ? "steam://rungameid/" + selected.AppId
                 : Lib.LaunchTargetOf(selected);     // 与真正被启动的那条路径一致（exe 可能在子目录里）
-            string largs = (selected.LaunchArgs == null ? "" : selected.LaunchArgs).Trim();
+            //  ★ 2026-10-31：日志打的是**实际生效**的参数（磁盘设置 + 内置预设合成后的结果）——
+            //    只打内存 g.LaunchArgs 时，预设生效了日志却看不出来，等于让人猜。
+            string largs = Lib.EffectiveLaunchArgs(selected);
             Log("  已启动：" + selected.Title + "   (" + what + (largs.Length > 0 ? " " + largs : "") + ")");
             FillGameList();     // 刷新「最近游玩」排序
             // 带 DX12 参数启动时自动验证（用户要求：必须有反馈，别让人猜有没有生效）
@@ -16439,21 +16725,101 @@ namespace Fluxion
             gw.RunWorkerAsync();
         }
 
-        // 作者的百度网盘链接：一键复制全部（含提取码）再弹窗展示。
-        //  不自动下载 —— 网盘要登录、直链会过期，写个抓取器也是"十次里成功两次"，
-        //  不如把链接原样给到手上。
+        // 作者的网盘链接：不再"复制一大段文本让人自己粘"（2026-11-01 用户原话：
+        //  "难道不会定向到这个链接吗？还要别人一个一个复制吗"）—— 改成每条一个「打开」按钮，
+        //  点了直接跳浏览器；百度链接自带 ?pwd= 提取码，打开即免输。
+        //  仍不自动下载 —— 网盘要登录、直链会过期，写个抓取器也是"十次里成功两次"，
+        //  不如把入口做到一键直达。
         void DoNetDiskSources()
         {
-            string text = NetDiskSources.Block();
-            bool copied = false;
-            try { Clipboard.SetText(text); copied = true; } catch { }
-            Log(">>> 网盘下载源（" + (copied ? "已复制到剪贴板" : "剪贴板不可用，见弹窗") + "）：");
-            foreach (NetDisk d in NetDiskSources.All)
-                Log("  " + d.Name + "  提取码 " + d.Code + "  →  " + d.For);
-            MessageBox.Show(
-                (copied ? "三条链接（含提取码）已复制到剪贴板。\n\n" : "")
-                + text,
-                "网盘下载源", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            var all = NetDiskSources.All;
+            var dlg = new Form();
+            Fx.FadeOnClose(dlg);
+            dlg.Text = "网盘下载源";
+            dlg.StartPosition = FormStartPosition.CenterParent;
+            dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+            dlg.MaximizeBox = false; dlg.MinimizeBox = false;
+            dlg.BackColor = Theme.Bg; dlg.ForeColor = Theme.Text;
+            dlg.Font = Theme.F(9f);
+            dlg.AutoScaleMode = AutoScaleMode.None;
+            dlg.ShowInTaskbar = false;
+            dlg.ShowIcon = false;
+            int rowH = Theme.S(52);
+            dlg.ClientSize = new Size(Theme.S(640), Theme.S(46 + all.Length * rowH + 54));
+            try { Theme.ApplyChrome(dlg.Handle); } catch { }
+
+            var tip = new TxtLbl();
+            tip.Text = "点「打开」直接跳到网盘（提取码已带上）；下到的包用 0.4.x 区块的「导入资源包…」按钮选择导入。";
+            tip.AutoSize = true;
+            tip.ForeColor = Theme.TextDim;
+            tip.Font = Theme.F(9f);
+            tip.Location = new Point(Theme.S(16), Theme.S(12));
+            dlg.Controls.Add(tip);
+
+            int y = Theme.S(42);
+            foreach (NetDisk d in all)
+            {
+                var t = new TxtLbl();
+                t.Text = d.Name;
+                t.AutoSize = true;
+                t.Font = Theme.FB(9.5f);
+                t.Location = new Point(Theme.S(16), y);
+                dlg.Controls.Add(t);
+
+                var f = new TxtLbl();
+                //  行 2 = 用途。测量截断到按钮区之前（2026-11-01：夸克条那行太长，压到「打开」下面 ——
+                //  用户原话"挡在那儿"。提取码不再拼在行尾 —— 「复制提取码」按钮就在旁边，码本身不必露出）。
+                string line2 = d.For;
+                int maxW = dlg.ClientSize.Width - Theme.S(232);
+                while (line2.Length > 4 && TextRenderer.MeasureText(line2, f.Font).Width > maxW)
+                    line2 = line2.Substring(0, line2.Length - 2).TrimEnd() + "…";
+                f.Text = line2;
+                f.AutoSize = true;
+                f.ForeColor = Theme.TextDim;
+                f.Font = Theme.F(9f);
+                f.Location = new Point(Theme.S(16), y + Theme.S(21));
+                dlg.Controls.Add(f);
+
+                string url = d.Url, code = d.Code;
+                var btnOpen = new FlatBtn();
+                btnOpen.Text = "打开";
+                btnOpen.Kind = BtnKind.Primary;
+                btnOpen.Width = Theme.S(72);
+                btnOpen.Location = new Point(dlg.ClientSize.Width - Theme.S(184), y + Theme.S(4));
+                btnOpen.Click += delegate
+                {
+                    try { Process.Start(url); }
+                    catch (Exception ex) { Log("  打开网盘失败：" + ex.Message + "（链接：" + url + "）"); }
+                };
+                dlg.Controls.Add(btnOpen);
+
+                var btnCode = new FlatBtn();
+                btnCode.Text = "复制提取码";
+                btnCode.Width = Theme.S(100);
+                btnCode.Location = new Point(dlg.ClientSize.Width - Theme.S(104), y + Theme.S(4));
+                btnCode.Visible = code.IndexOf("免密", StringComparison.Ordinal) < 0;   // 夸克免密，没有码可复制
+                btnCode.Click += delegate
+                {
+                    try { Clipboard.SetText(code); Log("  提取码已复制：" + code); } catch { }
+                };
+                dlg.Controls.Add(btnCode);
+
+                y += rowH;
+            }
+
+            //  分享 / 存档用：老行为（整段文本进剪贴板）保留成一个角落按钮
+            var btnAll = new FlatBtn();
+            btnAll.Text = "复制全部文本";
+            btnAll.Width = Theme.S(110);
+            btnAll.Location = new Point(Theme.S(16), dlg.ClientSize.Height - Theme.S(40));
+            btnAll.Click += delegate
+            {
+                try { Clipboard.SetText(NetDiskSources.Block()); Log("  网盘清单已复制到剪贴板"); } catch { }
+            };
+            dlg.Controls.Add(btnAll);
+
+            Log(">>> 网盘下载源：打开 " + all.Length + " 条（点「打开」直达对应网盘）");
+            dlg.ShowDialog(this);
         }
 
         // ---- 应用内更新检查（第 160 轮）----
@@ -16677,57 +17043,86 @@ namespace Fluxion
                         return;
                     }
                     Log("  已下载 → " + localZip);
-                    ImportDownloaded(localZip);
+                    //  统一走 StartPackImport 的两段式（Inspect 后台 + 交互回 UI）——
+                    //  原来这里在 UI 线程同步 Inspect 大 zip，同样是"未响应"的来源之一
+                    StartPackImport(new List<string> { localZip });
                 }
                 finally { RefreshFgSummary(); }
             };
             gw.RunWorkerAsync();
         }
 
-        // 下载的 zip 走的是"拖进来"那条老路：识别 → 校验 → 归位，判据与手工拖包完全一致
-        void ImportDownloaded(string zip)
+        //  多个包时的挑件列表（文件夹浏览之后才会出现）：只列该文件夹里的 zip，行 = 名字·大小·时间。
+        //  双击 = 导入；逻辑仍走 StartPackImport 两段式（重活后台）。
+        void ShowPackZipList(List<string> zips, string folder)
         {
-            PackProbe p = Pack.Inspect(zip, delegate(string m) { Log(m); });
-            if (p.Error.Length > 0) { Log("  识别失败：" + p.Error); return; }
-            Log("  识别结果：" + p.KindLabel());
-            if (p.VerBasis.Length > 0) Log("  " + p.VerBasis);
+            var dlg = new Form();
+            Fx.FadeOnClose(dlg);
+            dlg.Text = "导入资源包 · " + Path.GetFileName(folder.TrimEnd('\\')) + "（" + zips.Count + " 个包）";
+            dlg.StartPosition = FormStartPosition.CenterParent;
+            dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+            dlg.MaximizeBox = false; dlg.MinimizeBox = false;
+            dlg.BackColor = Theme.Bg; dlg.ForeColor = Theme.Text;
+            dlg.Font = Theme.F(9f);
+            dlg.AutoScaleMode = AutoScaleMode.None;
+            dlg.ShowInTaskbar = false; dlg.ShowIcon = false;
+            dlg.ClientSize = new Size(Theme.S(600), Theme.S(360));
+            try { Theme.ApplyChrome(dlg.Handle); } catch { }
 
-            List<PackItem> ask = Pack.NeedsTrustAsk(p);
-            if (ask.Count > 0)
+            var tip = new TxtLbl();
+            tip.Text = "这个文件夹里有 " + zips.Count + " 个插件包（新→旧）。点选一个 → 「导入选中」。";
+            tip.AutoSize = true;
+            tip.ForeColor = Theme.TextDim;
+            tip.Font = Theme.F(9f);
+            tip.Location = new Point(Theme.S(16), Theme.S(12));
+            dlg.Controls.Add(tip);
+
+            var lb = new ListBox();
+            lb.Font = Theme.F(9.5f);
+            lb.ItemHeight = Theme.S(22);
+            lb.BorderStyle = BorderStyle.FixedSingle;
+            lb.HorizontalScrollbar = true;
+            var picked = new List<string>();
+            foreach (string z in zips)
             {
-                StringBuilder sb = new StringBuilder();
-                sb.AppendLine("这些文件不是作者白名单里的签名：");
-                foreach (PackItem it in ask)
-                    sb.AppendLine("  " + it.Name + "：" + (it.Cert == null ? "未核验" : ProxySign.Short(it.Cert)));
-                sb.Append("\n它们来自 GitHub 官方 release（不是手工攒的包），但没通过签名白名单 ——\n"
-                    + "通常是这一版的件还没签、或换过了签名证书。继续导入吗？");
-                if (MessageBox.Show(sb.ToString(), "签名核验", MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
-                    != DialogResult.Yes)
-                {
-                    Log("  已取消导入（未做任何改动）");
-                    return;
-                }
+                picked.Add(z);
+                FileInfo fi = new FileInfo(z);
+                string row = string.Format("{0}　·　{1:0.0} MB　·　{2:MM-dd HH:mm}",
+                    Path.GetFileName(z), fi.Length / 1048576.0, fi.LastWriteTime);
+                int maxW = lb.ClientSize.Width - Theme.S(24);
+                while (row.Length > 6 && TextRenderer.MeasureText(row, lb.Font).Width > maxW)
+                    row = row.Substring(0, row.Length - 2).TrimEnd() + "…";
+                lb.Items.Add(row);
             }
-            Log("  " + Pack.Import(p, null));
-            OfferRedeploy();
+            if (picked.Count > 0) lb.SelectedIndex = 0;
+            lb.Location = new Point(Theme.S(16), Theme.S(40));
+            lb.Size = new Size(dlg.ClientSize.Width - Theme.S(32), dlg.ClientSize.Height - Theme.S(108));
+            dlg.Controls.Add(lb);
+
+            var btnCancel = new FlatBtn(); btnCancel.Text = "取消"; btnCancel.Width = Theme.S(84);
+            btnCancel.Location = new Point(dlg.ClientSize.Width - Theme.S(100), dlg.ClientSize.Height - Theme.S(52));
+            btnCancel.Click += delegate { dlg.Close(); };
+            dlg.Controls.Add(btnCancel);
+
+            var btnGo = new FlatBtn(); btnGo.Text = "导入选中"; btnGo.Kind = BtnKind.Primary; btnGo.Width = Theme.S(110);
+            btnGo.Location = new Point(dlg.ClientSize.Width - Theme.S(224), dlg.ClientSize.Height - Theme.S(52));
+            btnGo.Click += delegate
+            {
+                if (lb.SelectedIndex < 0 || lb.SelectedIndex >= picked.Count) return;
+                string pick = picked[lb.SelectedIndex];
+                dlg.Close();
+                StartPackImport(new List<string> { pick });   // 重活在后台（两段式），窗口不卡
+            };
+            dlg.Controls.Add(btnGo);
+            lb.DoubleClick += delegate { btnGo.PerformClick(); };
+
+            dlg.ShowDialog(this);
         }
 
-        // 资源包换了之后，已经装了这套的游戏要不要一起重抄（不重抄的话游戏里跑的还是旧的）
-        void OfferRedeploy()
-        {
-            List<DlssgGame> targets = Pack.Installed(games);
-            if (targets.Count == 0) { Log("  没有已装本方案的游戏，不用重新部署"); return; }
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine("这些游戏现在装的是本方案的某一代：");
-            foreach (DlssgGame g in targets) sb.AppendLine("  " + g.Title + "（" + Plan.PlanName(Plan.Current(g.Dir)) + "）");
-            sb.Append("\n把新资源重抄过去吗？（只换文件不删东西；游戏必须已退出）");
-            DialogResult dr = MessageBox.Show(sb.ToString(), "重新部署？",
-                MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
-            if (dr == DialogResult.Cancel) { Log("  保持原样（资源包已更新，下次部署时生效）"); return; }
-            if (dr == DialogResult.No) { Log("  只更新了资源包"); return; }
-            Log("  " + Pack.DeployTo(targets, delegate(string m) { Log(m); }));
-            FillGameList();
-        }
+        // 下载的 zip 走 StartPackImport 的统一两段式（识别 → 校验 → 归位），与拖入/按钮完全一致。
+        //  旧的 ImportDownloaded 已删：它在 UI 线程同步做"解压整包 + 逐件 SHA256"，大包必卡死 UI。
+        //  （它尾巴上的 OfferRedeploy 也一并删了 —— ShowPackDialog 的导入问句里已含"要不要重抄"，
+        //    同一件事不再有第二个入口。）
 
         void DoCleanResidue()
         {
@@ -17490,6 +17885,7 @@ namespace Fluxion
         //  光标下最深的控件，再向上找第一张卡片
 
         bool packBusy;
+        string lastPackDir = "";            // 上次导入/扫描的文件夹 —— 下次「导入资源包」优先扫它（2026-11-01）
 
         void OnPackDropped(IntPtr hDrop)
         {
@@ -17537,8 +17933,21 @@ namespace Fluxion
         void StartPackImport(List<string> paths)
         {
             if (packBusy) { Log("  上一次插件包导入还没结束，请稍候再拖"); return; }
+            //  rar 不认（Pack 只会解 zip）：给一句人话指引，别让用户对着"识别失败"发懵
+            var usable = new List<string>();
+            foreach (string p in paths)
+            {
+                if (string.Equals(Path.GetExtension(p), ".rar", StringComparison.OrdinalIgnoreCase))
+                {
+                    Log("  " + Path.GetFileName(p) + " 是 .rar —— 工具只认 zip 或解压后的文件夹。请先右键解压，再导入解压出来的内容");
+                    continue;
+                }
+                usable.Add(p);
+            }
+            if (usable.Count == 0) return;
+            paths = usable;
             packBusy = true;
-            Log(">>> 拖入 " + paths.Count + " 项，开始识别插件包");
+            Log(">>> 插件包导入：共 " + paths.Count + " 项（重活已在后台跑，窗口不会卡）");
             foreach (string p in paths) Log("    " + p);
             System.Threading.ThreadPool.QueueUserWorkItem(delegate
             {
@@ -17925,7 +18334,10 @@ namespace Fluxion
             //  文案里的参数名直接引用常量：`ArgDx12` 是 `-use-d3d12`（不是很多游戏惯用的 `-dx12`），
             //  写死在文案里迟早对不上（这轮差点就写成 -dx12）。
             sArgs.Body("写法照游戏官方文档，空格分隔；值里带空格用双引号包起来。\n"
-                     + "「" + Lib.ArgDx12 + "」不必手写 —— 右键「DX12 模式启动」会自动加/去。");
+                     + "「" + Lib.ArgDx12 + "」不必手写 —— 右键「DX12 模式启动」会自动加/去。\n"
+                     + (Lib.KnownLaunchArgs(g).Length > 0
+                        ? "这个游戏留空也会自动带上内置参数 " + Lib.KnownLaunchArgs(g) + "；手动填写则覆盖内置。"
+                        : "例：鸣潮 3.7+ 直启要带画质档参数 -krqlv=sd / hd / uhd。"));
             pg.Add(sArgs);
 
             var sEnv = new Sec("环境变量");

@@ -387,7 +387,7 @@ namespace Fluxion
             string pl = Plan.PatrolLine(Jp5);
             L("    " + pl);
             Chk("① 巡检报出两个代理（不是只看到主入口那个）",
-                pl.IndexOf("2 个代理并存") >= 0, pl);
+                pl.IndexOf("2 套代理并存") >= 0, pl);
             Chk("① 两个名字都点出来：version.dll 与 winmm.dll",
                 pl.IndexOf("version.dll") >= 0 && pl.IndexOf("winmm.dll") >= 0, pl);
             Chk("① 遗留那代按实际体积报成 0.2.x（旧版），不当成在跑的 0.3.5",
@@ -414,7 +414,7 @@ namespace Fluxion
                 Plan.Current(Jp5) == Plan.D030, Plan.Current(Jp5));
             Chk("② 停放后巡检不再告警", Plan.PatrolLine(Jp5).IndexOf("⚠") < 0, Plan.PatrolLine(Jp5));
             Chk("② 已停放件被计入（看得见历史，但不算并存）",
-                Plan.PatrolLine(Jp5).IndexOf("另有 1 项已停放") >= 0, Plan.PatrolLine(Jp5));
+                Plan.PatrolLine(Jp5).IndexOf("另有 1 套旧方案已停用") >= 0, Plan.PatrolLine(Jp5));
             Chk("② 再点一次是幂等的（没有遗留项可停）",
                 Plan.ParkForeignReport(Jp5).IndexOf("没有需要停放的遗留代理") >= 0, Plan.ParkForeignReport(Jp5));
             Chk("② 0.3.x 的 ini 没被一起停掉（它是当前方案的组件）",
@@ -453,7 +453,7 @@ namespace Fluxion
             Tiny(Path.Combine(Jp8, "game.exe"));
             Exact(Path.Combine(Jp8, "winmm.dll"), 15678272);
             File.Move(Path.Combine(Jp8, "winmm.dll"), Path.Combine(Jp8, "winmm.dll.parked.legacy"));
-            Chk("⑤ Current=none 时巡检说清是原生", Plan.PatrolLine(Jp8).IndexOf("没有代理在位") >= 0, Plan.PatrolLine(Jp8));
+            Chk("⑤ Current=none 时巡检说清是原生", Plan.PatrolLine(Jp8).IndexOf("未接管") >= 0, Plan.PatrolLine(Jp8));
             Chk("⑤ 原生状态下 ParkForeign 一个都不动",
                 Plan.ParkForeign(Jp8, Plan.Current(Jp8), new List<string>()).Count == 0
                 && File.Exists(Path.Combine(Jp8, "winmm.dll.parked.legacy")), "");
@@ -537,6 +537,50 @@ namespace Fluxion
             Chk("⑤ 真正的「不是代理」边界是 LooksProxy 的 14 MB 下沿",
                 Plan.OwnerOfCore(13900000L, "") == "" && Plan.OwnerOfCore(14L * 1024 * 1024, "") != "",
                 Plan.OwnerOfCore(13900000L, "") + " / " + Plan.OwnerOfCore(14L * 1024 * 1024, ""));
+
+            // ---------- 15. 绝区零 + 0.4.x：反作弊强制 d3d12 入口 + 旧入口停放（2026-11-01） ----------
+            //  背景：绝区零内核反作弊按**文件名**拦常规注入 DLL，version.dll 一进进程就弹
+            //  「Error Code:(0,11008,…)」。0.4.x 默认部署 version.dll ⇒ 必须强制 d3d12，
+            //  且换入口时旧 version.dll 不能留在目录里（留着照样被拦）。
+            {
+                L("=== 15. 绝区零 × 0.4.x：强制 d3d12 入口 + 旧入口停放 ===");
+                string Jz = Path.Combine(tmp, "zzz040");
+                Directory.CreateDirectory(Jz);
+                Tiny(Path.Combine(Jz, "ZenlessZoneZero.exe"));            // exe 名 = Detect 认 zzz 的依据
+                string pk = Dlssg040.PackRoot;
+                if (Directory.Exists(pk))
+                {
+                    //  预置 = 用户中招前的状态：旧版工具用 version.dll 部署好了 0.4.x
+                    File.Copy(Path.Combine(pk, "version.dll"), Path.Combine(Jz, "version.dll"), true);
+                    File.Copy(Path.Combine(pk, Dlssg040.IniName), Path.Combine(Jz, Dlssg040.IniName), true);
+                    foreach (string rel in new string[] { @"backend\sm86_backend.dll", @"kernels\fg_kernels.dll", @"runtime\nvngx_dlssg.dll" })
+                    {
+                        string ssrc = Path.Combine(pk, Dlssg040.ResDirName, rel);
+                        if (File.Exists(ssrc))
+                        {
+                            Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(Jz, Dlssg040.ResDirName, rel)));
+                            File.Copy(ssrc, Path.Combine(Jz, Dlssg040.ResDirName, rel), true);
+                        }
+                    }
+                    Chk("① 预置状态 = 040 已装、version.dll 在位（用户中招前）",
+                        Plan.Current(Jz) == Plan.D040 && Dlssg040.IsMine(Path.Combine(Jz, "version.dll")),
+                        Plan.Current(Jz));
+
+                    //  再点一次「安装并应用」：必须强制换 d3d12，且旧 version.dll 被停放
+                    string zr = Plan.SwitchTo(Jz, Plan.D040, false);
+                    L("    SwitchTo: " + zr.Replace("\n", " | "));
+                    Chk("② 部署后入口 = d3d12.dll（不再用 version.dll）",
+                        Dlssg040.IsMine(Path.Combine(Jz, "d3d12.dll")), zr);
+                    Chk("③ 旧 version.dll 已停放（不在目录里，反作弊拦不到）",
+                        !File.Exists(Path.Combine(Jz, "version.dll"))
+                        && File.Exists(Path.Combine(Jz, "version.dll.parked.040")), zr);
+                    Chk("④ Current 仍是 040（换入口没有丢方案）",
+                        Plan.Current(Jz) == Plan.D040, Plan.Current(Jz));
+                    Chk("⑤ dlssg_sm86 资源目录还在（换入口不动资源）",
+                        File.Exists(Dlssg040.KernelPath(Jz)), "");
+                }
+                else L("  [SKIP] 内置 0.4.x 资源包不存在（" + pk + "）");
+            }
 
             try { Directory.Delete(tmp, true); L("沙盒已清理"); } catch (Exception ex) { L("沙盒清理失败：" + ex.Message); }
             L("");

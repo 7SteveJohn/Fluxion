@@ -332,7 +332,12 @@ namespace Fluxion
         static readonly string[] LauncherWords = new string[] {
             "mihoyo", "hoyo", "cognosphere", "kuro", "wuthering", "yuanshen", "genshin",
             "starrail", "zenless", "honkai", "endfield", "snowbreak", "tower of fantasy",
-            "崩坏", "原神", "鸣潮", "绝区零", "米哈游", "库洛", "幻塔", "尘白"
+            "崩坏", "原神", "鸣潮", "绝区零", "米哈游", "库洛", "幻塔", "尘白",
+            // 2026-11-01 补：异环（NTE，注册表名"异环"，目录 Neverness To Everness，游戏 exe
+            // NTELauncher\NTEGame.exe）、三角洲（WeGame rail_apps）等注册表可命中但词表缺失的。
+            //  ⚠ 深度问题另算：异环的帧生成组件埋在根下 6 层（Client\WindowsNoEditor\NTE\Binaries\Win64），
+            //  注册表深探 ≤4 层够不到 —— 组件打分过不了门，待办：注册表根专用更深探测。
+            "异环", "neverness", "ntelauncher", "ntegame", "三角洲", "deltaforce", "wegame"
         };
 
         // 枚举注册表卸载项（HKLM 64/32 位视图 + HKCU），命中启动器关键词的条目取安装根目录，
@@ -385,7 +390,7 @@ namespace Fluxion
             {
                 rn++;
                 if (progress != null) progress("注册表扫描 (" + rn + "/" + probeRoots.Count + "): " + root);
-                ScanLauncherRoot(root, found, seen);
+                ScanLauncherRoot(root, found, seen, 6);   // 注册表命中根放宽深度（异环 5 层本体，2026-11-01）
             }
         }
 
@@ -395,8 +400,13 @@ namespace Fluxion
         // 按分贪心收录，祖先/后代目录互相排斥（存根目录让位给深层真身）。
         static void ScanLauncherRoot(string root, List<DlssgGame> found, List<string> seen)
         {
+            ScanLauncherRoot(root, found, seen, 4);
+        }
+
+        static void ScanLauncherRoot(string root, List<DlssgGame> found, List<string> seen, int maxDepth)
+        {
             var cands = new List<DlssgGame>();
-            CollectCandidates(root, 0, cands, seen);
+            CollectCandidates(root, 0, cands, seen, maxDepth);
             // 排序：分数降序；同分则目录更深者优先（启动器根 vs 真游戏目录同分时，更深的那个才是游戏）
             cands.Sort(delegate(DlssgGame a, DlssgGame b)
             {
@@ -419,17 +429,25 @@ namespace Fluxion
 
         static void CollectCandidates(string dir, int depth, List<DlssgGame> cands, List<string> seen)
         {
+            CollectCandidates(dir, depth, cands, seen, 4);
+        }
+
+        //  maxDepth：注册表命中根放宽到 6（2026-11-01）——异环（UE4）的游戏本体在根下 5 层
+        //  （Client\WindowsNoEditor\HT\Binaries\Win64\HTGame.exe），深度 4 永远探不到；
+        //  组件不是收录条件（Inspect 只要目录里有 exe），所以放宽深度即可自动收录。
+        static void CollectCandidates(string dir, int depth, List<DlssgGame> cands, List<string> seen, int maxDepth)
+        {
             if (!Contain(seen, dir))
             {
                 var g = Inspect(dir, true);
                 if (g != null) { g.ScanDepth = depth; cands.Add(g); }
             }
-            if (depth >= 4) return;
+            if (depth >= maxDepth) return;
             foreach (var sub in SafeDirs(dir))
             {
                 string bn = Path.GetFileName(sub).ToLowerInvariant();
                 if (bn == "redist" || bn == "redistributable" || bn == "directx" || bn == "engine") continue;
-                CollectCandidates(sub, depth + 1, cands, seen);
+                CollectCandidates(sub, depth + 1, cands, seen, maxDepth);
             }
         }
 
@@ -1880,13 +1898,14 @@ namespace Fluxion
             //    恒为假、packSr 恒为空 ⇒ 下面那句"可升级"**永远不显示**，不报错也没人看得出来
             //    （本机实测：绝区零自带 310.6，包内其实有 310.9.1，却一直没提示）。
             //    改成在包内**真实存在的几个位置**里挑版本最高的那份当基准，并记住它从哪来。
-            string packSr = "", packSrFrom = "";
+            string packSr = "";
             string[] packCands = new string[] {
                 Path.Combine("dlssg040-pack", "dlssg_sm86", "sr", "nvngx_dlss.dll"),
                 Path.Combine("dlssg040-pack", "sr", "nvngx_dlss.dll"),
                 Path.Combine("dlssg030-pack", "asi", "nvngx_dlss.dll"),
                 Path.Combine("dlssg030-pack", "common", "nvngx_dlss.dll"),
                 Path.Combine("xess-pack", "wuwa", "OptiScaler", "streamline", "nvngx_dlss.dll"),
+                Path.Combine("manual-pack", "dlss4-4.5", "nvngx_dlss.dll"),   // 网盘原件（手动资源区，2026-11-01）
             };
             foreach (string rel in packCands)
             {
@@ -1896,27 +1915,26 @@ namespace Fluxion
                     if (!File.Exists(p)) continue;
                     string v = FileVer(p);
                     if (v.Length > 0 && (packSr.Length == 0 || VerCmp(v, packSr) > 0))
-                    {
                         packSr = v;
-                        packSrFrom = Path.GetDirectoryName(rel);
-                    }
                 }
                 catch { }
             }
 
             var sb = new StringBuilder();
-            sb.Append("DLSS 库：");
-            if (sr == null) sb.Append("未找到 nvngx_dlss.dll");
+            //  ★ 2026-10-31 人话化：文件名（nvngx_dlss / nvngx_dlssg）换成"超分 / 帧生成"，
+            //    把"是什么"说在前，路径只在可升级时才出现（那才需要人去找文件）。
+            sb.Append("DLSS 组件：");
+            if (sr == null) sb.Append("超分未找到");
             else
             {
-                sb.Append("nvngx_dlss ").Append(vsr.Length > 0 ? vsr : "版本未知");
+                sb.Append("超分 ").Append(vsr.Length > 0 ? vsr : "版本未知");
                 if (packSr.Length > 0 && vsr.Length > 0 && VerCmp(packSr, vsr) > 0)
-                    //  把包内那份的位置也写出来：本工具不做自动替换（会和我们自己装的 OptiScaler
-                    //  代理撞车），但用户可以自己拿去覆盖 —— 入口要留给人。
-                    sb.Append("（可升级：包内 ").Append(packSr).Append("，在 ").Append(packSrFrom).Append("）");
+                    //  2026-11-01：卡片上不再显示包内路径（用户原话"参数说明太极客化"——普通人不会去手替换）：
+                    //  只留版本号。真要手动替换，入口在「说明」页的「手动资源」一节。
+                    sb.Append("（包内有更新的 ").Append(packSr).Append(" 可升级）");
             }
             sb.Append("　·　");
-            sb.Append(fg == null ? "未找到 nvngx_dlssg.dll" : ("nvngx_dlssg " + (vfg.Length > 0 ? vfg : "版本未知")));
+            sb.Append(fg == null ? "帧生成未找到" : ("帧生成 " + (vfg.Length > 0 ? vfg : "版本未知")));
 
             string r = sb.ToString();
             libVerCache[dir] = r;
@@ -2105,9 +2123,9 @@ namespace Fluxion
         public static string D3d12Hint()
         {
             if (!File.Exists(Path.Combine(Environment.SystemDirectory, "d3d12.dll")))
-                return "本机缺少系统 d3d12.dll（DirectX 12 运行库）→ d3d12 入口不可用";
+                return "本机缺 DirectX 12 运行库，暂不可用";
             if (!File.Exists(Path.Combine(AltDir, D3d12Carrier)))
-                return "载体 " + D3d12Carrier + " 未下载 → 点「下载运行时」后才能用 d3d12 入口";
+                return "缺组件 —— 点「下载运行时」后可用";
             return "";
         }
 
@@ -4119,10 +4137,12 @@ namespace Fluxion
         //   ② 只有一套、但游戏里那份的版本比资源包旧 → 换了包没更新部署 → 更新部署。
         public static string PatrolLine(string gameDir)
         {
+            //  ★ 2026-10-31 人话化：先说"正不正常"，再说细节；"停放"这类内部词换成"停用"。
+            //    ⚠ 前缀必须保留 —— 界面靠它切告警色。
             List<EntryHit> live = InspectEntries(gameDir);
             int parkedN = ParkedCount(gameDir);
-            string tail = parkedN > 0 ? "｜ 另有 " + parkedN + " 项已停放（可逆）" : "";
-            if (live.Count == 0) return "入口巡检：没有代理在位（游戏跑原生）" + tail;
+            string tail = parkedN > 0 ? "｜ 另有 " + parkedN + " 套旧方案已停用（随时可恢复）" : "";
+            if (live.Count == 0) return "入口状态：未接管（游戏原生运行）" + tail;
             var owners = new List<string>();
             foreach (EntryHit h in live)
                 if (owners.IndexOf(h.Owner) < 0) owners.Add(h.Owner);
@@ -4130,14 +4150,14 @@ namespace Fluxion
             {
                 var names = new List<string>();
                 foreach (EntryHit h in live) names.Add(h.Label());
-                return "⚠ 入口巡检：本目录有 " + live.Count + " 个代理并存 —— "
+                return "⚠ 入口状态：有 " + live.Count + " 套代理并存（"
                      + string.Join(" / ", names.ToArray())
-                     + " —— 两套在抢同一个入口，点「停放遗留项」（改名停放，不删文件）" + tail;
+                     + "）—— 点「停放遗留项」清理" + tail;
             }
             foreach (EntryHit h in live)
                 if (h.Owner == D030 && h.ActualCode.Length > 0 && h.ActualCode != Dlssg030.Ver)
-                    return "⚠ 入口巡检：" + h.Label() + " —— 游戏里这份和资源包对不上，点「更新部署」重抄" + tail;
-            return "入口巡检：" + live[0].Label() + " 单套在位" + tail;
+                    return "⚠ 入口状态：" + h.Label() + " —— 和资源包对不上，点「更新部署」重抄" + tail;
+            return "入口状态：正常 —— " + live[0].Label() + "，无冲突" + tail;
         }
 
         // 停放"不是当前这套"的活入口代理。keep 传方案 id（一般就是 Current(gameDir) 的结果）。
@@ -4387,11 +4407,23 @@ namespace Fluxion
             //  0.4.x 不跟着游戏变入口（作者不再按游戏推荐入口名，只有"加载不到就换一个"），
             //  它的入口名统一走自己的配置；0.3.x / 方案 A 才按游戏类型挑槽位。
             string entry = target == D040 ? Dlssg040.EntryPref() : EntryName(kind);
+            //  ★ 2026-11-01：绝区零的内核反作弊按**文件名**拦 version.dll（Error Code 11008，实测）；
+            //  d3d12.dll 也不会被加载（实测 loader 无日志）⇒ 默认走 d3d12（避开 11008）。
+            //  但用户在下拉里**显式选过**入口（Cfg.DlssgEntry040 非空）时尊重用户 ——
+            //  dxgi 系是 0.3.x 时代绝区零验证过的入口，d3d12 不加载时用户需要一个可实验的出口。
+            if (target == D040 && kind == "zzz" && string.IsNullOrEmpty(Program.Cfg.DlssgEntry040)
+                && entry != "d3d12.dll")
+                entry = "d3d12.dll";
             string before = Current(gameDir);
-            // 启动器根目录护栏（2026-09-18 从被删掉的 Dlssg.Install 搬到这里 —— 现在只有这一条部署路径，
-            //  护栏也必须落在这条路上）。装进"容器"目录会同时作用于它下面的所有游戏
-            //  （G:\miHoYo Launcher 里躺着原神/绝区零/星铁，且都是内核反作弊，风险面被放大）。
+            //  入口要换（反作弊强制 / 用户在下拉里换了入口）时，"已经就是 XX 方案"的短路必须让路 ——
+            //  否则旧入口一直躺在目录里被反作弊拦，用户点多少次「安装并应用」都没用（11008 实测）。
+            bool entrySwapPending = target == D040 && !File.Exists(Path.Combine(dir, entry));
+            if (!force && before == target && target != None && !entrySwapPending)
+                return "已经就是" + PlanName(target) + "了，无需切换（入口 " + entry + " 未改动）。";
             if (Dlssg.IsLauncherDir(dir))
+                // 启动器根目录护栏（2026-09-18 从被删掉的 Dlssg.Install 搬到这里 —— 现在只有这一条部署路径，
+                //  护栏也必须落在这条路上）。装进"容器"目录会同时作用于它下面的所有游戏
+                //  （G:\miHoYo Launcher 里躺着原神/绝区零/星铁，且都是内核反作弊，风险面被放大）。
                 return "切换中止：这是「启动器根目录」而不是游戏本体 —— " + dir + "\n"
                      + "  它下面挂着 games\\ 子目录，装进去会同时作用于其中所有游戏，请选中游戏本体那一层。";
             // 游戏还在跑 → 入口 DLL 被占用，改名/覆盖必然失败，而用户只会看到一句"没关掉原来那套"。
@@ -4403,9 +4435,7 @@ namespace Fluxion
             if (target == Opti && kind.Length == 0)
                 return "方案 A 只支持绝区零 / 鸣潮；其他游戏请用 0.3.x（通用模式）。";
 
-            if (!force && before == target && target != None)
-                return "已经就是" + PlanName(target) + "了，无需切换（入口 " + entry + " 未改动）。";
-
+            //  （旧的无条件短路已删：入口待换时必须放行 —— 见上方 entrySwapPending，2026-11-01）
             List<string> failed = new List<string>();
             List<string> parked = ParkOthers(gameDir, kind, target, failed);
             List<string> notes = new List<string>();
@@ -4451,6 +4481,13 @@ namespace Fluxion
             //   不重抄任何文件 —— 不在这里补一刀，ini 就永远回不来（2026-09-16 实测的绝区零）。
             if (target == D030) Dlssg030.EnsureFactoryIni(dir);
             if (target == D040) Dlssg040.EnsureIni(dir, false);
+            //  方案 A：Dxgi 伪装保底。装完 / 复原完都要补这一刀 ——
+            //  Dxgi=auto 在 N 卡上等于关，「帧生成」选项会直接消失（2026-09-16、2026-10-31 两次）。
+            if (target == Opti)
+            {
+                string sp = XeMfg.EnsureSpoof(gameDir);
+                if (sp.Length > 0) notes.Add(sp);
+            }
 
             string now = Current(gameDir);
             StringBuilder sb = new StringBuilder();
@@ -4477,9 +4514,13 @@ namespace Fluxion
 
     public static class XeMfg
     {
+        //  ⚠ Remove_OptiScaler.bat（OptiScaler 自带自卸载脚本）已移出部署清单（2026-11-01）：
+        //  它删除的文件与 10-31 14:38 zzz 包被批量删除的现场完全吻合——部署到游戏目录、躺在包
+        //  目录里都是"双击即拆"的雷。卸载请用工具的「关闭选中」。libxess_dx11.dll 不部署但随包备份。
         static readonly string[] ZzzFiles = new string[] {
             "d3d12.dll", "OptiScaler.ini", "fakenvapi.dll", "fakenvapi.ini",
-            "libxell.dll", "libxess.dll", "libxess_dx11.dll", "libxess_fg.dll", "Remove_OptiScaler.bat" };
+            "libxell.dll", "libxess.dll", "libxess_fg.dll" };
+        static readonly string[] ZzzBackupExtra = new string[] { "libxess_dx11.dll", "Remove_OptiScaler.bat" };
         static readonly string[] ZzzDirs = new string[] { "D3D12_Optiscaler", "Licenses" };
         static readonly string[] WuwaFiles = new string[] {
             "dxgi.dll", "OptiScaler.ini", "nvngx_dlssnr.dll", "nvngx.dll_dlssnr.dll" };
@@ -4583,6 +4624,52 @@ namespace Fluxion
                 return true;
             }
             catch { return false; }
+        }
+
+        // ---- Dxgi 伪装保底（2026-10-31：鸣潮「帧生成选项消失」复发）----
+        //  为什么要有：OptiScaler.ini 的 [Spoofing] Dxgi 默认 auto —— **对 N 卡 auto 就是 false**，
+        //  DXGI 层不伪装 ⇒ 游戏按真实显卡（RTX 20/30 系官方不支持 DLSS 帧生成）做能力判定 ⇒
+        //  设置里干脆不显示「帧生成」。2026-09-16 手工修过一次（auto→true），2026-10-31 复发：
+        //  切方案 A 时的「复原配套件」路径把一份 Dxgi=auto 的旧 ini 盖了回来，而 dxgi.dll 在位又
+        //  跳过了重装 —— Install 的"永不覆盖"保不住这个场景。⇒ 切换完成后主动保底。
+        //  只把 auto / 缺键 补成 true；显式的 true / false 是用户的选择，一个字都不动。
+        //  ⚠ 与 SetIniKey 同样的解耦：这里只认 ini 路径，好不好由上层判（探针可拿副本验）。
+        public static string EnsureSpoofKey(string iniPath)
+        {
+            try
+            {
+                if (!File.Exists(iniPath)) return "";
+                string cur = null;
+                bool ins = false;
+                foreach (string l in File.ReadAllLines(iniPath))
+                {
+                    string s = l.Trim();
+                    if (s.StartsWith("[", StringComparison.Ordinal))
+                    { ins = string.Equals(s, "[Spoofing]", StringComparison.OrdinalIgnoreCase); continue; }
+                    if (!ins || s.IndexOf('=') < 0) continue;
+                    if (!string.Equals(s.Substring(0, s.IndexOf('=')).Trim(), "Dxgi", StringComparison.OrdinalIgnoreCase)) continue;
+                    cur = s.Substring(s.IndexOf('=') + 1).Trim(); break;
+                }
+                if (cur != null && !string.Equals(cur, "auto", StringComparison.OrdinalIgnoreCase)) return "";
+                if (!SetIniKey(iniPath, "Spoofing", "Dxgi", "true")) return "";
+                return "已把 [Spoofing] Dxgi 从 " + (cur == null ? "缺省" : "auto")
+                     + " 保底为 true（N 卡上「帧生成」选项出现的必要条件）";
+            }
+            catch { return ""; }
+        }
+
+        public static string EnsureSpoof(string gameDir)
+        {
+            try
+            {
+                string kind = Detect(gameDir);
+                string p = Path.Combine(TargetDir(gameDir, kind), "OptiScaler.ini");
+                //  只有 N 卡需要 DXGI 层伪装；A 卡上强行开反而可能干扰它自己的 FG 路径。
+                string gpu = Dlssg.GpuName();
+                if (gpu.IndexOf("NVIDIA", StringComparison.OrdinalIgnoreCase) < 0) return "";
+                return EnsureSpoofKey(p);
+            }
+            catch { return ""; }
         }
 
         public static string SetNrEnabled(string gameDir, bool on)
@@ -4751,10 +4838,11 @@ namespace Fluxion
             int copied = 0, backed = 0, kept = 0;
             try
             {
+                var missing = new List<string>();
                 foreach (var f in files)
                 {
                     string s = Path.Combine(src, f);
-                    if (!File.Exists(s)) return "资源包缺文件：" + f;
+                    if (!File.Exists(s)) { missing.Add(f); continue; }
                     string d = Path.Combine(dst, f);
                     // OptiScaler.ini 永不覆盖：里面装着用户调好的 Spoofing/Dxgi 与 [DlssNr] 参数，
                     //  资源包里那份是出厂值（Dxgi=auto / DlssNr=auto），盖上去 =
@@ -4769,6 +4857,10 @@ namespace Fluxion
                     File.Copy(s, d, true);
                     copied++;
                 }
+                if (missing.Count > 0)
+                    return "资源包缺文件：" + string.Join("、", missing.ToArray())
+                         + "\n→ 这通常是资源包被外部删除/隔离了（误运行包里的卸载脚本、杀软隔离都常见）。"
+                         + "\n→ 修复：重新取得完整的方案 A 包，把上面缺的文件放回数据目录 xess-pack\\zzz（或 wuwa）后再部署。";
                 foreach (var dir in dirs)
                 {
                     string s = Path.Combine(src, dir);

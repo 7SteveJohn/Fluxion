@@ -138,7 +138,8 @@ namespace Fluxion
             catch { c.Verdict = "unsigned"; return c; }
 
             if (c.Thumb.Length == 0) c.Verdict = "unsigned";
-            else if (c.Thumb == Catalog.ThumbUpstream) c.Verdict = "upstream";
+            //  两张作者证书都算 upstream：0.3.x/0.4.0 用旧指纹，0.4.1 起换新指纹（见 DefThumbUp2 注释）。
+            else if (c.Thumb == Catalog.ThumbUpstream || c.Thumb == Catalog.ThumbUpstream2) c.Verdict = "upstream";
             else if (c.Thumb == Catalog.ThumbNvidia) c.Verdict = "nvidia";
             else c.Verdict = "other";
             return c;
@@ -1008,6 +1009,10 @@ namespace Fluxion
         }
 
         const string DefThumbUp = "85BA66762F851E49148D706915D09026281418E6";
+        //  第二张作者证书（2026-11-01）：0.4.1 起作者换了自签证书（CN=DLSSG Throwaway Test）。
+        //  两张都必须认 —— 0.3.x/0.4.0 用的是旧指纹，0.4.1 用新指纹；只换不认会让整套 0.3.x
+        //  代理被判成"非白名单"而认不出自家文件（plan_probe 当场抓到过）。
+        const string DefThumbUp2 = "D963A96D623B85F67B7B323BEB353CEE90225D40";
         const string DefThumbNv = "7B7B0B6697AFB438CF6F65A155F00E86676FB186";
 
         static string _ver;
@@ -1015,7 +1020,7 @@ namespace Fluxion
         static SizeWin[] _wins;
         static SizeWin _legacy, _srcWin;
         static string[] _entries;
-        static string _up, _nv;
+        static string _up, _up2, _nv;
         static KnowNote[] _know;
         static long _optiMin = DefOptiMin;
         static string _origin = "内置默认";
@@ -1043,7 +1048,7 @@ namespace Fluxion
             SizeWin[] wins = DefWins();
             SizeWin legacy = DefLegacy(), srcw = DefSource();
             string[] entries = DefEntries();
-            string up = DefThumbUp, nv = DefThumbNv;
+            string up = DefThumbUp, up2 = DefThumbUp2, nv = DefThumbNv;
             long optiMin = DefOptiMin;
             KnowNote[] know = DefKnow();
             string origin = "内置默认", err = "";
@@ -1079,6 +1084,7 @@ namespace Fluxion
                             if (sg != null)
                             {
                                 if (Str(sg, "upstream").Length > 0) up = Str(sg, "upstream").ToUpperInvariant();
+                                if (Str(sg, "upstream2").Length > 0) up2 = Str(sg, "upstream2").ToUpperInvariant();
                                 if (Str(sg, "nvidia").Length > 0) nv = Str(sg, "nvidia").ToUpperInvariant();
                             }
                         }
@@ -1095,10 +1101,10 @@ namespace Fluxion
             {
                 ver = DefVer; bands = DefBands(); wins = DefWins();
                 legacy = DefLegacy(); srcw = DefSource(); entries = DefEntries();
-                up = DefThumbUp; nv = DefThumbNv; know = DefKnow(); optiMin = DefOptiMin;
+                up = DefThumbUp; up2 = DefThumbUp2; nv = DefThumbNv; know = DefKnow(); optiMin = DefOptiMin;
             }
             _ver = ver; _bands = bands; _wins = wins; _legacy = legacy; _srcWin = srcw;
-            _entries = entries; _up = up; _nv = nv; _know = know; _origin = origin; _err = err;
+            _entries = entries; _up = up; _up2 = up2; _nv = nv; _know = know; _origin = origin; _err = err;
             _optiMin = optiMin;
         }
 
@@ -1185,6 +1191,8 @@ namespace Fluxion
         public static ProxyBand[] Bands { get { Ensure(); return _bands; } }
         public static string[] EntryNames { get { Ensure(); return _entries; } }
         public static string ThumbUpstream { get { Ensure(); return _up; } }
+        //  作者的第二张证书（0.4.1 起换的）。两张都算"上游作者签名"。
+        public static string ThumbUpstream2 { get { Ensure(); return _up2; } }
         public static string ThumbNvidia { get { Ensure(); return _nv; } }
         public static SizeWin LegacyWin { get { Ensure(); return _legacy; } }
         public static SizeWin SourceWin { get { Ensure(); return _srcWin; } }

@@ -206,10 +206,25 @@ namespace Fluxion
                 int copied = CopyRes(gameDir, force);
                 string lack = DeployedLack(gameDir);
 
+                //  换入口时把同方案的**其他入口**挪开（改名停放，与巡检体系同后缀）。
+                //  不挪的后果：绝区零这类反作弊按文件名拦，旧 version.dll 留在目录里照样被拦
+                //  （Error Code 11008，2026-11-01 实测）；多套同方案入口并存也会互抢渲染管线。
+                //  IsMine 先确认是自家文件 —— 绝不碰游戏自带/别家的同名 DLL。
+                string moved = "";
+                foreach (string e in _entries)
+                {
+                    if (string.Equals(e, entry, StringComparison.OrdinalIgnoreCase)) continue;
+                    string p = Path.Combine(gameDir, e);
+                    if (!File.Exists(p) || !IsMine(p)) continue;
+                    try { File.Move(p, p + ".parked.040"); moved += (moved.Length > 0 ? "、" : "") + e; }
+                    catch (Exception ex) { return "部署中止：旧入口 " + e + " 挪不动（" + ex.Message + "）—— 游戏还在运行？"; }
+                }
+
                 StringBuilder sb = new StringBuilder();
                 sb.AppendLine(string.Format("已部署 {0}：入口 {1} + {2} + {3}\\（复制 {4} 个资源文件{5}）",
                     Ver, entry, IniName, ResDirName, copied,
                     backed > 0 ? "，覆盖前备份 " + backed + " 个同名原文件" : ""));
+                if (moved.Length > 0) sb.AppendLine("  已停用旧入口：" + moved + "（反作弊会按文件名拦常规名；要换回去在入口下拉里重选再部署）");
                 if (iniNote.Length > 0) sb.AppendLine("  " + iniNote);
                 if (lack.Length > 0) sb.AppendLine("  ⚠ 部署后仍缺：" + lack);
                 else sb.AppendLine("  三件必需资源齐全（后端 / 内核包 / 运行库）");
@@ -610,9 +625,10 @@ namespace Fluxion
                 return "资源包未就绪（缺 " + miss + "）—— 点「从 GitHub 取新版」自动下载，或把发布包拖进窗口";
             string r = RuntimeVer;
             bool sr = File.Exists(Path.Combine(ResDir, "sr\\sr_kernels.dll"));
-            return "资源包 " + Ver + (r.Length > 0 ? " · DLSS-G 运行库 " + r : "")
-                 + " · 占 " + DescribeBytes(PackBytes())
-                 + (sr ? "（含超分组件）" : "（未含超分组件，[SuperResolution] Mode=On 才需要）");
+            //  2026-11-01 人话化：括号堆（字节/组件开关说明）撤掉，只留"哪一版、多大、带不带超分"。
+            return "资源包 " + Ver + (r.Length > 0 ? " · 运行库 " + r : "")
+                 + " · " + DescribeBytes(PackBytes())
+                 + (sr ? "（含超分）" : "（不含超分——普通帧生成用不到）");
         }
 
         public static long PackBytes()
@@ -1272,7 +1288,7 @@ namespace Fluxion
                 Name = "0.4.1 for cuda（含数字签名）原生XeSS多帧生成（百度网盘）",
                 Url  = "https://pan.baidu.com/s/1KJy1yaif8Wv6LgMg38C3Mg?pwd=9tbr",
                 Code = "9tbr",
-                For  = "全系 RTX（20~50系）· 0.4.1 正式版原生 XeSS 多帧生成",
+                For  = "全系 RTX（20~50系）· 0.4.1 正式版多帧生成",
                 Note = "下载后直接拖入窗口（或解压为文件夹拖入），工具自动校验签名并归位"
             },
             new NetDisk {
@@ -1293,7 +1309,7 @@ namespace Fluxion
                 Name = "0.4.1 for cuda（含数字签名）原生XeSS多帧生成（夸克网盘）",
                 Url  = "https://pan.quark.cn/s/23b8c063803e",
                 Code = "免密直达",
-                For  = "全系 RTX（20~50系）· 0.4.1 正式版原生 XeSS 多帧生成（含 0.4.1/0.4.0/RE框架）",
+                For  = "全系 RTX（20~50系）· 0.4.1 正式版（含 0.4.0 / RE 框架）",
                 Note = "下载后直接拖入窗口（或解压为文件夹拖入），工具自动校验签名并归位"
             },
             new NetDisk {
