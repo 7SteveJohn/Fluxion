@@ -18,9 +18,9 @@ using Microsoft.Win32;
 //  ⚠ 这三行是 exe「右键 → 属性 → 详细信息」里给人看的版本号，2026-10-23 才接上程序版本：
 //    以前停在改名前的 3.3.2.0，安装包写 1.2.2、文件属性写 3.3.2.0，分享出去一眼就对不上。
 //    改版本号时**四处一起改**：Core.cs AppVersion ↔ 这三行 ↔ iss 的 #define ↔ VersionInfoVersion。
-[assembly: System.Reflection.AssemblyVersion("1.3.0.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.3.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersion("1.3.0")]
+[assembly: System.Reflection.AssemblyVersion("1.3.1.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.3.1.0")]
+[assembly: System.Reflection.AssemblyInformationalVersion("1.3.1")]
 
 namespace Fluxion
 {
@@ -1937,7 +1937,7 @@ namespace Fluxion
         //  0.4.x 的四个常用参数（与 0.4.0 出厂 INI 同值）。做成配置是因为它们决定
         //  "快多少 / 画质差多少"，不该逼用户去手改 6.8 KB 的 INI。
         public int DlssgOptimized040 = 2;              // 0 原厂 / 1 逐位一致 / 2 默认 / 3 最快有损
-        public string DlssgPreset040 = "Auto";         // Auto / A / B / C（C = FG Lite）
+        public string DlssgPreset040 = "A";            // A / B / C（C = FG Lite）
         public string DlssgEngine040 = "DLSS";         // DLSS / XeSS
         public bool DlssgSr040 = false;                // [SuperResolution] Mode = On/Off
         public bool DlssgUseProxy = true; public string DlssgProxy = "http://127.0.0.1:7890";
@@ -2132,7 +2132,8 @@ namespace Fluxion
                     c.DlssgEntry040 = GetStr(dlssgSec, "entry040", c.DlssgEntry040);
                     c.DlssgSr = GetBool(dlssgSec, "superResolutionFiles", false);
                     c.DlssgOptimized040 = GetInt(dlssgSec, "optimized040", 2);
-                    c.DlssgPreset040 = GetStr(dlssgSec, "preset040", "Auto");
+                    c.DlssgPreset040 = GetStr(dlssgSec, "preset040", "A");
+                    if (string.Equals(c.DlssgPreset040, "Auto", StringComparison.OrdinalIgnoreCase)) c.DlssgPreset040 = "A";
                     c.DlssgEngine040 = GetStr(dlssgSec, "engine040", "DLSS");
                     c.DlssgSr040 = GetBool(dlssgSec, "srMode040", false);
                     c.DlssgUseProxy = GetBool(dlssgSec, "useProxy", true);
@@ -3158,7 +3159,7 @@ namespace Fluxion
         // v1.0.0 = Fluxion 品牌首发（2026-09-20 由 GameBoost-DLSSG 全套改名而来）。
         // ⚠ 版本号在这里重开：改名换了安装包的 AppId，Windows 视作全新产品，
         //   旧的 3.6.x 线不再有升级关系（旧版需手动卸载）。两处版本号必须一起改（build.py --pkg 会校验）。
-        public const string AppVersion = "1.3.0";
+        public const string AppVersion = "1.3.1";
         public const string ShareVersion = "1.0.0";
         // ⚠ 必须用 #if 直接选常量（不能用运行时三元）：这样每个二进制里只留自己那条版本串，
         //   交付后可以直接在 exe 里搜 "SHARE-BUILD" 来证明「这份到底是不是分享构建」。

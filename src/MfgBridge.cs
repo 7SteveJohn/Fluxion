@@ -49,6 +49,13 @@ namespace Fluxion
         public static readonly string[] Entries = new string[] {
             "version.dll", "winhttp.dll", "dbghelp.dll", "cryptsp.dll", "xinput9_1_0.dll", "iphlpapi.dll" };
 
+        public static string EntryPref()
+        {
+            string e = Program.Cfg != null ? Program.Cfg.DlssgEntryNvbr : null;
+            if (e != null && Array.IndexOf(Entries, e) >= 0) return e;
+            return "version.dll";
+        }
+
         public static string PackRoot { get { return Path.Combine(Program.DataDir, "mfgbridge-pack"); } }
         public static string DllPath { get { return Path.Combine(PackRoot, DllName); } }
         public static string IniPath { get { return Path.Combine(PackRoot, IniName); } }
@@ -130,6 +137,7 @@ namespace Fluxion
         public static string InstalledEntry(string gameDir)
         {
             if (gameDir == null) return "";
+            gameDir = SecondGame.ResolveDir(gameDir);
             foreach (string e in Entries)
             {
                 string p = Path.Combine(gameDir, e);
@@ -158,6 +166,7 @@ namespace Fluxion
 
         public static string Install(string gameDir, string entry, bool force)
         {
+            gameDir = SecondGame.ResolveDir(gameDir);
             if (gameDir == null || !Directory.Exists(gameDir)) return "目录不存在：" + gameDir;
             if (entry == null || entry.Length == 0) entry = "version.dll";
             string miss;
@@ -209,6 +218,8 @@ namespace Fluxion
         // 停放（改名，不删）。返回停放了几项 —— 由 Plan.ParkOthers 统一调用。
         public static int Park(string gameDir, List<string> parked, List<string> failed)
         {
+            if (gameDir == null) return 0;
+            gameDir = SecondGame.ResolveDir(gameDir);
             int n = 0;
             foreach (string e in Entries)
             {
@@ -233,6 +244,8 @@ namespace Fluxion
         // 彻底卸载（真删）
         public static string Uninstall(string gameDir)
         {
+            if (gameDir == null) return "目录为空";
+            gameDir = SecondGame.ResolveDir(gameDir);
             int n = 0;
             List<string> failed = new List<string>();
             foreach (string e in Entries)

@@ -2925,28 +2925,56 @@ namespace Fluxion
         public override Color CheckBackground { get { return Theme.AccentSoft; } }
         public override Color CheckSelectedBackground { get { return Theme.AccentSoft; } }
     }
-    //  Apple 风格菜单渲染（2026-10-22 重写）：
-    //  以前只改了文字色和底色，其余（蓝色方块高亮、系统分隔线、直角、系统字体）全是 Windows 95 那套，
-    //  与自绘界面并排就是两个世界（用户原话"画风割裂严重"）。
-    //  现在：圆角白卡 + 发丝边 + 胶囊高亮（AccentSoft）+ 两端渐隐的分隔线。
+    //  现代 Fluent / Apple 风格菜单渲染：
+    //  圆角白卡 + 发丝边 + 柔和半透明胶囊高亮 + 舒适的行距呼吸感。
     class ThemedMenuRenderer : ToolStripProfessionalRenderer
     {
         Size lastRegion;
         public ThemedMenuRenderer() : base(new ThemedColors()) { RoundedEdges = false; }
 
+        protected override void InitializeItem(ToolStripItem item)
+        {
+            base.InitializeItem(item);
+            if (item is ToolStripMenuItem)
+            {
+                item.Padding = new Padding(Theme.S(12), Theme.S(5), Theme.S(12), Theme.S(5));
+                item.Margin = new Padding(0, 1, 0, 1);
+            }
+            else if (item is ToolStripSeparator)
+            {
+                item.Margin = new Padding(Theme.S(8), Theme.S(3), Theme.S(8), Theme.S(3));
+            }
+        }
+
         protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
         {
-            Color tc = e.Item.Enabled ? Theme.Text : Theme.TextDisabled;
-            if (e.Item.Selected && e.Item.Enabled)
+            Color tc;
+            bool isStatus = e.Item.Tag != null && (string)e.Item.Tag == "status";
+
+            if (isStatus)
             {
-                tc = Theme.Dark ? Color.FromArgb(250, 250, 252) : Theme.Accent;
+                // 顶部状态展示：有游戏运行时鲜绿，待命时典雅灰
+                tc = (e.Text.IndexOf("游戏中") >= 0 || e.Text.IndexOf("⚡") >= 0)
+                    ? Theme.TextSafe(Theme.Ok)
+                    : Theme.TextDim;
             }
+            else
+            {
+                tc = e.Item.Enabled ? Theme.Text : Theme.TextDisabled;
+                if ((e.Item.Selected || e.Item.Pressed) && e.Item.Enabled)
+                {
+                    tc = Theme.Dark ? Color.FromArgb(255, 255, 255) : Theme.Text;
+                }
+            }
+
             var g = e.Graphics;
             var oldHint = g.TextRenderingHint;
-            g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+            g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
             try
             {
-                Theme.DrawTxt(g, e.Text, e.TextFont, e.TextRectangle, tc, e.TextFormat);
+                var rect = e.TextRectangle;
+                rect.X += Theme.S(2);
+                Theme.DrawTxt(g, e.Text, e.TextFont, rect, tc, e.TextFormat);
             }
             finally
             {
@@ -2957,7 +2985,9 @@ namespace Fluxion
         protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e)
         {
             var ts = e.ToolStrip;
-            var r = new Rectangle(0, 0, Math.Max(1, ts.Width), Math.Max(1, ts.Height));
+            int w = Math.Max(1, ts.Width - 1);
+            int h = Math.Max(1, ts.Height - 1);
+            var r = new Rectangle(0, 0, w, h);
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.PixelOffsetMode = PixelOffsetMode.Half;
@@ -2967,28 +2997,30 @@ namespace Fluxion
             {
                 try
                 {
-                    using (var gp = Theme.Round(r, Theme.S(8))) ts.Region = new Region(gp);
+                    using (var gp = Theme.Round(new Rectangle(0, 0, ts.Width, ts.Height), Theme.S(8))) ts.Region = new Region(gp);
                     lastRegion = ts.Size;
                 }
                 catch { }
             }
         }
 
-        // 高亮：Win11 柔和微圆角 (R=4) + 微光描边，与暗色底自然过渡
+        // 高亮：Win11 风格柔和半透明微圆角胶囊 (R=5)，状态项不高亮
         protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
         {
-            if (!e.Item.Selected || !e.Item.Enabled) return;
+            bool isStatus = e.Item.Tag != null && (string)e.Item.Tag == "status";
+            if (isStatus || (!e.Item.Selected && !e.Item.Pressed) || !e.Item.Enabled) return;
             var r = new Rectangle(Theme.S(4), 1, Math.Max(1, e.Item.Width - Theme.S(8)), Math.Max(1, e.Item.Height - 2));
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            Theme.FillRound(g, r, Theme.S(4), Theme.AccentSoft);
-            Theme.EdgeRound(g, r, Theme.S(4), Color.FromArgb(Theme.Dark ? 30 : 16, Theme.Accent), 1f);
+            Color hov = Theme.Dark ? Color.FromArgb(14, 255, 255, 255) : Color.FromArgb(12, 0, 0, 0);
+            Theme.FillRound(g, r, Theme.S(5), hov);
         }
 
         protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
         {
             int y = e.Item.Height / 2;
-            using (var p = new Pen(Theme.LineSoft))
+            Color lineCol = Theme.Dark ? Color.FromArgb(24, 255, 255, 255) : Color.FromArgb(18, 0, 0, 0);
+            using (var p = new Pen(lineCol))
                 e.Graphics.DrawLine(p, Theme.S(8), y, Math.Max(Theme.S(8), e.Item.Width - Theme.S(8)), y);
         }
 
@@ -3001,21 +3033,25 @@ namespace Fluxion
         protected override void OnRenderImageMargin(ToolStripRenderEventArgs e) { }
     }
 
-    //  统一的右键菜单外观（2026-10-22）：圆角白卡 + 自绘高亮。
-    //  6 处 ContextMenuStrip 全部走这里，别再各自 new 一遍 —— 漏一个就是一处"系统画风"。
+    //  统一的右键菜单外观：圆角白卡 + 自绘高亮 + 原生 DWM 阴影与圆角。
     static class MenuFactory
     {
         public static ContextMenuStrip New()
         {
-            var m = new ContextMenuStrip();      // ⚠ 这里必须是 new，不能走工厂（否则无限递归）
+            var m = new ContextMenuStrip();
             m.Renderer = new ThemedMenuRenderer();
             m.ShowImageMargin = false;
             m.ShowCheckMargin = false;
             m.Font = Theme.F(9.5f);
             m.BackColor = Theme.Panel;
             m.ForeColor = Theme.Text;
-            m.Padding = new Padding(Theme.S(2), Theme.S(4), Theme.S(2), Theme.S(4));
-            Fx.FadeInMenu(m);                    // 弹出 110ms 淡入（关动画时零行为）
+            m.MinimumSize = new Size(Theme.S(140), 0);
+            m.Padding = new Padding(Theme.S(4), Theme.S(5), Theme.S(4), Theme.S(5));
+            m.DropShadowEnabled = true;
+            m.HandleCreated += delegate {
+                try { Theme.ApplyChrome(m.Handle); } catch { }
+            };
+            Fx.FadeInMenu(m);
             return m;
         }
     }
@@ -8825,7 +8861,7 @@ namespace Fluxion
         [DllImport("kernel32.dll")]
         static extern bool SetProcessWorkingSetSize(IntPtr hProc, IntPtr min, IntPtr max);
         NotifyIcon tray;
-        ToolStripMenuItem miRemote, miGame;
+        ToolStripMenuItem miStatus;
         bool closing = false;
         bool StartHidden;
         bool trayTipShown = false;
@@ -10595,8 +10631,8 @@ namespace Fluxion
             var sPick = new Sec("此游戏的适配方案");
             cbScheme = new RoundCombo();
             cbScheme.Items.AddRange(new object[] {
-                "自动 · 按游戏推荐", "OptiScaler · 方案 A", "DLSS MFG " + Dlssg030.Ver + " · 代理",
-                "DLSS MFG " + Dlssg040.Ver + " · 新结构", "MFG Bridge · 方案 B", "Smooth Motion · 驱动插帧" });
+                "自动 · 按游戏推荐", "OptiScaler · 方案 A", "DLSS MFG 0.3.5 · 基础兼容",
+                "DLSS MFG " + Dlssg040.Ver + " · 进阶内核", "MFG Bridge · 方案 B", "Smooth Motion · 驱动插帧" });
             cbScheme.SelectedIndex = 0;
             cbScheme.SelectedIndexChanged += delegate { ApplySchemeVis(); };
             //  标题已经在卡片头上了，这一行只放选择器（宽度按参考图那个面板量级：320）
@@ -10803,7 +10839,7 @@ namespace Fluxion
             cbPreset040 = new RoundCombo();
             cbPreset040.DropDownStyle = ComboBoxStyle.DropDownList;
             cbPreset040.Items.AddRange(new object[] {
-                "Auto · 跟随游戏 / 驱动", "A · 关闭 UI 重组", "B · 开启 UI 重组（多数游戏无效）",
+                "A · 关闭 UI 重组（默认）", "B · 开启 UI 重组（多数游戏无效）",
                 "C · FG Lite（每生成帧快 29~34%）" });
             cbPreset040.SelectedIndex = PresetIndex(Cfg.DlssgPreset040);
             cbPreset040.SelectedIndexChanged += delegate { Save040Tuning(); };
@@ -10811,14 +10847,14 @@ namespace Fluxion
 
             cbEngine040 = new RoundCombo();
             cbEngine040.DropDownStyle = ComboBoxStyle.DropDownList;
-            cbEngine040.Items.AddRange(new object[] { "DLSS · 官方模型（默认）", "XeSS · Intel 模型（只 2X，30 系更慢）" });
+            cbEngine040.Items.AddRange(new object[] { "DLSS · 官方模型（默认）", "XeSS · Intel 模型（支持 2X~4X，1440p 更快）" });
             cbEngine040.SelectedIndex = string.Equals(Cfg.DlssgEngine040, "XeSS", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
             cbEngine040.SelectedIndexChanged += delegate { Save040Tuning(); };
             s040.Row("插帧引擎 Engine", cbEngine040, Theme.S(220));
 
             cbSr040 = new RoundCombo();
             cbSr040.DropDownStyle = ComboBoxStyle.DropDownList;
-            cbSr040.Items.AddRange(new object[] { "Off · 不介入超分（默认）", "On · 超分 L/M 档走 INT8（仅 20/30 系）" });
+            cbSr040.Items.AddRange(new object[] { "Off · 不介入超分（默认）", "M-INT8 · 走 INT8 超分内核（仅 20/30 系）" });
             cbSr040.SelectedIndex = Cfg.DlssgSr040 ? 1 : 0;
             cbSr040.SelectedIndexChanged += delegate { Save040Tuning(); };
             s040.Row("超分 INT8 SuperResolution", cbSr040, Theme.S(220));
@@ -11319,7 +11355,7 @@ namespace Fluxion
                 var sPlan4 = new Sec("【0.4.x · DLSSG for SM86】新包结构版（2026-10-18 加）");
                 sPlan4.Body("【0.4.x】新包结构"
                          + "\n· 部署三样：入口 DLL + dlssg_sm86.ini + 整个 dlssg_sm86\\ 目录（代理只 0.8 MB，只拷 DLL 无效）"
-                         + "\n· 出厂开关：超分 INT8（30/20 系）、FG Lite（3070 每帧快 29~34%）、XeSS 插帧（仅 2X）"
+                         + "\n· 出厂开关：超分 INT8（30/20 系）、FG Lite（3070 每帧快 29~34%）、XeSS 插帧（支持 2X~4X）"
                          + "\n· INI 重排为 [DLSSG] / [XeSSFG]，旧键逐条告警，工具留 .bak 再重写"
                          + "\n· 从 0.3.x 升级先删干净；6X 仍要自己写 MaxGeneratedFrames=5"
                          + "\n· 版本以界面显示为准（体积判据这一代失效）");
@@ -13202,8 +13238,18 @@ namespace Fluxion
                 SetBody(lblLink, "远控状态：" + remote + "　·　联动：" + (Cfg.AwareEnable ? "已开启" : "已关闭")
                                + "　·　场景：" + (Program.SceneOffice ? "办公" : "游戏")
                                + (inGame && gameStartAt != DateTime.MinValue ? "　·　时长：" + FmtDur(DateTime.Now - gameStartAt) : ""));
-                if (tray != null && miRemote != null) miRemote.Text = "远控：" + remote;
-                if (tray != null && miGame != null) miGame.Text = state;
+                if (tray != null)
+                {
+                    string tip = "Fluxion" + (inGame ? (" - 游戏中：" + Program.GameDisplayName(game)) : " - 待命中");
+                    if (!Program.ShareBuild && remote == "运行中") tip += "\n远控：运行中";
+                    try { tray.Text = tip.Length > 63 ? tip.Substring(0, 63) : tip; } catch { }
+                }
+                if (miStatus != null)
+                {
+                    string gName = Program.GameDisplayName(game);
+                    if (gName.Length > 8) gName = gName.Substring(0, 7) + "…";
+                    miStatus.Text = inGame ? ("● 游戏中：" + gName) : "● 待命中";
+                }
 
                 // 联动触发：以「游戏进程名」为准（从无到有、或换了一个游戏，都重新触发一轮）
                 if (game != lastGame)
@@ -13483,8 +13529,8 @@ namespace Fluxion
                 //  与原值相同则内部直接返回，幂等不闪。
                 if (cbScheme != null)
                 {
-                    cbScheme.Items.Set(2, "DLSS MFG " + Dlssg030.Ver + " · 代理");
-                    cbScheme.Items.Set(3, "DLSS MFG " + Dlssg040.Ver + " · 新结构");
+                    cbScheme.Items.Set(2, "DLSS MFG 0.3.5 · 基础兼容");
+                    cbScheme.Items.Set(3, "DLSS MFG " + Dlssg040.Ver + " · 进阶内核");
                 }
 
                 if (lblGi != null)
@@ -13636,7 +13682,7 @@ namespace Fluxion
                         string slot3 = Plan.EntryName(XeMfg.Detect(FgDir(selected)));
                         bool mine3 = cur3 == Plan.D030;
                         SetBody(lbl030, cur3 == Plan.None
-                            ? "当前：原生（所有代理均已停放）"
+                            ? "当前：原生纯净（未安装）"
                             : "当前：" + Plan.PlanName(cur3) + "（" + slot3 + " 槽位）"
                               + (mine3 ? "  ← 本方案在用" : "  ← 切到本方案会把它改名停放"));
                         lbl030.ForeColor = mine3 ? Theme.Ok : Theme.TextDim;
@@ -13667,7 +13713,7 @@ namespace Fluxion
                             : "";
                         SetBody(lbl040,
                             packLine + "\n"
-                            + (cur4 == Plan.None ? "当前：原生（没有代理在跑）"
+                            + (cur4 == Plan.None ? "当前：原生纯净（未安装）"
                                                  : "当前：" + Plan.PlanName(cur4)
                                                    + (e4.Length > 0 ? "（入口 " + e4 + " 在位）" : "")
                                                    + (mine4 ? "  ← 本方案在用" : "  ← 切过来会把它改名停放"))
@@ -13692,7 +13738,7 @@ namespace Fluxion
                         SetBody(lblNv,
                             capNv + "\n"
                             + (mineN ? "当前：" + Plan.PlanName(curN) + "（入口 " + eN + " 在位）  ← 本方案在用"
-                                     : (curN == Plan.None ? "当前：原生（没有代理在跑）"
+                                     : (curN == Plan.None ? "当前：原生纯净（未安装）"
                                                           : "当前：" + Plan.PlanName(curN) + "  ← 切过来会把它改名停放")));
                         lblNv.ForeColor = mineN ? Theme.Ok : Theme.TextDim;
                     }
@@ -14472,11 +14518,20 @@ namespace Fluxion
             if (!Program.ShareBuild)
             {
                 m.Items.Add(new ToolStripSeparator());
-                add("🌐 联网重新搜索封面", "webcover");
-                add("📁 选择本地封面图片…", "setcover");
-                add("📋 粘贴剪贴板封面（Ctrl+V）", "pastecover");
-                add("🔄 重新下载官方封面", "dlcover");
-                add("🗑 移除自定义封面", "clearcover");
+                var miCover = new ToolStripMenuItem("封面设置");
+                Action<string, string> addSub = delegate(string text, string act)
+                {
+                    var it = new ToolStripMenuItem(text);
+                    it.Click += delegate { OnCardMenu(act); };
+                    miCover.DropDownItems.Add(it);
+                };
+                addSub("联网重新搜索封面", "webcover");
+                addSub("选择本地图片…", "setcover");
+                addSub("粘贴剪贴板图片（Ctrl+V）", "pastecover");
+                addSub("重新下载官方封面", "dlcover");
+                miCover.DropDownItems.Add(new ToolStripSeparator());
+                addSub("清除自定义封面", "clearcover");
+                m.Items.Add(miCover);
             }
             m.Items.Add(new ToolStripSeparator());
             add("从列表移除", "remove");
@@ -15813,12 +15868,11 @@ namespace Fluxion
         static string SchemeShort(string a)
         {
             if (a == "opti") return "OptiScaler 方案 A";
-            if (a == "asi") return "DLSS MFG " + Dlssg030.Ver + " · ASI";
-            if (a == "030" || a == "030spoof") return "DLSS MFG " + Dlssg030.Ver;
+            if (a == "asi") return "异环专用 ASI 变体";
+            if (a == "030" || a == "030spoof") return "DLSS MFG 0.3.5";
             if (a == "040") return "DLSS MFG " + Dlssg040.Ver;
             if (a == "nvbr") return "MFG Bridge 方案 B";
-            //  dx12 = 结论是"先解决运行模式"，不是"无可装方案" —— 写成"无需安装"会误导
-            if (a == "dx12") return "先切 DX12";
+            if (a == "dx12") return "需切 DX12";
             return "无需安装";
         }
 
@@ -15930,8 +15984,8 @@ namespace Fluxion
                 {
                     string sub = Lib.PlatformLabel(selected.Platform);
                     if (curRecAction == "asi") sub += " · 推荐 ASI 变体";
-                    else if (curRecAction == "030" || curRecAction == "030spoof") sub += " · 推荐 0.3.x";
-                    else if (curRecAction == "040") sub += " · 推荐 0.4.x";
+                    else if (curRecAction == "030" || curRecAction == "030spoof") sub += " · 推荐 0.3.5";
+                    else if (curRecAction == "040") sub += " · 推荐 " + Dlssg040.Ver;
                     else if (curRecAction == "opti") sub += " · 推荐方案 A";
                     else if (curRecAction == "nvbr") sub += " · 推荐方案 B";
                     else if (curRecAction == "dx12") sub += " · 需切换 DX12";
@@ -16054,7 +16108,7 @@ namespace Fluxion
             if (a.Length == 0 || a == "none")
             {
                 var rec = Dlssg.BuildRec(selected);
-                MessageBox.Show(rec.Head + "\n\n" + rec.Why, "这套不用装",
+                MessageBox.Show(rec.Head + "\n\n" + rec.Why, "适配方案说明",
                                 MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
@@ -16155,20 +16209,37 @@ namespace Fluxion
 
         void DoXeDeploy()
         {
-            if (selected == null) { Log("  请先在游戏列表里选中绝区零 / 鸣潮，再点部署"); return; }
-            string kind = XeMfg.Detect(selected.Dir);
-            if (kind.Length == 0) { Log("  该游戏不在支持列表（当前仅绝区零 / 鸣潮）"); return; }
+            if (selected == null) { Log("  请先从左侧游戏栏选一个游戏"); return; }
+            string fgDir = FgDir(selected);
+            string kind = XeMfg.Detect(fgDir);
+            string entry = "dxgi.dll";
+            string reason = null;
+            string auto = Cfg.DlssgAutoEntry ? Dlssg.ResolveOverrideEntry(fgDir, selected.Title, out reason) : null;
+            if (!string.IsNullOrEmpty(auto))
+            {
+                entry = auto;
+                Log("  自动识别专用入口：" + auto + (string.IsNullOrEmpty(reason) ? "" : "（" + reason + "）"));
+            }
+            else if (kind == "zzz") entry = "d3d12.dll";
+
+            string desc = kind == "zzz"
+                ? "· 绝区零：d3d12.dll 入口 · 帧生成 DLSSG→XeFG（绕反作弊按名拦截）\n"
+                : (kind == "wuwa"
+                    ? "· 鸣潮：dxgi.dll 入口 · 帧生成走原生 DLSSG（SM86 解锁）· 支持 DLSS 5 NR\n"
+                    : "· 通用单机/3A 游戏：入口 " + entry + " · 跨平台插帧（XeSS-FG / FSR 3.1 兼容）\n");
+
             if (MessageBox.Show(
-                "将往游戏目录部署 OptiScaler 注入组件。\n\n"
-                + "· 绝区零：d3d12.dll 入口 · 伪装 RTX 5090 · 帧生成 DLSSG→XeFG（实测可绕反作弊按名拦截）\n"
-                + "· 鸣潮：dxgi.dll 入口 · 帧生成走游戏原生 DLSSG（SM86 解锁）· 同时带 DLSS 5 神经渲染 NR\n"
-                + "· 属于第三方组件注入，带内核反作弊的游戏理论上仍有封号风险，请自行判断\n"
-                + "· 覆盖的游戏自带文件会自动备份；你已调好的 OptiScaler.ini 会被保留，不会被出厂值覆盖\n"
-                + "· 本方案与「DLSS MFG 0.3.x」互斥（两套抢同一个入口 DLL）；切换会自动完成：\n"
-                + "  本方案会把 0.3.x 的入口与配套组件改名停放，不删任何文件，随时可切回\n\n确定部署吗？",
+                "将往游戏渲染目录部署 OptiScaler 跨平台补帧组件（XeSS-FG / FSR 3.1）：\n"
+                + fgDir + "\n\n"
+                + desc
+                + "· 适用：AMD Radeon / Intel Arc 显卡、GTX 10/16 系列，或突破锁倍率的进阶玩法\n"
+                + "· 属于第三方组件注入，带内核反作弊的游戏请自行评估风险\n"
+                + "· 覆盖的游戏自带文件会自动备份；已调好的 OptiScaler.ini 会被保留，不被出厂值覆盖\n"
+                + "· 同一目录里已有的其它方案会被改名停放（<文件>.parked.xxx），随时可切回\n"
+                + "· 完全退出游戏再部署\n\n确定部署吗？",
                 "切换到方案 A · " + selected.Title, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-            Log("切换到 " + Plan.PlanName(Plan.Opti) + "：" + selected.Dir);
-            Log("  " + Plan.SwitchTo(selected.Dir, Plan.Opti));
+            Log("切换到 " + Plan.PlanName(Plan.Opti) + "：" + fgDir);
+            Log("  " + Plan.SwitchTo(fgDir, Plan.Opti, false, entry));
             FillGameList();
             RefreshFgSummary();
         }
@@ -16176,16 +16247,15 @@ namespace Fluxion
         void DoXeUndeploy()
         {
             if (selected == null) { Log("  请先选中游戏"); return; }
+            string fgDir = FgDir(selected);
             if (MessageBox.Show(
                 "把方案 A 的入口代理与配套组件改名停放（<文件>.parked.opti），游戏回到原生状态。\n\n"
                 + "· 不删除任何文件：全部改名保留，OptiScaler.ini 里你调好的伪装 / NR 参数也一起存着\n"
                 + "· 想切回来：在「概览」把方案选成它，点「安装并应用」即可，停放的文件会原样改回原名\n\n"
-                + "停放期间会失去什么（切回来就恢复）：\n"
-                + "· 绝区零 / 鸣潮：设置里的「帧生成」选项会消失（它是 OptiScaler 的显卡名伪装换来的）\n"
-                + "· 鸣潮还会同时失去「DLSS 5 NR」\n\n确定停放吗？",
-                "停放方案 A · " + selected.Title, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-            Log("停放方案 A（入口 + 配套组件，只改名不删文件）：" + selected.Dir);
-            Log("  " + Plan.SwitchTo(selected.Dir, Plan.None));
+                + "确定停放吗？",
+                "停放方案 A · " + selected.Title, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            Log("停放方案 A（入口 + 配套组件，只改名不删文件）：" + fgDir);
+            Log("  " + Plan.SwitchTo(fgDir, Plan.None));
             FillGameList();
             RefreshFgSummary();
         }
@@ -16221,15 +16291,15 @@ namespace Fluxion
                      && !string.Equals(fgDirSeen, "warn:" + d, StringComparison.OrdinalIgnoreCase))
             {
                 fgDirSeen = "warn:" + d;
-                Log("  ⚠ 这一层是启动器目录（有 NTELauncher.exe），没找到渲染目录 —— "
-                    + "代理装在这里很可能不生效。请到游戏根下的 Client\\…\\Binaries\\Win64 确认渲染 exe。");
+                Log("  ⚠ 这一层是启动器目录（含有启动器引导程序），没找到渲染目录 —— "
+                    + "代理装在这里很可能不生效。请确认渲染 exe 所在的子目录。");
             }
             return d;
         }
 
         void Do030Deploy()
         {
-            if (selected == null) { Log("  请先在游戏库选中绝区零 / 鸣潮，再点部署"); return; }
+            if (selected == null) { Log("  请先在左侧游戏栏选中一个游戏"); return; }
             string kind = XeMfg.Detect(FgDir(selected));
             bool generic = kind.Length == 0;      // 通用（3A 单机）：作者文档只要求入口 + ini 两个文件
             // 绝区零实测：装 0.3.x 之后设置里依然没有帧生成选项 ——
@@ -16244,10 +16314,10 @@ namespace Fluxion
             //  另：这六行原来把换行写成 `\\n`（字面反斜杠），弹窗里显示的就是一排 `\n` —— 一并修掉。
             string zzzWarn = kind == "zzz"
                 ? "※ 绝区零请注意（2026-09-18 实测改正）：\n"
-                + "  · 绝区零按显卡名决定是否显示 DLSS / 帧生成选项，3060 Ti 会被判不支持；\n"
-                + "  · 但**不要**再导 D:\\youhua\\绝区零-显卡名伪装\\ 里的 .reg：\n"
-                + "    DeviceFP 已经把你报的 GPU 名记成 invalid（MIHOYOSDK_GPU_NAME），\n"
-                + "    伪装无论走注册表还是走 DXGI 都会被判环境篡改 → 进游戏后弹 (0,11008) 闪退。\n"
+                + "  · 绝区零按显卡名决定是否显示 DLSS / 帧生成选项，非 40/50 系显卡（如 RTX 20/30 系列）会被官方识别判定为不支持原生 DLSS 3 帧生成；\n"
+                + "  · 但**不要**再尝试导入外部注册表显卡名伪装（如改注册表或假冒 RTX 4090）：\n"
+                + "    DeviceFP 已经会将非真实伪装的 GPU 名记成 invalid（MIHOYOSDK_GPU_NAME），\n"
+                + "    伪装无论走注册表还是走外部 DXGI 注入都很可能被游戏完整性校验判为环境篡改 → 进游戏后弹 (0,11008) 闪退。\n"
                 + "  · " + Dlssg030.Knowledge("zzz-spoof", "版本相关的伪装结论请先看说明页，别照旧印象操作") + "。\n"
                 + "    （这条是按当前代理版本 " + Dlssg030.Ver + " 从 catalog.json 的 knowledge 表挑的）\n"
                 + "  · 绝区零当前唯一能让「帧生成」选项出现的是方案 A。要用方案 A 就关掉本对话框，\n"
@@ -16298,18 +16368,26 @@ namespace Fluxion
                     }
                 }
             }
-            if (!TrustGateFiles(Dlssg030.Planned030Sources(FgDir(selected), kind), selected.Title))
+            string fgDir = FgDir(selected);
+            string reason030 = null;
+            string autoEntry030 = Cfg.DlssgAutoEntry ? Dlssg.ResolveOverrideEntry(fgDir, selected.Title, out reason030) : null;
+            string entry030 = !string.IsNullOrEmpty(autoEntry030) ? autoEntry030 : (generic ? Cfg.DlssgGenericEntry : Dlssg030.EntryFor(kind));
+            if (!string.IsNullOrEmpty(autoEntry030))
+            {
+                Log("  自动识别游戏专用入口：" + autoEntry030 + (string.IsNullOrEmpty(reason030) ? "" : "（" + reason030 + "）"));
+            }
+            if (!TrustGateFiles(Dlssg030.Planned030Sources(fgDir, kind, entry030), selected.Title))
             {
                 Log("  已取消：源件未通过签名核验");
                 return;
             }
-            Log("部署 DLSS MFG " + Dlssg030.Ver + "：" + FgDir(selected) + (generic ? "（通用模式，入口 " + Cfg.DlssgGenericEntry + "）" : ""));
+            Log("部署 DLSS MFG " + Dlssg030.Ver + "：" + fgDir + (generic ? "（通用模式，入口 " + entry030 + "）" : ""));
             foreach (string ln in Dlssg030.PrereqReport().Split('\n'))
             {
                 string q = ln.TrimEnd();
                 if (q.Length > 0) Log("  " + q);
             }
-            Log("  " + Plan.SwitchTo(FgDir(selected), Plan.D030));
+            Log("  " + Plan.SwitchTo(fgDir, Plan.D030, false, entry030));
             FillGameList();
             RefreshFgSummary();
         }
@@ -16386,14 +16464,22 @@ namespace Fluxion
                     }
                 }
             }
-            if (!TrustGateFiles(Dlssg040.PlannedSources(FgDir(selected), entry), selected.Title))
+            string fgDir040 = FgDir(selected);
+            string reason040 = null;
+            string autoEntry040 = Cfg.DlssgAutoEntry ? Dlssg.ResolveOverrideEntry(fgDir040, selected.Title, out reason040) : null;
+            if (!string.IsNullOrEmpty(autoEntry040))
+            {
+                entry = autoEntry040;
+                Log("  自动识别游戏专用入口：" + autoEntry040 + (string.IsNullOrEmpty(reason040) ? "" : "（" + reason040 + "）"));
+            }
+            if (!TrustGateFiles(Dlssg040.PlannedSources(fgDir040, entry), selected.Title))
             {
                 Log("  已取消：源件未通过签名核验");
                 return;
             }
             if (MessageBox.Show(
                 gachaWarn
-                + "将部署 DLSSG for SM86 " + Dlssg040.Ver + "（新版结构）到：\n" + FgDir(selected) + "\n\n"
+                + "将部署 DLSSG for SM86 " + Dlssg040.Ver + "（新版结构）到：\n" + fgDir040 + "\n\n"
                 + "· 部署清单：入口 " + entry + " + dlssg_sm86.ini + 整个 dlssg_sm86\\ 目录（"
                 + Dlssg040.DeploySizeNote() + "）\n"
                 + "· 同一目录里已有的 0.3.x / 方案 A 会被改名停放（<文件>.parked.xxx），不删任何文件\n"
@@ -16404,8 +16490,8 @@ namespace Fluxion
                 "切换到 DLSS MFG " + Dlssg040.Ver + " · " + selected.Title,
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
 
-            Log("部署 " + Plan.PlanName(Plan.D040) + "：" + FgDir(selected) + "（入口 " + entry + "）");
-            Log("  " + Plan.SwitchTo(FgDir(selected), Plan.D040));
+            Log("部署 " + Plan.PlanName(Plan.D040) + "：" + fgDir040 + "（入口 " + entry + "）");
+            Log("  " + Plan.SwitchTo(fgDir040, Plan.D040, false, entry));
             //  每游戏参数覆盖（第 160 轮）：SwitchTo→Install 落的是全局值，这里把本游戏的覆盖值补上
             string perGame = ApplyPerGameFg(selected);
             if (perGame.Length > 0) Log("  " + perGame);
@@ -16441,14 +16527,14 @@ namespace Fluxion
             if (own == Plan.D030)
             {
                 if (g.FgMax <= 0) return "";
-                return "每游戏参数 · " + g.Title + "（0.3.x）：" + Dlssg030.SetMaxFrames(g.Dir, g.FgMax);
+                return "每游戏参数 · " + g.Title + "（0.3.x）：" + Dlssg030.SetMaxFrames(gdir, g.FgMax);
             }
             if (own == Plan.D040)
             {
                 var parts = new List<string>();
-                if (g.FgMax > 0) parts.Add(Dlssg040.SetMaxFrames(g.Dir, g.FgMax));
+                if (g.FgMax > 0) parts.Add(Dlssg040.SetMaxFrames(gdir, g.FgMax));
                 if (g.FgOpt >= 0 || (g.FgPreset != null && g.FgPreset.Length > 0))
-                    parts.Add(Dlssg040.ApplyTuning(g.Dir, EffFgOpt(g), EffFgPreset(g)));
+                    parts.Add(Dlssg040.ApplyTuning(gdir, EffFgOpt(g), EffFgPreset(g)));
                 if (parts.Count == 0) return "";
                 return "每游戏参数 · " + g.Title + "（0.4.x）：" + string.Join("；", parts.ToArray());
             }
@@ -16489,18 +16575,16 @@ namespace Fluxion
         // 0.4.x 参数：下拉 → 配置（不落 ini）；点「应用参数到已装游戏」才写进各游戏目录
         static int PresetIndex(string v)
         {
-            if (string.Equals(v, "A", StringComparison.OrdinalIgnoreCase)) return 1;
-            if (string.Equals(v, "B", StringComparison.OrdinalIgnoreCase)) return 2;
-            if (string.Equals(v, "C", StringComparison.OrdinalIgnoreCase)) return 3;
+            if (string.Equals(v, "B", StringComparison.OrdinalIgnoreCase)) return 1;
+            if (string.Equals(v, "C", StringComparison.OrdinalIgnoreCase)) return 2;
             return 0;
         }
 
         static string PresetText(int i)
         {
-            if (i == 1) return "A";
-            if (i == 2) return "B";
-            if (i == 3) return "C";
-            return "Auto";
+            if (i == 1) return "B";
+            if (i == 2) return "C";
+            return "A";
         }
 
         void Save040Tuning()
@@ -16533,7 +16617,7 @@ namespace Fluxion
             Log(">>> 应用 0.4.x 参数：Optimized=" + Cfg.DlssgOptimized040
                 + " · Preset=" + Cfg.DlssgPreset040
                 + " · Engine=" + Cfg.DlssgEngine040
-                + " · SuperResolution=" + (Cfg.DlssgSr040 ? "On" : "Off"));
+                + " · SuperResolution=" + (Cfg.DlssgSr040 ? "M-INT8" : "Off"));
             int n = 0;
             foreach (var g in games)
             {
@@ -16590,11 +16674,11 @@ namespace Fluxion
             }
             string tip = DlssgAsi.IsGame(selected) ? "（认出它是异环：常规入口名在这游戏上不管用，走 ASI 加载器）" : "";
             if (MessageBox.Show(
-                "将把 0.3.x 的代理改名成 " + DlssgAsi.Proxy + "，并随行放一个 ASI 加载器 " + DlssgAsi.Loader + "。\n"
-                + tip + "\n"
-                + "· 只换加载方式，DLL 本体还是 0.3.x 那颗（同体积、同作者签名）\n"
-                + "· " + DlssgAsi.Loader + " 是第三方组件，目录里已有别的 mod 在用时会先备份成 .bak-时间戳\n"
-                + "· 要撤掉：手动删除游戏目录里的 " + DlssgAsi.Proxy + " 与 " + DlssgAsi.Loader + "\n\n确定部署吗？",
+                "将部署 ASI 变体架构（" + DlssgAsi.Proxy + " 与 " + DlssgAsi.Loader + "）：\n"
+                + (string.IsNullOrEmpty(tip) ? "" : tip + "\n")
+                + "• 采用 ASI 加载机制规避常规 DLL 拦截，核心代理组件保持一致\n"
+                + "• 加载器组件如遇冲突将自动备份已有模块，不覆盖用户自定义配置\n"
+                + "• 卸载说明：可通过方案切换自动停用，或手动清理对应 DLL 文件\n\n确认部署？",
                 "ASI 入口 · " + selected.Title, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
             Log("部署 ASI 变体：" + FgDir(selected));
             Log("  " + DlssgAsi.Install(FgDir(selected), true));
@@ -16645,13 +16729,19 @@ namespace Fluxion
             // 二游：作者那张网游表只针对 0.3.x，方案 B 是第三方项目，入口名清单不一样 —— 说一句再装。
             string gk = SecondGame.Detect(selected);
             string gachaWarn = gk.Length > 0
-                ? "※ 《" + SecondGame.Label(gk) + "》是二游：作者的网游注入表给的是 " + SecondGame.SuggestEntry(gk)
-                  + "（0.3.x 那套），与方案 B 的入口名清单不是同一份。\n"
-                  + "  两边都能跑，但改了入口名就是你自己选的路线。\n\n"
+                ? "※ 《" + SecondGame.Label(gk) + "》包含反作弊组件。方案 B 为第三方独立代理架构，推荐使用受信任入口并避免在多人对抗模式下注入。\n\n"
                 : "";
+            string fgDirNv = FgDir(selected);
+            string reasonNv = null;
+            string autoEntryNv = Cfg.DlssgAutoEntry ? Dlssg.ResolveOverrideEntry(fgDirNv, selected.Title, out reasonNv) : null;
+            if (!string.IsNullOrEmpty(autoEntryNv))
+            {
+                entry = autoEntryNv;
+                Log("  自动识别游戏专用入口：" + autoEntryNv + (string.IsNullOrEmpty(reasonNv) ? "" : "（" + reasonNv + "）"));
+            }
             if (MessageBox.Show(
                 gachaWarn
-                + "将把发布包里的 nvngx.dll 改名成 " + entry + " 后放进：\n" + FgDir(selected) + "\n\n"
+                + "将把发布包里的 nvngx.dll 改名成 " + entry + " 后放进：\n" + fgDirNv + "\n\n"
                 + "· 它运行时会按需把 provider 解包到 %TEMP%\\nvidia_mfg_bridge\\\n"
                 + "· 同一目录里已有的其它方案会被改名停放（<文件>.parked.xxx），不删任何文件\n"
                 + "· 游戏内按 Home 键调倍率覆盖，按 Insert 键切 DLSS 降噪 / 光追重建\n"
@@ -16660,8 +16750,8 @@ namespace Fluxion
                 "切换到方案 B · " + selected.Title,
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
 
-            Log("部署方案 B：" + FgDir(selected) + "（入口 " + entry + "）");
-            Log("  " + Plan.SwitchTo(FgDir(selected), Plan.Nvbr));
+            Log("部署方案 B：" + fgDirNv + "（入口 " + entry + "）");
+            Log("  " + Plan.SwitchTo(fgDirNv, Plan.Nvbr, false, entry));
             FillGameList();
             RefreshFgSummary();
         }
@@ -17217,9 +17307,9 @@ namespace Fluxion
                         Dlssg030.EnsureFactoryIni(gdir);
                         //  每游戏覆盖（第 160 轮）：EffFgMax 解析"本游戏生效值"，覆盖了才跟全局不同
                         int m30 = EffFgMax(g);
-                        string r = Dlssg030.SetMaxFrames(g.Dir, m30);
+                        string r = Dlssg030.SetMaxFrames(gdir, m30);
                         if (r.IndexOf("已设为") >= 0) n030++;
-                        Log("  0.3.x · " + g.Title + "：" + r
+                        Log("  0.3.5 · " + g.Title + "：" + r
                             + (g.FgMax > 0 ? "（本游戏覆盖）" : ""));
                     }
                     else if (own == Plan.D040)
@@ -17228,7 +17318,7 @@ namespace Fluxion
                         //  只能改 MaxGeneratedFrames 这一行，整份重写会把新段的键全丢掉。
                         //  出厂是 3 = 4X；这里照"本游戏生效值"显式写（第 160 轮起支持每游戏覆盖）。
                         int m40 = EffFgMax(g);
-                        string r = Dlssg040.SetMaxFrames(g.Dir, m40);
+                        string r = Dlssg040.SetMaxFrames(gdir, m40);
                         if (r.IndexOf("已写入") >= 0) n040++;
                         Log("  0.4.x · " + g.Title + "：" + r
                             + (m40 < 5 ? "（要 6X 选「5 · 6X」并把 MaxGeneratedFrames 改成 5）" : "")
@@ -17242,7 +17332,7 @@ namespace Fluxion
                         nOld++;
                         if (m != Cfg.DlssgMaxFrames)
                             Log("  " + g.Title + "：装的是旧版代理（上限 4X），已按 MaxGeneratedFrames=3 写入"
-                                + "；要 6X 请先在「概览」点「安装并应用」装上 0.3.x");
+                                + "；如需多倍补帧请在「概览」中点击「安装并应用」部署方案");
                     }
                     else if (own == Plan.Nvbr)
                     {
@@ -17255,20 +17345,20 @@ namespace Fluxion
                     {
                         // 唯一的例外：DLSS 5 神经渲染的总开关。它只改 [DlssNr] Enabled 一行，
                         //  且这是**用户明确要求可调**的一项（此前被 2.9.1 固化成 true，每次启动必开）。
-                        string nr = XeMfg.SetNrEnabled(g.Dir, Cfg.DlssgNrEnabled);
+                        string nr = XeMfg.SetNrEnabled(gdir, Cfg.DlssgNrEnabled);
                         if (nr.IndexOf("已") >= 0) nOpti++;
                         Log("  方案A · " + g.Title + "：" + nr);
                         //  NR 位置：NR 开着才写。注意**两种取值都要写** —— 用户从 Pre-SR 关回默认时，
                         //  ini 里还留着 RunBeforeSR=true，不写 false 就等于关不掉。
                         if (Cfg.DlssgNrEnabled)
-                            Log("  方案A · " + g.Title + "：" + XeMfg.SetNrPreSR(g.Dir, Cfg.DlssgNrPreSR));
+                            Log("  方案A · " + g.Title + "：" + XeMfg.SetNrPreSR(gdir, Cfg.DlssgNrPreSR));
                     }
                 }
                 catch { }
             }
             Log("帧生成参数已保存（Router=" + Cfg.DlssgRouter + " 内核=" + Cfg.DlssgKernel +
                 " 光流=" + Cfg.DlssgBilinear + " 最大帧=" + Cfg.DlssgMaxFrames + " 日志=" + Cfg.DlssgLogLevel + "）");
-            if (n030 > 0) Log("  已同步 " + n030 + " 个 0.3.x 部署游戏的倍率上限（需重启游戏生效）");
+            if (n030 > 0) Log("  已同步 " + n030 + " 个 0.3.5 部署游戏的倍率上限（需重启游戏生效）");
             if (n040 > 0) Log("  已同步 " + n040 + " 个 0.4.x 部署游戏的倍率上限（需重启游戏生效）");
             if (nOld > 0) Log("  已更新 " + nOld + " 个旧版代理游戏的配置文件（上限 4X，需重启游戏生效）");
             if (nSkip > 0) Log("  跳过 " + nSkip + " 个未接入本方案的游戏（不写它们的配置文件）");
@@ -17279,41 +17369,45 @@ namespace Fluxion
         void BuildTray()
         {
             var menu = MenuFactory.New();
+
+            miStatus = new ToolStripMenuItem("● 待命中");
+            miStatus.Tag = "status";
+            miStatus.Enabled = false;
+            miStatus.Font = Theme.F(9f);
+            menu.Items.Add(miStatus);
+            menu.Items.Add(new ToolStripSeparator());
+
             var miOpen = new ToolStripMenuItem("打开主窗口");
+            miOpen.Font = Theme.FB(9.5f);
             miOpen.Click += delegate { Show(); WindowState = FormWindowState.Normal; Activate(); };
-            miGame = new ToolStripMenuItem("未检测到游戏");
-            miGame.Enabled = false;
-            miRemote = new ToolStripMenuItem("远控：—");
-            miRemote.Enabled = false;
-            var miOpt = new ToolStripMenuItem("一键优化");
-            miOpt.Click += delegate { DoOptimize(); };
-            var miRestore = new ToolStripMenuItem("恢复备份");
-            miRestore.Click += delegate { DoRestore(); };
+            menu.Items.Add(miOpen);
+
+            if (!Program.ShareBuild)
+            {
+                menu.Items.Add(new ToolStripSeparator());
+                var miOpt = new ToolStripMenuItem("一键优化");
+                miOpt.Click += delegate { DoOptimize(); };
+                menu.Items.Add(miOpt);
+
+                var miRestore = new ToolStripMenuItem("恢复备份");
+                miRestore.Click += delegate { DoRestore(); };
+                menu.Items.Add(miRestore);
+            }
+
+            menu.Items.Add(new ToolStripSeparator());
             var miExit = new ToolStripMenuItem("退出");
             miExit.Click += delegate
             {
                 closing = true;
-                // 分享版没有加速包/远控这类常驻联动进程，不需要收尾清理
                 if (!Program.ShareBuild) try { Program.GameBoostCleanupOrphans(); } catch { }
                 tray.Visible = false;
                 Application.Exit();
             };
-            menu.Items.Add(miOpen);
-            // 分享版托盘只留「打开主窗口 / 退出」：一键优化、恢复备份、远控状态都是本机专属功能
-            if (!Program.ShareBuild)
-            {
-                menu.Items.Add(miGame);
-                menu.Items.Add(miRemote);
-                menu.Items.Add(new ToolStripSeparator());
-                menu.Items.Add(miOpt);
-                menu.Items.Add(miRestore);
-                menu.Items.Add(new ToolStripSeparator());
-            }
             menu.Items.Add(miExit);
 
             tray = new NotifyIcon();
             try { tray.Icon = Program.GetAppIcon(); } catch { }
-            tray.Text = "Fluxion";
+            tray.Text = "Fluxion - 待命中";
             tray.ContextMenuStrip = menu;
             tray.Visible = true;
             tray.DoubleClick += delegate { Show(); WindowState = FormWindowState.Normal; Activate(); };
@@ -18035,7 +18129,7 @@ namespace Fluxion
                 if (p.Error.Length > 0) { Log("  → 未做任何改动"); continue; }
                 if (p.Kind == Pack.K_OPTI || p.Kind == Pack.K_LEGACY || p.Kind == Pack.K_UNK)
                 {
-                    Log("  → 这套不在拖入导入的范围内（见上），未做任何改动");
+                    Log("  → 不在导入支持范围内，未做修改");
                     continue;
                 }
                 if (!p.Ready) { Log("  → 包里没有可归位的文件，未做任何改动"); continue; }
@@ -18440,10 +18534,11 @@ namespace Fluxion
             s1.Row("倍率上限", cbMax, Theme.S(180));
 
             var cbPreset = new RoundCombo();
-            cbPreset.Items.AddRange(new object[] { "跟随全局", "Auto", "A", "B", "C（FG Lite）" });
+            cbPreset.Items.AddRange(new object[] { "跟随全局", "A", "B", "C（FG Lite）" });
             cbPreset.SelectedIndex = 0;
-            if (g.FgPreset == "Auto" || g.FgPreset == "A" || g.FgPreset == "B") cbPreset.SelectedIndex = g.FgPreset == "Auto" ? 1 : (g.FgPreset == "A" ? 2 : 3);
-            else if (g.FgPreset == "C") cbPreset.SelectedIndex = 4;
+            if (g.FgPreset == "Auto" || g.FgPreset == "A") cbPreset.SelectedIndex = 1;
+            else if (g.FgPreset == "B") cbPreset.SelectedIndex = 2;
+            else if (g.FgPreset == "C") cbPreset.SelectedIndex = 3;
             s1.Row("DLSS-G 预设", cbPreset, Theme.S(180));
 
             var cbOpt = new RoundCombo();
@@ -18484,7 +18579,7 @@ namespace Fluxion
 
             //  索引 → 覆盖语义：0 = 跟随全局（0/""/-1）
             int max = cbMax.SelectedIndex > 0 ? cbMax.SelectedIndex : 0;
-            string preset = cbPreset.SelectedIndex <= 0 ? "" : (cbPreset.SelectedIndex == 1 ? "Auto" : cbPreset.SelectedIndex == 4 ? "C" : ((char)('A' + cbPreset.SelectedIndex - 2)).ToString());
+            string preset = cbPreset.SelectedIndex <= 0 ? "" : (cbPreset.SelectedIndex == 1 ? "A" : (cbPreset.SelectedIndex == 2 ? "B" : "C"));
             int opt = cbOpt.SelectedIndex > 0 ? cbOpt.SelectedIndex - 1 : -1;
             Lib.SetFgConfig(g, max, preset, opt);
             Log("[帧生成参数] " + g.Title + "：倍率 " + (max > 0 ? max + 1 + "X" : "跟随全局")
@@ -18492,7 +18587,7 @@ namespace Fluxion
                 + " · Optimized " + (opt >= 0 ? opt.ToString() : "跟随全局"));
             string applied = ApplyPerGameFg(g);
             if (applied.Length > 0) Log("  " + applied);
-            else Log("  （该游戏当前没有部署本工具的代理 —— 参数已记住，部署时自动带上）");
+            else Log("  （未部署补丁代理，参数已保存，部署后自动生效）");
             RefreshFgSummary();
         }
 

@@ -118,6 +118,48 @@ namespace Fluxion
             catch { return false; }
         }
 
+        // 识别已部署或磁盘上代理的具体 0.4.x 版本代号（如 0.4.0 / 0.4.1）
+        public static string DetectVersion(string gameDir, string proxyPath, long proxySize, string thumb)
+        {
+            try
+            {
+                if (thumb != null && thumb.Length > 0)
+                {
+                    if (string.Equals(thumb, Catalog.ThumbUpstream2, StringComparison.OrdinalIgnoreCase))
+                        return "0.4.1";
+                    if (string.Equals(thumb, Catalog.ThumbUpstream, StringComparison.OrdinalIgnoreCase))
+                        return "0.4.0";
+                }
+                if (proxySize > 0)
+                {
+                    // 0.4.1 version.dll 为 815,240 字节，alternatives 约 815,752..833,160
+                    if (proxySize >= 800000 && proxySize <= 840000) return "0.4.1";
+                    // 0.4.0 version.dll 为 853,280 字节，alternatives 约 853,792..871,200
+                    if (proxySize >= 850000 && proxySize <= 880000) return "0.4.0";
+                }
+                if (gameDir != null)
+                {
+                    string rdir = SecondGame.ResolveDir(gameDir);
+                    string backend = Path.Combine(rdir, Path.Combine(ResDirName, @"backend\sm86_backend.dll"));
+                    if (File.Exists(backend))
+                    {
+                        long blen = new FileInfo(backend).Length;
+                        if (blen >= 2200000) return "0.4.1";
+                        if (blen >= 2000000 && blen < 2200000) return "0.4.0";
+                    }
+                }
+                if (proxyPath != null)
+                {
+                    string fn = Path.GetFileName(proxyPath);
+                    string packSrc = EntrySrc(fn);
+                    if (File.Exists(packSrc) && new FileInfo(packSrc).Length == proxySize)
+                        return Ver;
+                }
+            }
+            catch { }
+            return Ver;
+        }
+
         public static string EntrySrc(string entry)
         {
             if (string.Equals(entry, "version.dll", StringComparison.OrdinalIgnoreCase))
@@ -151,6 +193,7 @@ namespace Fluxion
         public static string InstalledEntry(string gameDir)
         {
             if (gameDir == null) return "";
+            gameDir = SecondGame.ResolveDir(gameDir);
             foreach (string e in _entries)
                 if (IsMine(Path.Combine(gameDir, e))) return e;
             return "";
@@ -158,6 +201,7 @@ namespace Fluxion
 
         public static bool Installed(string gameDir)
         {
+            gameDir = SecondGame.ResolveDir(gameDir);
             string e = InstalledEntry(gameDir);
             if (e.Length == 0) return false;
             try { return File.Exists(Path.Combine(gameDir, IniName)) && File.Exists(KernelPath(gameDir)); }
@@ -166,12 +210,14 @@ namespace Fluxion
 
         public static string KernelPath(string gameDir)
         {
+            gameDir = SecondGame.ResolveDir(gameDir);
             return Path.Combine(Path.Combine(gameDir, ResDirName), "kernels\\fg_kernels.dll");
         }
 
         // 部署目录里还缺什么（空串 = 齐）
         public static string DeployedLack(string gameDir)
         {
+            gameDir = SecondGame.ResolveDir(gameDir);
             List<string> lack = new List<string>();
             if (!File.Exists(Path.Combine(gameDir, IniName))) lack.Add(IniName);
             foreach (string rel in _mustRes)
@@ -188,6 +234,7 @@ namespace Fluxion
 
         public static string Install(string gameDir, string entry, bool force)
         {
+            gameDir = SecondGame.ResolveDir(gameDir);
             if (gameDir == null || !Directory.Exists(gameDir)) return "目录不存在：" + gameDir;
             if (entry == null || entry.Length == 0) entry = "version.dll";
             string miss;
@@ -252,6 +299,7 @@ namespace Fluxion
         // 彻底清掉（与"停放"不同：停放只改名，这里真删 —— 因为 dlssg_sm86\ 躺着 30~210 MB）
         public static string Purge(string gameDir)
         {
+            gameDir = SecondGame.ResolveDir(gameDir);
             if (gameDir == null || !Directory.Exists(gameDir)) return "目录不存在";
             int n = 0;
             List<string> failed = new List<string>();
@@ -260,11 +308,16 @@ namespace Fluxion
                 string p = Path.Combine(gameDir, e);
                 try { if (IsMine(p)) { File.Delete(p); n++; } }
                 catch (Exception ex) { failed.Add(e + "：" + ex.Message); }
+                string pk = p + ".parked.040";
+                try { if (File.Exists(pk)) { File.Delete(pk); n++; } }
+                catch (Exception ex) { failed.Add(Path.GetFileName(pk) + "：" + ex.Message); }
             }
             try
             {
                 string ini = Path.Combine(gameDir, IniName);
                 if (File.Exists(ini)) { File.Delete(ini); n++; }
+                string iniPk = ini + ".parked.040";
+                if (File.Exists(iniPk)) { File.Delete(iniPk); n++; }
             }
             catch (Exception ex) { failed.Add(IniName + "：" + ex.Message); }
             try
@@ -274,6 +327,12 @@ namespace Fluxion
                 if (Directory.Exists(res) && File.Exists(KernelPath(gameDir)))
                 {
                     Directory.Delete(res, true);
+                    n++;
+                }
+                string resPk = res + ".parked.040";
+                if (Directory.Exists(resPk))
+                {
+                    Directory.Delete(resPk, true);
                     n++;
                 }
             }
@@ -301,6 +360,8 @@ namespace Fluxion
         //  会把 0.4.x 的新段（[DLSSG] / [XeSSFG]）当成"旧代"反复重写。
         public static string EnsureIni(string gameDir, bool force)
         {
+            gameDir = SecondGame.ResolveDir(gameDir);
+            if (string.IsNullOrEmpty(gameDir)) return "";
             string src = Path.Combine(PackRoot, IniName);
             string dst = Path.Combine(gameDir, IniName);
             try
@@ -321,6 +382,23 @@ namespace Fluxion
                     File.Copy(src, dst, true);
                     return is040 ? "已按 force 重抄出厂 INI"
                                  : "旧代 INI 已换成 0.4.x 出厂版（原文件留了 .bak-时间戳）";
+                }
+                // 自动纠偏存量配置中的失效/非法值（如 Preset=Auto 或 Mode=On）
+                bool patched = false;
+                if (cur.IndexOf("Preset=Auto", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    cur = Regex.Replace(cur, @"(?im)^\s*Preset\s*=\s*Auto\s*$", "Preset=A");
+                    patched = true;
+                }
+                if (cur.IndexOf("Mode=On", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    cur = Regex.Replace(cur, @"(?im)^\s*Mode\s*=\s*On\s*$", "Mode=M-INT8");
+                    patched = true;
+                }
+                if (patched)
+                {
+                    File.WriteAllText(dst, cur, new UTF8Encoding(false));
+                    return "已自动纠偏存量 INI（Preset=Auto → A，Mode=On → M-INT8）";
                 }
                 return "";
             }
@@ -396,6 +474,8 @@ namespace Fluxion
         {
             try
             {
+                gameDir = SecondGame.ResolveDir(gameDir);
+                if (string.IsNullOrEmpty(gameDir)) return -1;
                 string p = Path.Combine(gameDir, IniName);
                 if (!File.Exists(p)) return -1;
                 foreach (string ln in File.ReadAllLines(p, Encoding.UTF8))
@@ -415,6 +495,8 @@ namespace Fluxion
         // 只改一个键，其余原样 —— 0.4.x 的 INI 是完整发布配置，整份重写会丢新段的键
         public static string SetIni(string gameDir, string section, string key, string val)
         {
+            gameDir = SecondGame.ResolveDir(gameDir);
+            if (string.IsNullOrEmpty(gameDir)) return "目录无效";
             string p = Path.Combine(gameDir, IniName);
             if (!File.Exists(p)) return "找不到 " + IniName + "（0.4.x 未部署？）";
             try
@@ -464,25 +546,26 @@ namespace Fluxion
         }
 
         // ---- 参数：0.4.x 的四个常用键 ----
-        //  出厂 [DLSSG] Optimized=2 / Preset=Auto、[FrameGeneration] Engine=DLSS、
+        //  出厂 [DLSSG] Optimized=2 / Preset=A、[FrameGeneration] Engine=DLSS、
         //  [SuperResolution] Mode=Off。这四项决定"快多少 / 画质差多少"，
         //  不该逼用户去手改 6.8 KB 的 INI —— 但都只改那一行，其余键原样保留。
         public static string ApplyTuning(string gameDir)
         {
             return ApplyTuning(gameDir,
                 Program.Cfg != null ? Program.Cfg.DlssgOptimized040 : 2,
-                Program.Cfg != null ? Program.Cfg.DlssgPreset040 : "Auto");
+                Program.Cfg != null ? Program.Cfg.DlssgPreset040 : "A");
         }
 
         //  显式版（第 160 轮）：每游戏参数预设用 —— 调用方解析好"本游戏生效值"再传进来
         //  （每游戏覆盖了就传覆盖值，没覆盖就传全局值）；Engine / SuperResolution 仍是全局量。
         public static string ApplyTuning(string gameDir, int opt, string preset)
         {
+            gameDir = SecondGame.ResolveDir(gameDir);
             string p = Path.Combine(gameDir, IniName);
             if (!File.Exists(p)) return "找不到 " + IniName + "（0.4.x 未部署？）";
             if (opt < 0) opt = 0;
             if (opt > 3) opt = 3;
-            if (preset == null || preset.Length == 0) preset = "Auto";
+            if (string.IsNullOrEmpty(preset) || string.Equals(preset, "Auto", StringComparison.OrdinalIgnoreCase)) preset = "A";
             string engine = Program.Cfg != null ? Program.Cfg.DlssgEngine040 : "DLSS";
             if (engine == null || engine.Length == 0) engine = "DLSS";
             bool sr = Program.Cfg != null && Program.Cfg.DlssgSr040;
@@ -490,9 +573,9 @@ namespace Fluxion
             SetIni(gameDir, "DLSSG", "Optimized", opt.ToString());
             SetIni(gameDir, "DLSSG", "Preset", preset);
             SetIni(gameDir, "FrameGeneration", "Engine", engine);
-            SetIni(gameDir, "SuperResolution", "Mode", sr ? "On" : "Off");
+            SetIni(gameDir, "SuperResolution", "Mode", sr ? "M-INT8" : "Off");
             return "参数：Optimized=" + opt + " · Preset=" + preset + " · Engine=" + engine
-                 + " · SuperResolution=" + (sr ? "On（需要 sr\\ 组件）" : "Off");
+                 + " · SuperResolution=" + (sr ? "M-INT8（需要 sr\\ 组件）" : "Off");
         }
 
         // ---- 生效检查：读游戏目录里的日志 ----
@@ -537,6 +620,7 @@ namespace Fluxion
             try
             {
                 if (gameDir == null) return r;
+                gameDir = SecondGame.ResolveDir(gameDir);
                 string dir = Path.Combine(Path.Combine(gameDir, ResDirName), "logs");
                 r.HasDir = Directory.Exists(dir);
                 if (!r.HasDir) return r;
@@ -1168,85 +1252,251 @@ namespace Fluxion
         public static string Why(string k)
         {
             if (k == Yh)
-                return "异环：官方多帧生成只给 RTX 50 系，20/30 系只能靠这套。常规入口名又被它占住 / 屏蔽，"
-                     + "所以只能用 ASI 加载器（Version.asi + wininet.dll）把代理带进进程。";
+                return "异环：官方多帧生成仅开放 RTX 50 系，20/30 系需通过 ASI 变体（Version.asi + wininet.dll）绕过常规入口拦截加载代理。";
             if (k == Zzz)
-                return "绝区零：官方 3.0 起给了 20 系以上 FSR3 帧生成（DLSS 帧生成仍只给 40 系以上）——"
-                     + "只想更流畅可以先开官方那个，零风险；本方案是把它换成真 DLSS-G，画质/延迟更好，但属于注入。"
-                     + "作者指定 d3d12.dll（其它入口名可能被反作弊隔离）。";
+                return "绝区零：官方支持 RTX 20 系以上开启 FSR3 帧生成（DLSS 帧生成限 40 系以上）。本方案提供 DLSS 帧生成支持，反作弊环境推荐使用 d3d12.dll 入口。";
             if (k == Wuwa)
-                return "鸣潮：官方「补帧」只给 RTX 40 系以上（2.2 版本说明原文），20/30 系只能靠本方案。"
-                     + "作者给的是 version.dll，加载不到时换 dxgi.dll。";
+                return "鸣潮：官方帧生成支持 RTX 40 系以上，20/30 系可通过注入方案开启。默认推荐 dxgi.dll 入口。";
             return "";
         }
 
         // ----------------------------------------------------------------------
         //  落地目录解析：启动器目录 ≠ 渲染目录
         // ----------------------------------------------------------------------
-        //  代理 DLL 只有放在**渲染 EXE 所在目录**才会被进程加载。
-        //  异环的启动器（NTELauncher\，里面还有 NTEGame.exe）与渲染目录（Client\…\Binaries\Win64\）
-        //  是两层，扫描很可能只录到启动器那层 —— 直接部署到那里什么都不会发生。
-        //  所以帧生成相关的部署/查询统一走这里解析后的目录。
-        //  ⚠ 只影响帧生成，不动条目本身的 Dir/Exe（否则会改坏「启动游戏」）。
+        // ----------------------------------------------------------------------
+        //  落地目录解析：通用、模式化与数据驱动的渲染目录定位器
+        // ----------------------------------------------------------------------
+        //  代理 DLL 只有放在**实际渲染可执行文件所在目录**才会被进程加载。
+        //  多数现代 PC 游戏（Unreal Engine 4/5、REDengine、Capcom RE Engine、Unity、
+        //  Square Enix 等）在游戏根目录仅放置启动器 / 包装入口，而真正的 64 位渲染主程序
+        //  与图形接口动态库（nvngx_dlss.dll、sl.dlss_g.dll、amd_fidelityfx_*.dll 等）
+        //  位于特定的候选子目录中（例如 bin\x64, bin\x64_dx12, Binaries\Win64, Client\Binaries\Win64 等）。
+        //  这里通过特征评分自动精确定位真实渲染目录，不硬编码个别游戏名字。
+        //  ⚠ 只影响帧生成部署/查询，不动条目本身的 Dir/Exe（否则会改坏「启动游戏」）。
+
+        public static int ScoreRenderingDir(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !Directory.Exists(path)) return -1;
+            string leafName = Path.GetFileName(path.TrimEnd('\\')).ToLowerInvariant();
+            if (leafName.StartsWith("dlssg") || leafName.Contains("parked") || leafName == "optiscaler"
+                || leafName == "runtime" || leafName == "backend" || leafName == "kernels" || leafName == "xefg" || leafName == "sr"
+                || leafName == "backup" || leafName == "backups")
+                return -1;
+
+            int score = 0;
+            try
+            {
+                // 必须包含至少一个可执行程序（.exe），Windows DLL 劫持/代理必须依赖同目录的宿主进程
+                var exes = Directory.GetFiles(path, "*.exe", SearchOption.TopDirectoryOnly);
+                if (exes.Length == 0) return 0;
+
+                // 1. 直接的 DLSS-G / 帧生成核心运行库（强特征 +100）
+                if (File.Exists(Path.Combine(path, "nvngx_dlssg.dll"))
+                    || File.Exists(Path.Combine(path, "sl.dlss_g.dll"))
+                    || File.Exists(Path.Combine(path, "amd_fidelityfx_framegeneration_dx12.dll"))
+                    || File.Exists(Path.Combine(path, "ffx_framegeneration_dx12.dll")))
+                {
+                    score += 100;
+                }
+
+                // 2. 超分辨率 / 图形底层交互库（DLSS / Streamline / FSR +80）
+                if (File.Exists(Path.Combine(path, "nvngx_dlss.dll"))
+                    || File.Exists(Path.Combine(path, "sl.common.dll"))
+                    || File.Exists(Path.Combine(path, "sl.interposer.dll"))
+                    || File.Exists(Path.Combine(path, "amd_fidelityfx_dx12.dll"))
+                    || File.Exists(Path.Combine(path, "ffx_backend_dx12.dll")))
+                {
+                    score += 80;
+                }
+                else
+                {
+                    string[] ffx = Directory.GetFiles(path, "amd_fidelityfx_*.dll", SearchOption.TopDirectoryOnly);
+                    if (ffx.Length > 0) score += 70;
+                }
+
+                // 3. 已存在的 Mod / 配置文件 (+60)
+                if (File.Exists(Path.Combine(path, "dlssg_sm86.ini"))
+                    || File.Exists(Path.Combine(path, "OptiScaler.ini"))
+                    || File.Exists(Path.Combine(path, "dlssg_to_fsr3_amd_is_better.dll")))
+                {
+                    score += 60;
+                }
+
+                // 4. 虚幻引擎主程序（*-Win64-Shipping.exe +50）
+                string[] shipping = Directory.GetFiles(path, "*-Win64-Shipping.exe", SearchOption.TopDirectoryOnly);
+                if (shipping.Length > 0) score += 50;
+
+                // 5. 候选有效游戏主可执行程序（非卸载器、安装器、崩溃报告器、启动器 +30）
+                bool hasRealGameExe = false;
+                bool hasLauncherExe = false;
+                foreach (var f in exes)
+                {
+                    string nm = Path.GetFileName(f).ToLowerInvariant();
+                    if (nm.Contains("unins") || nm.Contains("setup") || nm.Contains("crash")
+                        || nm.Contains("redist") || nm.Contains("safemode") || nm.Contains("bootstrap")
+                        || nm.Contains("install") || nm.Contains("update") || nm.Contains("patch")
+                        || nm.Contains("reporter") || nm.Contains("cef") || nm.Contains("agent")
+                        || nm.Contains("helper")) continue;
+                    if (nm.Contains("launcher") || nm.Contains("prelauncher"))
+                    {
+                        hasLauncherExe = true;
+                        continue;
+                    }
+                    hasRealGameExe = true;
+                    break;
+                }
+                if (hasRealGameExe) score += 30;
+                else if (hasLauncherExe && score == 0) score -= 30;
+
+                // 6. 路径末尾典型二进制目录名加分
+                string leaf = Path.GetFileName(path.TrimEnd('\\')).ToLowerInvariant();
+                if (leaf == "win64" || leaf == "x64_dx12" || leaf == "x64") score += 15;
+                else if (leaf == "bin") score += 5;
+            }
+            catch { }
+            return score;
+        }
+
         public static string ResolveDir(string dir)
         {
-            if (dir == null || dir.Length == 0) return dir;
+            if (string.IsNullOrEmpty(dir)) return dir;
             try
             {
                 string d = dir.TrimEnd('\\');
                 if (!Directory.Exists(d)) return dir;
-                // 已经是 UE 的渲染层（…\Binaries\Win64）
-                if (Path.GetFileName(d).Equals("Win64", StringComparison.OrdinalIgnoreCase)) return d;
+                if (Dlssg.IsLauncherDir(d)) return d;
 
-                bool isLauncherDir = File.Exists(Path.Combine(d, "NTELauncher.exe"));
-                bool hasLauncherSub = Directory.Exists(Path.Combine(d, "NTELauncher"));
-                if (!isLauncherDir && !hasLauncherSub) return d;      // 其它游戏不碰
-
-                string start = isLauncherDir ? Path.GetDirectoryName(d) : d;
-                string cur = start;
-                for (int up = 0; up < 3 && cur != null && cur.Length > 0; up++)
+                string leaf = Path.GetFileName(d);
+                // 已经是典型的渲染端点层（…\Binaries\Win64 或 …\bin\x64, x64_dx12）
+                if (leaf.Equals("Win64", StringComparison.OrdinalIgnoreCase) ||
+                    leaf.Equals("x64", StringComparison.OrdinalIgnoreCase) ||
+                    leaf.Equals("x64_dx12", StringComparison.OrdinalIgnoreCase))
                 {
-                    string client = Path.Combine(cur, "Client");
-                    if (Directory.Exists(client))
-                    {
-                        string hit = FindExeUnder(client, "HTGame.exe", 6);
-                        if (hit != null) return hit;
-                        hit = FindExeUnder(client, "NTEGame.exe", 6);
-                        if (hit != null) return hit;
-                    }
-                    cur = Path.GetDirectoryName(cur);
+                    return d;
                 }
-                // 找不到渲染层：保持原目录，由调用方在日志里如实提醒
-                return d;
+
+                int rootScore = ScoreRenderingDir(d);
+
+                // 收集所有已知引擎体系的候选子目录相对模式
+                var candidates = new List<string>();
+
+                string[] standardSubs = new string[] {
+                    @"bin\x64_dx12",
+                    @"bin\x64",
+                    @"x64_dx12",
+                    @"x64",
+                    @"Binaries\Win64",
+                    @"Client\Binaries\Win64",
+                    @"Engine\Binaries\Win64",
+                    @"Game\bin",
+                    @"Game\Binaries\Win64",
+                    @"bin",
+                    @"Client",
+                    @"Game"
+                };
+
+                foreach (var s in standardSubs)
+                {
+                    string subPath = Path.Combine(d, s);
+                    if (Directory.Exists(subPath) && !candidates.Contains(subPath))
+                        candidates.Add(subPath);
+                }
+
+                // 递归探测子目录（深度 3 层）：虚幻/自研/REDengine/Unity 各类打包规范全覆盖
+                CollectRenderingCandidates(d, 3, candidates);
+
+                // 评分挑选最佳渲染目录
+                string bestDir = d;
+                int bestScore = rootScore;
+
+                foreach (var cand in candidates)
+                {
+                    int sc = ScoreRenderingDir(cand);
+                    if (sc > bestScore && sc >= 30)
+                    {
+                        bestScore = sc;
+                        bestDir = cand;
+                    }
+                }
+
+                return bestDir;
             }
             catch { return dir; }
         }
 
-        // 在 root 下（深度 ≤maxDepth）找某个 exe，返回它所在目录
-        static string FindExeUnder(string root, string name, int maxDepth)
+        static void CollectRenderingCandidates(string dir, int depth, List<string> candidates)
         {
+            if (depth <= 0 || string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return;
             try
             {
-                foreach (string f in Directory.GetFiles(root, name, SearchOption.TopDirectoryOnly))
-                    return Path.GetDirectoryName(f);
-                if (maxDepth <= 0) return null;
-                foreach (string sub in Directory.GetDirectories(root))
+                foreach (string sub in Directory.GetDirectories(dir))
                 {
-                    string hit = FindExeUnder(sub, name, maxDepth - 1);
-                    if (hit != null) return hit;
+                    string leaf = Path.GetFileName(sub).ToLowerInvariant();
+                    // 跳过与游戏渲染无关的常见巨型/日志/缓存/Mod内部目录
+                    if (leaf == "redist" || leaf == "directx" || leaf == "support" || leaf == "installer"
+                        || leaf == "save" || leaf == "saves" || leaf == "shadercache" || leaf == "crash"
+                        || leaf == "cache" || leaf == "logs" || leaf == "node_modules" || leaf == ".git"
+                        || leaf.StartsWith("dlssg") || leaf.Contains("parked") || leaf == "optiscaler"
+                        || leaf == "backup" || leaf == "backups" || leaf == "runtime" || leaf == "backend"
+                        || leaf == "kernels" || leaf == "sr" || leaf == "xefg")
+                        continue;
+
+                    // 检查标准渲染端点子目录（Win64, x64, x64_dx12）
+                    string b64 = Path.Combine(sub, @"Binaries\Win64");
+                    if (Directory.Exists(b64) && !candidates.Contains(b64)) candidates.Add(b64);
+                    string bx12 = Path.Combine(sub, @"bin\x64_dx12");
+                    if (Directory.Exists(bx12) && !candidates.Contains(bx12)) candidates.Add(bx12);
+                    string bx64 = Path.Combine(sub, @"bin\x64");
+                    if (Directory.Exists(bx64) && !candidates.Contains(bx64)) candidates.Add(bx64);
+
+                    if (leaf == "win64" || leaf == "x64" || leaf == "x64_dx12")
+                    {
+                        if (!candidates.Contains(sub)) candidates.Add(sub);
+                    }
+                    else if (ScoreRenderingDir(sub) >= 30)
+                    {
+                        if (!candidates.Contains(sub)) candidates.Add(sub);
+                    }
+
+                    CollectRenderingCandidates(sub, depth - 1, candidates);
                 }
             }
             catch { }
-            return null;
         }
 
-        // 这个目录是不是"看起来像启动器层"（用于给用户一句提醒）
+        // 这个目录是不是"看起来像启动器层"（通用特征判别）
         public static bool LooksLauncher(string dir)
         {
             try
             {
-                if (dir == null || dir.Length == 0) return false;
-                return File.Exists(Path.Combine(dir.TrimEnd('\\'), "NTELauncher.exe"));
+                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return false;
+                string d = dir.TrimEnd('\\');
+                string leaf = Path.GetFileName(d).ToLowerInvariant();
+                if (leaf.Contains("launcher") || leaf.Contains("prelauncher")) return true;
+
+                // 若包含图形核心库或 Shipping 程序，说明就是渲染端点，不是纯启动器
+                if (File.Exists(Path.Combine(d, "nvngx_dlssg.dll")) ||
+                    File.Exists(Path.Combine(d, "sl.dlss_g.dll")) ||
+                    File.Exists(Path.Combine(d, "amd_fidelityfx_framegeneration_dx12.dll")))
+                    return false;
+
+                string[] ship = Directory.GetFiles(d, "*-Win64-Shipping.exe", SearchOption.TopDirectoryOnly);
+                if (ship.Length > 0) return false;
+
+                var exes = Directory.GetFiles(d, "*.exe", SearchOption.TopDirectoryOnly);
+                bool hasLauncher = false;
+                bool hasRealGame = false;
+                foreach (var f in exes)
+                {
+                    string nm = Path.GetFileName(f).ToLowerInvariant();
+                    if (nm.Contains("launcher") || nm.Contains("prelauncher")) hasLauncher = true;
+                    else if (!nm.Contains("unins") && !nm.Contains("setup") && !nm.Contains("crash")
+                        && !nm.Contains("redist") && !nm.Contains("cef") && !nm.Contains("report"))
+                    {
+                        hasRealGame = true;
+                    }
+                }
+                return hasLauncher && !hasRealGame;
             }
             catch { return false; }
         }

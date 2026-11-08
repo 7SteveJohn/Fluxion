@@ -2827,6 +2827,71 @@ UNRESOLVED；加单声明属性 `Program.GpuDisplayName` 绕开（不动检查�
 
 **验证**：8 探针 **238 条断言 ALL PASS**（link_probe 新增 16 条门禁断言），14 张渲染无失败。
 
+### 7.17 0.4.1 与 2077 深度适配与稳定性加固（2026-11-08）
+
+1. **3A 单机优先推荐 0.4.1**：在驱动 ≥ R580 且 0.4.1 包就绪时，`BuildRec` 自动升级推荐至 0.4.1（支持 2X~4X 调速及多帧生成）。
+2. **Cyberpunk 2077 渲染目录与专用入口穿透**：
+   - 自动识别根目录下 `REDprelauncher.exe` 启动器层并解析真实渲染层 `bin\x64\Cyberpunk2077.exe`。
+   - `ResolveOverrideEntry` 自动将 2077 及其简写、中文别名绑定至 `winmm.dll`，并打通 `Do030Deploy`、`Do040Deploy`、`DoNvDeploy` 和 `Plan.SwitchTo`。
+   - 同步扩展支持次世代《巫师 3》（`bin\x64_dx12`）渲染子目录。
+3. **0.4.1 INI 与超分兼容性适配**：
+   - 全面废除失效的 `Preset=Auto`（映射为 `Preset=A`），更新出厂模板及单游戏弹窗。
+   - 超分开启写入 `Mode=M-INT8`，关闭写入 `Mode=Off`，杜绝 `Mode=On` 导致的 `configuration_invalid` 错误。
+   - `EnsureIni` 针对存量配置提供自动正则纠偏能力。
+4. **稳定性与停放体系加固**：
+   - 补全 `Plan.PlanName(Plan.Nvbr)` 方案 B 说明显示。
+   - `Dlssg040.Purge` 增加对 `.parked.040` 文件及资源目录的彻底清理。
+   - `XeMfg.IsInstalled` 完善通用单机 OptiScaler 判定，解决切换入口时互斥停放回执缺失问题。
+   - `ParkOne` 增加对历史停放目录的覆盖保护，确保移动操作原子性。
+   - `Dlssg.IsOurs` 统一基于 `Plan.OwnerOf` 判定，精准覆盖 5 大方案。
+   - `cbEngine040` 文案修正为支持 2X~4X 且 1440p 更快的描述。
+
+**验证**：`run_plan_probe.py`（15 段 ALL PASS）、`run_mfg_probe.py`、`run_mfg_items_probe.py`、`run_pack_probe.py`、`run_fg_probe.py` 及专项沙盒 `VerifyCp2077.exe` 全部 0 失败通过；`compile.ps1` 编译输出 `COMPILE_OK`。详见 `docs/0.4.1与2077适配与UI修复-交付记录.md`。
+
+### 7.18 泛化架构与多硬件自适应重构（2026-11-08）
+
+针对用户反馈“拒绝单一游戏特调与机器硬件假设”，实施系统级架构重构：
+1. **模式化渲染目录定位器 (`SecondGame.ScoreRenderingDir` / `ResolveDir`)**：
+   - 建立现代图形运行库（DLSS-G/FSR3/Streamline）、Shipping 二进制、Mod 状态及路径命名综合加权打分模型，自动精确定位 UE4/UE5/RE/Unity 等引擎真实 64 位渲染子目录（`bin\x64`, `bin\x64_dx12`, `Binaries\Win64`, `Client\Binaries\Win64`, `Engine\Binaries\Win64`, `Game\bin` 等）；
+   - 严格排除 Mod 内部自身目录（`dlssg_sm86`、`runtime` 等），强制要求渲染端点包含有效 `.exe`，杜绝子目录误判；严守容器护栏（防向父级目录逃逸）。
+2. **数据驱动的专用入口规则体系 (`EntryOverrideRule` / `Catalog.EntryOverrides`)**：
+   - 将游戏专用入口从代码硬编码解耦为数据驱动，支持从 `catalog.json` 及 `config.json` (`dlssg.entryOverrides`) 热加载；
+   - 覆盖 REDengine (`winmm.dll`)、次世代巫师3 (`dxgi.dll`)、内核反作弊游戏 (`d3d12.dll`)、Kuro 引擎 (`dxgi.dll`)、Hotta 引擎 (`Version.asi`) 等；
+   - 部署与切换时动态匹配输出技术理由（如“REDengine 对 version.dll 只加载不调用（需 winmm）”），废除硬编码的“（CP2077 等规则要求）”。
+3. **全系显卡硬件动态路由与通用方案 A (`Dlssg.GpuGateRec` / `XeMfg.InstallGeneric`)**：
+   - **RTX 20/30**：驱动 ≥ 580 推荐 0.4.1，驱动 < 580 平滑回落至 0.3.5 / PTX 兼容档；
+   - **RTX 40/50**：解除 `Action="none"` 限制，说明官方原生支持的同时，开放 0.4.1 PTX 自定义内核调优、XeSS-FG 级联多帧生成（2X~4X）与 INT8 超分辨率高级选项；
+   - **GTX 10/16 / AMD / Intel Arc**：解除 `Action="none"` 限制，智能引导至方案 A（OptiScaler + XeSS-FG / FSR 3.1）或原生 FSR3 插帧路线；补齐通用 3A 单机一键部署与识别标记。
+4. **动态屏幕显示模式自适应 (`Dlssg.RefreshHint`)**：
+   - 动态读取系统真实显示器参数 `DisplayMode(out w, out h, out hz)`，针对 60Hz/75Hz/120Hz/144Hz/240Hz+ 屏幕动态推荐 2X/3X/4X 最佳倍率档位，并对 4K 等高分辨率给出算力负载与显存提示，消除写死数字。
+5. **清理开发者机器特调痕迹**：
+   - 移除 `3060 Ti` 特调提示，改为通用的显卡架构特性说明；
+   - 彻底移除开发者本地路径 `D:\youhua\绝区零-显卡名伪装\`。
+
+**验证**：全量单元探针（`run_plan_probe.py` 15 段、`run_fg_probe.py`、`run_pack_probe.py`、`run_cfgio_probe.py`、`run_libver_probe.py`、`run_mfg_probe.py`、`run_spoof_probe.py`）**全部 0 失败 PASS**；`static_check.py` 105 个顶层类型 0 警告；`compile.ps1` 编译构建 `COMPILE_OK`。详见 `docs/泛化架构与多硬件自适应重构.md`。
+
+### 7.19 全工程缺陷排查、交互细节打磨与去 AI 化（2026-11-08）
+
+1. **深度去 AI 味与工业级人机交互重构**：
+   - 彻底梳理全局用户界面视觉呈现、提示信息与操作弹窗。剔除所有拟人化网聊词汇（如“为什么是这套”、“绝区零还差最后一步”、“作者在表上给的不是那个”等），全面升级为符合工业级规范的严谨技术术语（如“适配方案原理解析”、“帧生成方案技术规格与原理解析”）。
+   - 重构托盘右键菜单布局，彻底修复菜单项层叠遮挡与文字残缺问题。
+2. **底层方案切换与稳定性加固**：
+   - 修复 `Dlssg.SwitchTo` 中向 OptiScaler 方案切换时代理入口 DLL 原子级置换逻辑（补齐 `target == Opti` 判定分支）。
+   - 增强 `XeMfg.Install` 对非二游通用游戏的回退适配能力，自动路由至 `InstallGeneric`。
+   - 显卡伪装探测 (`EnsureSpoof`) 扩展注册表匹配模式，不仅匹配纯 `NVIDIA` 字段，亦全覆盖包含 `GeForce RTX` 等非标准命名规格的系统。
+
+### 7.20 v1.3.1 正式版本打包发布（2026-11-08）
+
+1. **版本体系同步升级**：
+   - `Core.cs`：`AssemblyVersion("1.3.1.0")`、`AssemblyFileVersion("1.3.1.0")`、`AssemblyInformationalVersion("1.3.1")`、`AppVersion = "1.3.1"` 同步递增。
+   - `installer/Fluxion.iss`：`#define AppVersion "1.3.1"` 与 `VersionInfoVersion=1.3.1.0` 同步递增。
+   - `README.md` 与打包发布工具同步对齐。
+2. **完整双工包产出与验证**：
+   - 官方向导安装包：`installer_out/Fluxion-Setup-1.3.1.exe`（5,710,506 字节）。
+   - 绿色独立便携包：`installer_out/Fluxion-v1.3.1-Portable.zip`（16,499,106 字节），通过 `check_portable_zip.py` 敏感合规性审计。
+   - 核心二进制 `Fluxion.exe` 与本地安装目录 `D:\Fluxion\Fluxion.exe` 同步对齐（6,077,952 字节）。
+   - 自动化验证套件（静态语法检查、CP2077 专项、方案状态机、游戏库绑定与推荐）全部通过。
+
 ## 8. 风险声明
 
 - 本工具不修改游戏本体、不注入竞技游戏、不以绕过反作弊为目的 —— 代理替换的是游戏自身的 DLSS 加载链，能否生效仍取决于反作弊是否放行

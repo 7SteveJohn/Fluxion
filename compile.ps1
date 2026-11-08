@@ -91,6 +91,17 @@ try {
     }
     Move-Item $out $final -Force -ErrorAction Stop
     if (-not (Test-Path $final)) { throw "deploy failed: target exe missing" }
+
+    # Sync to installed runtime directory D:\Fluxion if present
+    $inst = "D:\Fluxion"
+    if (Test-Path (Join-Path $inst "unins000.exe")) {
+        try {
+            Copy-Item $final (Join-Path $inst "Fluxion.exe") -Force -ErrorAction SilentlyContinue
+            $cat = Join-Path $root "catalog.json"
+            if (Test-Path $cat) { Copy-Item $cat (Join-Path $inst "catalog.json") -Force -ErrorAction SilentlyContinue }
+        } catch { }
+    }
+
     "COMPILE_OK" | Out-File $resultFile -Encoding utf8
     exit 0
 } catch {

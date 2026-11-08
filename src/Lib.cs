@@ -477,7 +477,7 @@ namespace Fluxion
                     foreach (string f in fs)
                     {
                         string stem = Path.GetFileNameWithoutExtension(f);
-                        if (Regex.IsMatch(stem, "^(pre)?launcher$", RegexOptions.IgnoreCase)) launchers.Add(f);
+                        if (Regex.IsMatch(stem, "(pre)?launcher", RegexOptions.IgnoreCase)) launchers.Add(f);
                         else cands.Add(f);
                     }
                 }

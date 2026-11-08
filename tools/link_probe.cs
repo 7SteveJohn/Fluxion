@@ -311,18 +311,18 @@ namespace Fluxion
                 Dlssg.GpuTierFromName("(探测中)") == "unknown", Dlssg.GpuTierFromName("(探测中)"));
 
             Dlssg.Rec g40 = Dlssg.GpuGateRec("ada");   // Rec 是 Dlssg 的嵌套类型，探针里必须带外层限定
-            Chk("40 系 -> 劝退（原生支持，按钮禁用）",
-                g40 != null && g40.Action == "none" && g40.Head.IndexOf("原生支持") >= 0,
+            Chk("40 系 -> 开放 0.4.1/PTX 进阶选项与 OptiScaler 级联",
+                g40 != null && (g40.Action == "040" || g40.Action == "opti") && g40.Head.IndexOf("RTX 40") >= 0,
                 g40 == null ? "null" : g40.Head);
             Chk("40 系文案点名「伪装是降级」",
                 g40 != null && g40.Why.IndexOf("降级") >= 0, g40 == null ? "null" : "Why");
             Dlssg.Rec gg = Dlssg.GpuGateRec("gtx");
-            Chk("GTX -> 明确不支持（红色告警）",
-                gg != null && gg.Bad && gg.Action == "none" && gg.Head.IndexOf("不在") >= 0,
+            Chk("GTX -> 引导跨平台方案 A（OptiScaler + XeSS-FG）",
+                gg != null && gg.Action == "opti" && gg.Why.IndexOf("OptiScaler") >= 0,
                 gg == null ? "null" : gg.Head);
-            Chk("AMD/Intel -> 指向游戏自带的 FSR3/XeSS",
+            Chk("AMD/Intel -> 指向跨平台方案 A 与 FSR3",
                 Dlssg.GpuGateRec("non-nvidia") != null
-                    && Dlssg.GpuGateRec("non-nvidia").Why.IndexOf("FSR3") >= 0, "");
+                    && Dlssg.GpuGateRec("non-nvidia").Why.IndexOf("FSR") >= 0, "");
             Chk("30 系不被门禁拦（本机路线不受影响）", Dlssg.GpuGateRec("ampere") == null, "");
             Chk("20 系不被门禁拦", Dlssg.GpuGateRec("turing") == null, "");
             Chk("本机显卡代际 = ampere（RTX 3060 Ti）", Dlssg.GpuTier() == "ampere", Program.GpuName);

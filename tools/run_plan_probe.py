@@ -35,7 +35,10 @@ if p.returncode:
 
 r2 = subprocess.run([exe], capture_output=True, text=True, env=env, cwd=WORK,
                     encoding='utf-8', errors='replace', timeout=900)
-print(r2.stdout or '')
+try:
+    print(r2.stdout or '')
+except UnicodeEncodeError:
+    print((r2.stdout or '').encode('gbk', errors='replace').decode('gbk'))
 print(r2.stderr or '')
 print('=== probe rc =', r2.returncode)
 

@@ -1,0 +1,52 @@
+{
+  "_comment": "Fluxion 集中判定与事实清单（可随 Mod 发布或在线更新直接覆盖，无需重新编译）。",
+  "proxy": {
+    "ver": "0.3.5",
+    "bands": [
+      { "id": "0.3.0 / 0.3.1", "min": 16777216, "max": 20971520, "ini": 2099, "note": "首个公开版" },
+      { "id": "0.3.2", "min": 29974816, "max": 29993761, "ini": 3548, "note": "20+30 系合并包；重写 310.9 的 26 个推理内核" },
+      { "id": "0.3.5", "min": 30021408, "max": 30039841, "ini": 3571, "note": "修 0.3.0 起「重建帧生成特性后用错优化内核」（#561）" }
+    ],
+    "windows": [
+      { "min": 16777216, "max": 20971520 },
+      { "min": 29360128, "max": 35651584 }
+    ],
+    "legacy": { "min": 14680064, "max": 16777216 },
+    "sourceSize": { "min": 15500000, "max": 15800000 },
+    "entries": [
+      "dxgi.dll", "d3d12.dll", "version.dll", "dinput8.dll", "winmm.dll", "winhttp.dll", "dbghelp.dll", "Version.asi"
+    ],
+    "optiMin": 20971520,
+    "signs": {
+      "upstream": "85BA66762F851E49148D706915D09026281418E6",
+      "upstream2": "D963A96D623B85F67B7B323BEB353CEE90225D40",
+      "nvidia": "7B7B0B6697AFB438CF6F65A155F00E86676FB186"
+    }
+  },
+  "entryOverrides": [
+    { "pattern": "cyberpunk", "entry": "winmm.dll", "reason": "REDengine 对 version.dll 只加载不调用（需 winmm）" },
+    { "pattern": "cp2077", "entry": "winmm.dll", "reason": "REDengine 对 version.dll 只加载不调用（需 winmm）" },
+    { "pattern": "赛博朋克", "entry": "winmm.dll", "reason": "REDengine 对 version.dll 只加载不调用（需 winmm）" },
+    { "pattern": "witcher3", "entry": "dxgi.dll", "reason": "巫师3 次世代推荐 dxgi.dll 入口" },
+    { "pattern": "witcher 3", "entry": "dxgi.dll", "reason": "巫师3 次世代推荐 dxgi.dll 入口" },
+    { "pattern": "巫师3", "entry": "dxgi.dll", "reason": "巫师3 次世代推荐 dxgi.dll 入口" },
+    { "pattern": "zenless", "entry": "d3d12.dll", "reason": "带内核反作弊，优先 d3d12 复合入口" },
+    { "pattern": "绝区零", "entry": "d3d12.dll", "reason": "带内核反作弊，优先 d3d12 复合入口" },
+    { "pattern": "wuthering", "entry": "dxgi.dll", "reason": "鸣潮推荐 dxgi.dll 入口" },
+    { "pattern": "鸣潮", "entry": "dxgi.dll", "reason": "鸣潮推荐 dxgi.dll 入口" },
+    { "pattern": "neverness", "entry": "Version.asi", "reason": "异环常规入口被屏蔽，使用 ASI 变体" },
+    { "pattern": "异环", "entry": "Version.asi", "reason": "异环常规入口被屏蔽，使用 ASI 变体" },
+    { "pattern": "ente", "entry": "Version.asi", "reason": "异环常规入口被屏蔽，使用 ASI 变体" },
+    { "pattern": "starrail", "entry": "d3d12.dll", "reason": "带内核反作弊，优先 d3d12 复合入口" },
+    { "pattern": "崩坏：星穹铁道", "entry": "d3d12.dll", "reason": "带内核反作弊，优先 d3d12 复合入口" },
+    { "pattern": "genshin", "entry": "d3d12.dll", "reason": "带内核反作弊，优先 d3d12 复合入口" },
+    { "pattern": "原神", "entry": "d3d12.dll", "reason": "带内核反作弊，优先 d3d12 复合入口" }
+  ],
+  "knowledge": [
+    { "id": "zzz-spoof", "topic": "绝区零帧生成菜单与显卡名伪装", "until": "0.3.2", "text": "0.3.2 及以前不做显卡名伪装（2026-09-16 实测）：撤掉方案 A 之后，设置里那个「帧生成」选项很可能一起消失，属于预期行为，不是装坏了" },
+    { "id": "zzz-spoof", "topic": "绝区零帧生成菜单与显卡名伪装", "since": "0.3.3", "text": "0.3.3 起代理会自己改写游戏 / Streamline 看到的显卡架构（对外报 RTX 50），理论上可能让菜单里出现帧生成选项 —— 本工具未实测，仍不要导 .reg" },
+    { "id": "sm75", "topic": "20 系支持", "since": "0.3.2", "text": "0.3.2 起把 20 系（SM75 / Turing）并进同一个包，与 30 系共用同一份出厂 INI" },
+    { "id": "nnr", "topic": "5X / 6X 的运行库门槛", "text": "5X / 6X 只有 310.9 运行库才认；旧版 0.2.x / 310.1 的运行库上限是 4X，选了不生效" },
+    { "id": "upgrade-path", "topic": "别按版本号顺序升级", "text": "别按版本号顺序升级：0.3.3 / 0.3.4 本身就是坑 —— 0.3.3 让 NVIDIA 自家 NGX 模型也吃到架构改写 → GPU 挂起（上游 #535 / #538 / #540 / #542），0.3.4 才修；0.3.5 修的是 0.3.0 起的内核重建缺陷（#561）。可升级路径只有 0.3.2 或 0.3.5+，中间两版要跳过" }
+  ]
+}

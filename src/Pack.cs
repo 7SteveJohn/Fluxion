@@ -958,6 +958,13 @@ namespace Fluxion
         public string Topic = "";
     }
 
+    public class EntryOverrideRule
+    {
+        public string Pattern = "";
+        public string Entry = "";
+        public string Reason = "";
+    }
+
     public static class Catalog
     {
         public const string FileHint = "catalog.json";
@@ -983,6 +990,29 @@ namespace Fluxion
             new ProxyBand("0.3.2", 29974816L, 29993761L, 3548, "20+30 系合并包；重写 310.9 的 26 个推理内核"),
             new ProxyBand("0.3.5", 30021408L, 30039841L, 3571, "修 0.3.0 起「重建帧生成特性后用错优化内核」（#561）"),
         }; }
+
+        static EntryOverrideRule[] DefEntryOverrides()
+        {
+            return new EntryOverrideRule[] {
+                new EntryOverrideRule { Pattern = "cyberpunk", Entry = "winmm.dll", Reason = "REDengine 对 version.dll 只加载不调用（需 winmm）" },
+                new EntryOverrideRule { Pattern = "cp2077", Entry = "winmm.dll", Reason = "REDengine 对 version.dll 只加载不调用（需 winmm）" },
+                new EntryOverrideRule { Pattern = "赛博朋克", Entry = "winmm.dll", Reason = "REDengine 对 version.dll 只加载不调用（需 winmm）" },
+                new EntryOverrideRule { Pattern = "witcher3", Entry = "dxgi.dll", Reason = "巫师3 次世代推荐 dxgi.dll 入口" },
+                new EntryOverrideRule { Pattern = "witcher 3", Entry = "dxgi.dll", Reason = "巫师3 次世代推荐 dxgi.dll 入口" },
+                new EntryOverrideRule { Pattern = "巫师3", Entry = "dxgi.dll", Reason = "巫师3 次世代推荐 dxgi.dll 入口" },
+                new EntryOverrideRule { Pattern = "zenless", Entry = "d3d12.dll", Reason = "带内核反作弊，优先 d3d12 复合入口" },
+                new EntryOverrideRule { Pattern = "绝区零", Entry = "d3d12.dll", Reason = "带内核反作弊，优先 d3d12 复合入口" },
+                new EntryOverrideRule { Pattern = "wuthering", Entry = "dxgi.dll", Reason = "鸣潮推荐 dxgi.dll 入口" },
+                new EntryOverrideRule { Pattern = "鸣潮", Entry = "dxgi.dll", Reason = "鸣潮推荐 dxgi.dll 入口" },
+                new EntryOverrideRule { Pattern = "neverness", Entry = "Version.asi", Reason = "异环常规入口被屏蔽，使用 ASI 变体" },
+                new EntryOverrideRule { Pattern = "异环", Entry = "Version.asi", Reason = "异环常规入口被屏蔽，使用 ASI 变体" },
+                new EntryOverrideRule { Pattern = "ente", Entry = "Version.asi", Reason = "异环常规入口被屏蔽，使用 ASI 变体" },
+                new EntryOverrideRule { Pattern = "starrail", Entry = "d3d12.dll", Reason = "带内核反作弊，优先 d3d12 复合入口" },
+                new EntryOverrideRule { Pattern = "崩坏：星穹铁道", Entry = "d3d12.dll", Reason = "带内核反作弊，优先 d3d12 复合入口" },
+                new EntryOverrideRule { Pattern = "genshin", Entry = "d3d12.dll", Reason = "带内核反作弊，优先 d3d12 复合入口" },
+                new EntryOverrideRule { Pattern = "原神", Entry = "d3d12.dll", Reason = "带内核反作弊，优先 d3d12 复合入口" }
+            };
+        }
         // ---- 上游实测结论（"只在某些代理版本成立"的事实），散在 UI 与文档里必然过期 ----
         //  每条写清适用区间；Knowledge(id) 按当前 Ver 挑那一条成立的。
         //  搬进来的动因（2026-09-21）：绝区零那句从"0.3.x 不做伪装"改成"0.3.2 及以前不做伪装"
@@ -1020,6 +1050,7 @@ namespace Fluxion
         static SizeWin[] _wins;
         static SizeWin _legacy, _srcWin;
         static string[] _entries;
+        static EntryOverrideRule[] _entryOverrides;
         static string _up, _up2, _nv;
         static KnowNote[] _know;
         static long _optiMin = DefOptiMin;
@@ -1048,6 +1079,7 @@ namespace Fluxion
             SizeWin[] wins = DefWins();
             SizeWin legacy = DefLegacy(), srcw = DefSource();
             string[] entries = DefEntries();
+            EntryOverrideRule[] entryOverrides = DefEntryOverrides();
             string up = DefThumbUp, up2 = DefThumbUp2, nv = DefThumbNv;
             long optiMin = DefOptiMin;
             KnowNote[] know = DefKnow();
@@ -1055,6 +1087,11 @@ namespace Fluxion
             try
             {
                 string p = FilePath;
+                if (!File.Exists(p))
+                {
+                    string pApp = Path.Combine(Program.AppDir, FileHint);
+                    if (File.Exists(pApp)) p = pApp;
+                }
                 if (File.Exists(p))
                 {
                     object raw = new JavaScriptSerializer().DeserializeObject(
@@ -1087,12 +1124,42 @@ namespace Fluxion
                                 if (Str(sg, "upstream2").Length > 0) up2 = Str(sg, "upstream2").ToUpperInvariant();
                                 if (Str(sg, "nvidia").Length > 0) nv = Str(sg, "nvidia").ToUpperInvariant();
                             }
+                            EntryOverrideRule[] parsedPrOv = ParseEntryOverrides(Obj(pr, "entryOverrides"));
+                            if (parsedPrOv != null && parsedPrOv.Length > 0) entryOverrides = parsedPrOv;
                         }
                         KnowNote[] kn = ParseKnow(Obj(d, "knowledge"));
                         if (kn != null) know = kn;
+                        EntryOverrideRule[] parsedOv = ParseEntryOverrides(Obj(d, "entryOverrides"));
+                        if (parsedOv != null && parsedOv.Length > 0) entryOverrides = parsedOv;
                         origin = p;
                     }
                 }
+
+                // 支持从 config.json 的 dlssg 段合并用户自定义 entryOverrides
+                try
+                {
+                    string cfgPath = Program.ConfigPath;
+                    if (File.Exists(cfgPath))
+                    {
+                        object craw = new JavaScriptSerializer().DeserializeObject(File.ReadAllText(cfgPath, Encoding.UTF8));
+                        Dictionary<string, object> cd = craw as Dictionary<string, object>;
+                        if (cd != null)
+                        {
+                            Dictionary<string, object> cdl = Obj(cd, "dlssg") as Dictionary<string, object>;
+                            if (cdl != null)
+                            {
+                                EntryOverrideRule[] cov = ParseEntryOverrides(Obj(cdl, "entryOverrides"));
+                                if (cov != null && cov.Length > 0)
+                                {
+                                    var merged = new List<EntryOverrideRule>(cov);
+                                    foreach (var r in entryOverrides) merged.Add(r);
+                                    entryOverrides = merged.ToArray();
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
             }
             catch (Exception ex) { err = ex.GetType().Name + "：" + ex.Message; origin = "内置默认（判据文件读坏了）"; }
 
@@ -1102,9 +1169,10 @@ namespace Fluxion
                 ver = DefVer; bands = DefBands(); wins = DefWins();
                 legacy = DefLegacy(); srcw = DefSource(); entries = DefEntries();
                 up = DefThumbUp; up2 = DefThumbUp2; nv = DefThumbNv; know = DefKnow(); optiMin = DefOptiMin;
+                entryOverrides = DefEntryOverrides();
             }
             _ver = ver; _bands = bands; _wins = wins; _legacy = legacy; _srcWin = srcw;
-            _entries = entries; _up = up; _up2 = up2; _nv = nv; _know = know; _origin = origin; _err = err;
+            _entries = entries; _entryOverrides = entryOverrides; _up = up; _up2 = up2; _nv = nv; _know = know; _origin = origin; _err = err;
             _optiMin = optiMin;
         }
 
@@ -1186,10 +1254,29 @@ namespace Fluxion
             return r.ToArray();
         }
 
+        static EntryOverrideRule[] ParseEntryOverrides(object o)
+        {
+            var en = o as System.Collections.IEnumerable;
+            if (en == null || o is string) return null;
+            var r = new List<EntryOverrideRule>();
+            foreach (object x in en)
+            {
+                Dictionary<string, object> d = x as Dictionary<string, object>;
+                if (d == null) continue;
+                string pat = Str(d, "pattern");
+                string ent = Str(d, "entry");
+                string rsn = Str(d, "reason");
+                if (pat.Length > 0 && ent.Length > 0)
+                    r.Add(new EntryOverrideRule { Pattern = pat, Entry = ent, Reason = rsn });
+            }
+            return r.Count > 0 ? r.ToArray() : null;
+        }
+
         // ---- 对外 ----
         public static string Ver { get { Ensure(); return _ver; } }
         public static ProxyBand[] Bands { get { Ensure(); return _bands; } }
         public static string[] EntryNames { get { Ensure(); return _entries; } }
+        public static EntryOverrideRule[] EntryOverrides { get { Ensure(); return _entryOverrides != null ? _entryOverrides : DefEntryOverrides(); } }
         public static string ThumbUpstream { get { Ensure(); return _up; } }
         //  作者的第二张证书（0.4.1 起换的）。两张都算"上游作者签名"。
         public static string ThumbUpstream2 { get { Ensure(); return _up2; } }
