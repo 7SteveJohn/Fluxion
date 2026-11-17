@@ -56,6 +56,7 @@ namespace Fluxion
         public static string PackRoot { get { return Path.Combine(Program.DataDir, "dlssg040-pack"); } }
         public static string AltDir { get { return Path.Combine(PackRoot, "alternatives"); } }
         public static string ResDir { get { return Path.Combine(PackRoot, ResDirName); } }
+        public static string BackupRoot { get { return Path.Combine(PackRoot, "_backup"); } }
 
         // ---- 版本：读包里的 manifest.json，不再靠体积猜 ----
 
@@ -383,20 +384,45 @@ namespace Fluxion
                     return is040 ? "已按 force 重抄出厂 INI"
                                  : "旧代 INI 已换成 0.4.x 出厂版（原文件留了 .bak-时间戳）";
                 }
-                // 自动纠偏存量配置中的失效/非法值（如 Preset=Auto 或 Mode=On）
+                // 自动纠偏存量配置中的失效/非法值（如 Preset=Auto，或 [SuperResolution] 下的 Mode=On）
                 bool patched = false;
-                if (cur.IndexOf("Preset=Auto", StringComparison.OrdinalIgnoreCase) >= 0)
+                string[] rawLines = cur.Replace("\r\n", "\n").Split('\n');
+                string curSec = "";
+                for (int i = 0; i < rawLines.Length; i++)
                 {
-                    cur = Regex.Replace(cur, @"(?im)^\s*Preset\s*=\s*Auto\s*$", "Preset=A");
-                    patched = true;
-                }
-                if (cur.IndexOf("Mode=On", StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    cur = Regex.Replace(cur, @"(?im)^\s*Mode\s*=\s*On\s*$", "Mode=M-INT8");
-                    patched = true;
+                    string t = rawLines[i].Trim();
+                    if (t.StartsWith("[", StringComparison.Ordinal))
+                    {
+                        int close = t.IndexOf(']');
+                        curSec = close > 1 ? t.Substring(1, close - 1).Trim() : "";
+                        continue;
+                    }
+                    if (t.StartsWith(";", StringComparison.Ordinal) || t.StartsWith("#", StringComparison.Ordinal)) continue;
+                    int eq = t.IndexOf('=');
+                    if (eq <= 0) continue;
+                    string k = t.Substring(0, eq).Trim();
+                    string v = t.Substring(eq + 1).Trim();
+                    if (k.Equals("Preset", StringComparison.OrdinalIgnoreCase)
+                        && v.Equals("Auto", StringComparison.OrdinalIgnoreCase)
+                        && (curSec.Equals("DLSSG", StringComparison.OrdinalIgnoreCase)
+                            || curSec.Equals("Compatibility", StringComparison.OrdinalIgnoreCase)
+                            || curSec.Length == 0))
+                    {
+                        rawLines[i] = "Preset=A";
+                        patched = true;
+                    }
+                    else if (curSec.Equals("SuperResolution", StringComparison.OrdinalIgnoreCase)
+                             && k.Equals("Mode", StringComparison.OrdinalIgnoreCase)
+                             && v.Equals("On", StringComparison.OrdinalIgnoreCase))
+                    {
+                        rawLines[i] = "Mode=M-INT8";
+                        patched = true;
+                    }
                 }
                 if (patched)
                 {
+                    string sep = cur.IndexOf("\r\n", StringComparison.Ordinal) >= 0 ? "\r\n" : "\n";
+                    cur = string.Join(sep, rawLines);
                     File.WriteAllText(dst, cur, new UTF8Encoding(false));
                     return "已自动纠偏存量 INI（Preset=Auto → A，Mode=On → M-INT8）";
                 }
@@ -411,13 +437,14 @@ namespace Fluxion
         //  否则"提示里说会复制 5 个、实际复制 3 个"这种事迟早发生。
         internal static string[] PlannedRes()
         {
+            bool wantDeploySr = WithSr || (Program.Cfg != null && Program.Cfg.DlssgSr040);
             List<string> all = new List<string>();
             all.AddRange(_mustRes);
             foreach (string rel in OptRes)
             {
-                // sr 两件套默认不带（186 MB，出厂用不上）；要在设置里打开才带
+                // sr 两件套默认不带（186 MB，出厂用不上）；开启超分或勾选落盘超分组件时一并带上
                 bool sr = rel.StartsWith("sr\\", StringComparison.Ordinal);
-                if (sr && !WithSr) continue;
+                if (sr && !wantDeploySr) continue;
                 all.Add(rel);
             }
             return all.ToArray();
@@ -481,9 +508,9 @@ namespace Fluxion
                 foreach (string ln in File.ReadAllLines(p, Encoding.UTF8))
                 {
                     string t = ln.Trim();
-                    if (!t.StartsWith("MaxGeneratedFrames", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (t.StartsWith(";", StringComparison.Ordinal) || t.StartsWith("#", StringComparison.Ordinal)) continue;
                     int eq = t.IndexOf('=');
-                    if (eq < 0) continue;
+                    if (eq <= 0 || !t.Substring(0, eq).Trim().Equals("MaxGeneratedFrames", StringComparison.OrdinalIgnoreCase)) continue;
                     int v;
                     if (int.TryParse(t.Substring(eq + 1).Trim(), out v)) return v;
                 }
@@ -522,7 +549,10 @@ namespace Fluxion
                     bool hit = false;
                     for (int i = secAt + 1; i < secEnd; i++)
                     {
-                        if (lines[i].TrimStart().StartsWith(key, StringComparison.OrdinalIgnoreCase))
+                        string t = lines[i].TrimStart();
+                        if (t.StartsWith(";", StringComparison.Ordinal) || t.StartsWith("#", StringComparison.Ordinal)) continue;
+                        int eq = t.IndexOf('=');
+                        if (eq > 0 && t.Substring(0, eq).Trim().Equals(key, StringComparison.OrdinalIgnoreCase))
                         {
                             lines[i] = key + "=" + val;
                             hit = true;
@@ -570,12 +600,32 @@ namespace Fluxion
             if (engine == null || engine.Length == 0) engine = "DLSS";
             bool sr = Program.Cfg != null && Program.Cfg.DlssgSr040;
 
+            string srTail = "Off";
+            if (sr)
+            {
+                // 开启 INT8 超分时，若包内已有 sr\ 组件但游戏目录尚未拷入，自动按需补拷
+                foreach (string rel in OptRes)
+                {
+                    if (!rel.StartsWith("sr\\", StringComparison.Ordinal)) continue;
+                    string s = Path.Combine(ResDir, rel);
+                    string d = Path.Combine(Path.Combine(gameDir, ResDirName), rel);
+                    if (File.Exists(s) && !File.Exists(d))
+                    {
+                        try { Directory.CreateDirectory(Path.GetDirectoryName(d)); File.Copy(s, d, true); } catch { }
+                    }
+                }
+                bool srReady = File.Exists(Path.Combine(Path.Combine(gameDir, ResDirName), "sr\\sr_kernels.dll"));
+                srTail = srReady
+                    ? "M-INT8（sr\\ 组件已就位）"
+                    : "M-INT8（⚠ 缺 dlssg_sm86\\sr\\sr_kernels.dll，请在「下载源 / 资源包」勾选超分组件后重导资源包）";
+            }
+
             SetIni(gameDir, "DLSSG", "Optimized", opt.ToString());
             SetIni(gameDir, "DLSSG", "Preset", preset);
             SetIni(gameDir, "FrameGeneration", "Engine", engine);
             SetIni(gameDir, "SuperResolution", "Mode", sr ? "M-INT8" : "Off");
             return "参数：Optimized=" + opt + " · Preset=" + preset + " · Engine=" + engine
-                 + " · SuperResolution=" + (sr ? "M-INT8（需要 sr\\ 组件）" : "Off");
+                 + " · SuperResolution=" + srTail;
         }
 
         // ---- 生效检查：读游戏目录里的日志 ----
@@ -894,7 +944,7 @@ namespace Fluxion
                 if (!Ready(out miss) && miss.Length > 0) sb.AppendLine("  ⚠ 归位后仍缺：" + miss);
                 else sb.AppendLine("  资源包完整：version.dll + " + IniName + " + dlssg_sm86\\{backend,kernels,runtime}");
                 if (!WithSr) sb.AppendLine("  未带超分组件（sr\\ 186 MB，出厂 Mode=Off 用不上）；"
-                    + "要用 INT8 超分请到「设置」页打开「落盘超分组件」再导一次，届时右键谢谢你未来的自己。");
+                    + "如需启用 INT8 超分，请在「下载源 / 资源包」中勾选「落盘超分组件」后重新导入。");
                 return sb.ToString().TrimEnd();
             }
             catch (Exception ex)
@@ -910,7 +960,7 @@ namespace Fluxion
             try
             {
                 int n = 0;
-                string bk = Path.Combine(PackRoot, "_backup", "_pack-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
+                string bk = Path.Combine(BackupRoot, "_pack-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
                 foreach (string f in Directory.GetFiles(PackRoot))
                 {
                     Directory.CreateDirectory(bk);
@@ -988,6 +1038,7 @@ namespace Fluxion
             try
             {
                 if (gameDir == null) return false;
+                gameDir = SecondGame.ResolveDir(gameDir);
                 string p = Path.Combine(gameDir, Proxy);
                 return File.Exists(p) && Dlssg030.IsProxySize(new FileInfo(p).Length);
             }
@@ -1003,6 +1054,7 @@ namespace Fluxion
 
         public static string Install(string gameDir, bool force)
         {
+            gameDir = SecondGame.ResolveDir(gameDir);
             if (gameDir == null || !Directory.Exists(gameDir)) return "目录不存在：" + gameDir;
             string miss;
             if (!Ready(out miss)) return "ASI 变体资源不完整（缺 " + miss + "）—— 把作者的 ASI 版压缩包拖进窗口即可";
@@ -1150,7 +1202,10 @@ namespace Fluxion
 
         public static string Uninstall(string gameDir)
         {
+            gameDir = SecondGame.ResolveDir(gameDir);
+            if (string.IsNullOrEmpty(gameDir) || !Directory.Exists(gameDir)) return "目录不存在";
             int n = 0;
+            bool restoredLoader = false;
             try
             {
                 foreach (string nm in new string[] { Proxy, Loader })
@@ -1158,11 +1213,25 @@ namespace Fluxion
                     string p = Path.Combine(gameDir, nm);
                     if (File.Exists(p)) { File.Delete(p); n++; }
                 }
+                // 若部署前曾备份原有的 wininet.dll（别的 mod / 加载器），卸载时按最新备份自动还原
+                try
+                {
+                    string[] baks = Directory.GetFiles(gameDir, Loader + ".bak-*");
+                    if (baks != null && baks.Length > 0)
+                    {
+                        Array.Sort(baks, StringComparer.OrdinalIgnoreCase);
+                        string newestBak = baks[baks.Length - 1];
+                        File.Move(newestBak, Path.Combine(gameDir, Loader));
+                        restoredLoader = true;
+                    }
+                }
+                catch { }
                 string ini = Path.Combine(gameDir, Dlssg.IniName);
                 if (File.Exists(ini)) { File.Delete(ini); n++; }
             }
             catch { }
-            return "已删除 ASI 变体相关文件 " + n + " 个（" + Proxy + " / " + Loader + " / " + Dlssg.IniName + "）";
+            return "已删除 ASI 变体相关文件 " + n + " 个（" + Proxy + " / " + Loader + " / " + Dlssg.IniName + "）"
+                 + (restoredLoader ? "；已还原备份的 " + Loader : "");
         }
     }
 
@@ -1508,9 +1577,9 @@ namespace Fluxion
             if (k.Length == 0) return "";
             string s = SuggestEntry(k);
             string alt = AltEntry(k);
-            return "二游规则（作者网游注入表）：《" + Label(k) + "》用 " + s
-                 + (alt.Length > 0 ? "，加载不到再换 " + alt : "")
-                 + "。手动改别的名字也可以，但你得知道作者在表上给的不是那个。";
+            return "推荐入口规则：《" + Label(k) + "》优先使用 " + s
+                 + (alt.Length > 0 ? "（未加载时可切换为 " + alt + "）" : "")
+                 + "；亦可按需手动指定其他入口。";
         }
     }
 
@@ -1634,7 +1703,7 @@ namespace Fluxion
                 if (HasZip)
                     head += "  " + Asset + "  " + Math.Round(Size / 1048576.0, 1) + " MB";
                 else
-                    head += "  仅源码，没有打包好的二进制（达不到的一律别列出来骗人）";
+                    head += "  仅源码归档（未提供预编译二进制资产）";
                 return head;
             }
         }

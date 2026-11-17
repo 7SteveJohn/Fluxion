@@ -86,65 +86,45 @@ namespace Fluxion
         //  浅色底从 #F5F7FA 压到 #EDF1F6：卡片仍是纯白，但**对比拉开了**，
         //  白卡才真的"浮"在底上（原来两者只差 4 级，整页糊成一片白）。
         //  白卡与底色保持 8~10% 明度差（规范给的是 10~15%）。
-        public static Color Bg { get { return Pk(L(242, 242, 247), L(20, 20, 22)); } }           // systemGroupedBackground #F2F2F7 / #141416
-        public static Color Panel { get { return Pk(Color.White, L(31, 31, 34)); } }            // 卡片：#FFFFFF / #1F1F22（深色下"抬一级"= 更亮，不是更暗）
-        public static Color Subtle { get { return Pk(L(250, 250, 252), L(26, 26, 29)); } }      // 次级底：#FAFAFC / #1A1A1D
-        //  侧栏材质（2026-10-21）：macOS 的左栏是比内容区**再深一档**的"铁道"，
-        //  不是和内容区同色的白板。三层明度关系：侧栏 #F0F0F3 < 内容底 #F2F2F7 < 卡片 #FFFFFF。
-        //  深色反过来是"抬升"：侧栏 #1A1A1D 比底 #141416 亮，比卡片 #1F1F22 暗。
-        public static Color Sidebar { get { return Pk(L(235, 235, 239), L(26, 26, 29)); } }
-        public static Color Line { get { return Pk(L(229, 229, 234), L(53, 53, 58)); } }        // separator：systemGray5 #E5E5EA / #35353A
-        public static Color LineSoft { get { return Pk(L(240, 240, 243), L(42, 42, 46)); } }    // 更淡的分隔线 #F0F0F3 / #2A2A2E
-        //  悬停底（第 161 轮修语义）：浅色原来是 #F5F5F7 —— 比 Bg(#F2F2F7) 还**亮 3 个点**，
-        //  画在 Bg 底上的 hover（侧栏导航 / 分段滑块 / 侧栏游戏行）全部隐形，鼠标扫过去毫无反馈。
-        //  对齐第 153 轮 WinBtn 的做法：比底色明显深一档（≈7% 墨，#E3E3E8 附近）；画在白 Panel 上
-        //  也顺带从"几乎看不见"变成正常浅灰。深色原本就可见，保持不动。
-        public static Color Hover { get { return Pk(Mix(Bg, Text, 0.07), L(42, 42, 46)); } }
-        public static Color Accent { get { return Pk(L(0, 122, 255), L(10, 132, 255)); } }      // systemBlue #007AFF / #0A84FF
-        public static Color Accent2 { get { return Pk(L(88, 86, 214), L(94, 92, 230)); } }      // systemIndigo #5856D6 / #5E5CE6（渐变副色）
-        public static Color Cyan { get { return Pk(L(50, 173, 230), L(100, 210, 255)); } }      // systemTeal #32ADE6 / #64D2FF
-        public static Color AccentSoft { get { return Pk(L(224, 239, 255), L(26, 43, 66)); } }  // accent-soft：12% systemBlue 压在卡片底色上
-        // ---- 控件级派生色：以前散落在各绘制函数里的硬编码值，收进 Theme 以便换配色时一处生效。
-        //      取值与原硬编码**逐位相同**（零视觉变化），只是不再散在外面。
-        public static Color OkFill { get { return Pk(L(231, 249, 238), L(22, 48, 31)); } }    // 成功态按钮底：浅色=12% 绿压白，深色=更深的墨绿
-        public static Color ErrFill { get { return Pk(L(255, 231, 230), L(53, 25, 26)); } }   // 危险态按钮底
-        public static Color CheckOn { get { return Pk(L(234, 243, 255), L(20, 40, 63)); } }  // 勾选圆底：浅色=极淡蓝
-        public static Color GridHead { get { return Pk(L(247, 247, 250), L(35, 35, 39)); } } // ListView 表头底
-        public static Color GridAlt { get { return Pk(L(250, 250, 252), L(27, 27, 30)); } }  // ListView 斑马纹底
-        public static Color Ok { get { return Pk(L(52, 199, 89), L(48, 209, 88)); } }          // systemGreen #34C759 / #30D158
-        public static Color Warn { get { return Pk(L(255, 149, 0), L(255, 159, 10)); } }        // systemOrange #FF9500 / #FF9F0A
-        public static Color Err { get { return Pk(L(255, 59, 48), L(255, 69, 58)); } }          // systemRed #FF3B30 / #FF453A
-        public static Color Text { get { return Pk(L(29, 29, 31), L(245, 245, 247)); } }        // label #1D1D1F / #F5F5F7
-        public static Color TextDim { get { return Pk(L(110, 110, 115), L(161, 161, 166)); } }  // secondaryLabel #6E6E73 / #A1A1A6
-        public static Color TextFaint { get { return Pk(L(118, 118, 123), L(142, 142, 147)); } } // tertiary 图标/装饰用（浅色 #76767B：Bg 上 4.05:1 ≥ 图形 3:1；深色同值）
-        public static Color TextDisabled { get { return Pk(L(142, 142, 147), L(110, 110, 115)); } } // 禁用态文字（WCAG 豁免，保持弱化观感）
-        // 浅色下输入底用极浅灰
-        public static Color Field { get { return Pk(L(242, 242, 247), L(26, 26, 29)); } }       // #F2F2F7 / #1A1A1D
-        //  输入类控件的填充色要跟着**周围底色**翻转（2026-10-22 统一底色后）：
-        //  卡片（白）里用 Field（浅灰）划出输入区；灰底/侧栏上用 Panel（白）才看得见 ——
-        //  否则 Field 与页面底色完全相同，搜索框直接"蒸发"。
+        public static Color Bg { get { return Pk(L(245, 246, 248), L(20, 22, 26)); } }           // 画布底色：宣纸石白 #F5F6F8 / 曜石黑 #14161A
+        public static Color Panel { get { return Pk(Color.White, L(28, 30, 36)); } }            // 抬升卡片：#FFFFFF / #1C1E24
+        public static Color Subtle { get { return Pk(L(248, 249, 251), L(24, 26, 31)); } }      // 内凹底栏/终端底：#F8F9FB / #181A1F
+        //  三阶建筑感材质体系：侧栏脊柱 Sidebar < 工作区画布 Bg < 抬升卡片 Panel
+        public static Color Sidebar { get { return Pk(L(236, 238, 242), L(15, 16, 20)); } }     // 独立侧栏材质：#ECEEF2 / #0F1014
+        public static Color Line { get { return Pk(L(219, 222, 229), L(44, 48, 58)); } }        // 结构分割线：#DBDEE5 / #2C303A
+        public static Color LineSoft { get { return Pk(L(235, 237, 242), L(35, 38, 46)); } }    // 细微分隔线：#EBEDF2 / #23262E
+        public static Color Hover { get { return Pk(Mix(Bg, Text, 0.06), L(38, 41, 50)); } }
+        public static Color Accent { get { return Pk(L(24, 114, 232), L(56, 139, 253)); } }     // 精密钴蓝 #1872E8 / #388BFD（高对比度克制主色）
+        public static Color Accent2 { get { return Pk(L(79, 82, 198), L(94, 98, 226)); } }
+        public static Color Cyan { get { return Pk(L(34, 156, 214), L(86, 194, 246)); } }
+        public static Color AccentSoft { get { return Pk(L(232, 242, 254), L(25, 42, 68)); } }
+        public static Color OkFill { get { return Pk(L(232, 247, 237), L(21, 46, 31)); } }
+        public static Color ErrFill { get { return Pk(L(253, 233, 232), L(52, 24, 26)); } }
+        public static Color CheckOn { get { return Pk(L(232, 242, 254), L(25, 42, 68)); } }
+        public static Color GridHead { get { return Pk(L(248, 249, 251), L(24, 26, 31)); } }
+        public static Color GridAlt { get { return Pk(L(250, 251, 253), L(26, 28, 34)); } }
+        public static Color Ok { get { return Pk(L(34, 168, 78), L(46, 196, 92)); } }           // 沉稳祖母绿 #22A84E / #2EC45C
+        public static Color Warn { get { return Pk(L(217, 119, 6), L(245, 158, 11)); } }        // 琥珀金 #D97706 / #F59E0B
+        public static Color Err { get { return Pk(L(220, 48, 42), L(248, 81, 73)); } }          // 朱砂红 #DC302A / #F85149
+        public static Color Text { get { return Pk(L(22, 24, 29), L(238, 240, 245)); } }        // 浓墨正文 #16181D / #EEF0F5
+        public static Color TextDim { get { return Pk(L(96, 101, 112), L(152, 158, 170)); } }   // 次级石墨 #606570 / #989EAA
+        public static Color TextFaint { get { return Pk(L(126, 131, 142), L(114, 120, 132)); } }// 辅助铭文 #7E838E / #727884
+        public static Color TextDisabled { get { return Pk(L(152, 156, 166), L(96, 101, 112)); } }
+        public static Color Field { get { return Pk(L(246, 247, 250), L(35, 38, 46)); } }       // 卡片内控件底 / 深色键帽底
         public static Color FieldOn(Color surround)
         {
-            //  卡片白里：用 Field（浅灰）划出输入区；
-            //  灰底上：**不要白块**（白框贴在灰底上，边缘就是一条硬边 —— 用户说的"周边有瑕疵"），
-            //  改成比背景深 4 级，几乎融进底色，靠图标和占位文字说明它是个输入框。
             if (surround == Panel) return Field;
-            return Mix(surround, Text, Dark ? 0.05 : 0.035);
+            return Dark ? Field : Panel;
         }
-        public static Color FieldEdge { get { return Pk(L(210, 210, 215), L(58, 58, 63)); } }   // #D2D2D7 / #3A3A3F
-        public static Color Selected { get { return Pk(L(224, 239, 255), L(20, 40, 63)); } }
+        public static Color FieldEdge { get { return Pk(L(206, 210, 218), L(58, 63, 75)); } }   // 精密控件描边 #CED2DA / #3A3F4B
+        public static Color Selected { get { return Pk(L(232, 242, 254), L(25, 42, 68)); } }
         public static Color OnAccent { get { return Color.White; } }
-        public static Color ShadowC { get { return Pk(L(0, 0, 0), L(0, 0, 0)); } }              // Apple 的投影是中性黑，不是蓝灰
-        public static Color Golden { get { return Pk(L(255, 149, 0), L(255, 214, 10)); } }     // #FF9500 / #FFD60A
-        //  ★ 语义色有两副面孔（2026-10-21）：填充用鲜艳版，文字用加深版。
-        //  Apple 自己就是这么分的（浅色下绿色文字是 #248A3D，不是 #34C759）：systemGreen 在白底上
-        //  只有 2.2:1、systemOrange 只有 2.0:1 —— 当色块很好看，当文字就是"发虚的花色"，读不清。
-        //  深色主题反过来了：底色够深，鲜艳版本身就有 7:1 以上，不需要换。
-        public static Color OkText { get { return Pk(L(36, 138, 61), L(48, 209, 88)); } }       // #248A3D / #30D158
-        public static Color WarnText { get { return Pk(L(178, 80, 0), L(255, 159, 10)); } }     // #B25000 / #FF9F0A
-        public static Color ErrText { get { return Pk(L(215, 0, 21), L(255, 69, 58)); } }       // #D70015 / #FF453A
-        public static Color AccentText { get { return Pk(L(0, 90, 204), L(10, 132, 255)); } }   // #005ACC / #0A84FF
-        //  调用点统一走这里：传进去的仍是 Theme.Ok 这种"填充色"，返回当前主题下该用于文字的那一档。
+        public static Color ShadowC { get { return Pk(L(15, 20, 30), L(0, 0, 0)); } }
+        public static Color Golden { get { return Pk(L(217, 119, 6), L(245, 184, 28)); } }
+        public static Color OkText { get { return Pk(L(24, 128, 58), L(63, 208, 108)); } }
+        public static Color WarnText { get { return Pk(L(176, 86, 0), L(245, 166, 35)); } }
+        public static Color ErrText { get { return Pk(L(196, 32, 28), L(252, 98, 90)); } }
+        public static Color AccentText { get { return Pk(L(20, 96, 204), L(76, 154, 255)); } }
         public static Color TextSafe(Color c)
         {
             if (Dark) return c;
@@ -154,39 +134,25 @@ namespace Fluxion
             if (c == Accent) return AccentText;
             return c;
         }
-        // 卡片描边（2026-10-21）：Apple 的"Level 1 浮起"= 柔和投影 + 1px 发丝边。
-        //   以前浅色刻意不画边（怕"描边+投影=廉价卡片"），那是冷灰蓝配色下的结论；
-        //   换成中性灰之后，8% 的黑边几乎看不见，却能把卡片边界"钉"住，投影可以画得更淡。
-        public static Color CardEdge { get { return Pk(Color.FromArgb(20, 0, 0, 0), Color.FromArgb(36, 255, 255, 255)); } }
-        // 分区色相（2026-09-20）：卡片标题左的图标胶囊不再清一色绿，
-        //   按分区语义分配色相，一屏 5~6 张卡片才有颜色节奏（用户："界面还是很单调"）。
-        public static Color Violet { get { return Pk(L(175, 82, 222), L(191, 90, 242)); } }    // systemPurple #AF52DE / #BF5AF2
-        public static Color Indigo { get { return Pk(L(88, 86, 214), L(94, 92, 230)); } }       // systemIndigo #5856D6 / #5E5CE6
-        // 胶囊底 / 瓦片底：把色相以低透明度压在卡片底色上（浅色更淡、深色稍浓）
-        //  胶囊底再压淡一档：浅色 26→18、深色 46→42。
-        //  原来那层彩色底比标题还抢眼，整页像"图标演示"；压淡之后色相还在，但主角回到文字。
-        //  图标胶囊底（2026-10-20 收色）：原来按分区色相染色，一页 4~6 张卡就是 4~6 个色块，
-        //  眼睛先看到的是"彩色贴纸"而不是内容。现在胶囊底一律中性，色相只留给图标本身 ——
-        //  同一屏里只剩"强调绿 + 一处语义色"，层次立刻干净。
+        public static Color CardEdge { get { return Pk(L(223, 226, 233), L(44, 48, 58)); } }    // 锐利 1px 建筑级卡片发丝边
+        public static Color Violet { get { return Pk(L(139, 76, 208), L(178, 108, 246)); } }
+        public static Color Indigo { get { return Pk(L(79, 82, 198), L(108, 112, 236)); } }
         public static Color ChipBg(Color hue) { return Dark ? Subtle : Field; }
-        public static Color TileBg(Color hue) { return Color.FromArgb(Dark ? 58 : 34, hue); }
+        public static Color TileBg(Color hue) { return Color.FromArgb(Dark ? 52 : 28, hue); }
 
-        public static Color AccentDeep { get { return Pk(L(0, 98, 204), L(10, 111, 216)); } }  // 按下/悬停加深
-        public static Color AccentLite { get { return Pk(L(77, 163, 255), L(94, 169, 255)); } }
-        public static Color OkSoft { get { return Pk(L(231, 249, 238), L(22, 48, 31)); } }     // rgba(52,199,89,0.15)
-        public static Color ErrSoft { get { return Pk(L(255, 231, 230), L(53, 23, 25)); } }    // rgba(255,59,48,0.15)
-        public static Color WarnSoft { get { return Pk(L(255, 243, 224), L(51, 40, 15)); } }   // rgba(255,149,0,0.15)
+        public static Color AccentDeep { get { return Pk(L(18, 92, 196), L(31, 111, 235)); } }
+        public static Color AccentLite { get { return Pk(L(48, 132, 242), L(88, 166, 255)); } }
+        public static Color OkSoft { get { return Pk(L(232, 247, 237), L(21, 46, 31)); } }
+        public static Color ErrSoft { get { return Pk(L(253, 233, 232), L(52, 24, 26)); } }
+        public static Color WarnSoft { get { return Pk(L(254, 243, 224), L(50, 38, 14)); } }
 
-        // ---- 圆角 token（2026-10-29 对齐「自考工作台」D:\study：卡片 16 / 控件 10）----
-        //  2026-10-21 曾收到 12/8（"macOS 比 Tailwind 收"）；用户拍板以 study 为布局基准
-        //  （实测 ：root --r-card:16px / --r-btn:10px），且 16 配大留白才出"纸面"感。
-        //  胶囊 RChip 与封面 RPic 维持原档 —— 胶囊再圆就成药丸、封面圆角跟网格走。
-        public static int RCard { get { return S(16); } }
-        public static int RPanel { get { return S(16); } }
-        public static int RBtn { get { return S(5); } }
-        public static int RField { get { return S(6); } }
-        public static int RChip { get { return S(6); } }
-        public static int RPic { get { return S(10); } }
+        // ---- 同心几何圆角秩序：外卡 12px · 内控件 7px · 微徽章 5px ----
+        public static int RCard { get { return S(12); } }
+        public static int RPanel { get { return S(12); } }
+        public static int RBtn { get { return S(7); } }
+        public static int RField { get { return S(7); } }
+        public static int RChip { get { return S(5); } }
+        public static int RPic { get { return S(9); } }
 
 
         // ---- 圆角绘制工具 ----
@@ -351,12 +317,13 @@ namespace Fluxion
             //  ★ 2026-10-24 第 137 轮：12 在 #F2F2F7 上几乎看不见，卡片像"印"在纸面上而不是浮着。
             //  收到 12 的前提是"卡片之间有足够留白"，那时留白不够、阴影再重就糊成一片。
             //  现在内边距/间距都放大了（24/20、卡片间距 24），阴影可以回到 17 而不显脏。
-            //  浅色投影收敛为干净柔和的微投影（4/255 ≈ 1.5% 起步，累积约 5%），避免白底显脏显重
-            double peak = Dark ? 6.0 : 4.0;
-            int yOffset = S(Dark ? 2 : 1);
-            for (int i = depth; i >= 1; i--)
+            //  超净微弥散环境投影：依靠 1px 发丝边定界，投影只作 2~3 层极淡衬托，绝不糊灰边
+            int layers = Math.Min(depth, S(3));
+            double peak = Dark ? 5.0 : 2.6;
+            int yOffset = S(1);
+            for (int i = layers; i >= 1; i--)
             {
-                int a = (int)(peak * (depth - i + 1) / depth);     // 外圈最淡
+                int a = (int)(peak * (layers - i + 1) / layers);
                 if (a <= 0) continue;
                 var rr = new Rectangle(r.X - i, r.Y - i + yOffset, r.Width + i * 2, r.Height + i * 2);
                 FillRound(g, rr, rad + i, Solid(Color.FromArgb(a, ShadowC)));
@@ -743,31 +710,23 @@ namespace Fluxion
         {
             if (r.Width <= 0 || r.Height <= 0) return;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            //  ★ 2026-10-24 第 138 轮：去掉底板。
-            //  「彩色圆角方 + 反白符号」是**桌面 App 图标**的画法（48px 那种），
-            //  放到应用内侧栏 26px 的位置，就是"说不出来的廉价感"的头号来源 ——
-            //  它在读"我是个应用图标"，而这一屏要读的是"我是个品牌符号"。
-            //  Linear / Raycast / Apple Music 的侧栏品牌都是**单色符号、不带底板**。
-            //  （2026-10-22 从"六边形描边"改成"圆角方 + 反白"，也同样是徽章画法，两次都错在同一个地方：
-            //  在应用内部用"图标"的语言。）
-            //  底板去掉后笔画改粗一档：同一根笔画在有底板时靠反白托住，去底板后要自己站住。
-            //  反白闪电：占图标 64% 高、水平居中，往右偏 2% 修正视觉重心（闪电形心偏左）
-            float x = r.X, y = r.Y, w = r.Width, h = r.Height;
+            int pad = Math.Max(1, S(2));
+            var badge = new Rectangle(r.X + pad, r.Y + pad, Math.Max(4, r.Width - pad * 2), Math.Max(4, r.Height - pad * 2));
+            int rad = Math.Max(S(5), badge.Width / 4);
+            FillRound(g, badge, rad, AccentSoft);
+            EdgeRound(g, badge, rad, Alpha(Accent, Dark ? 0.42 : 0.24), 1f);
+
+            float x = badge.X, y = badge.Y, w = badge.Width, h = badge.Height;
             PointF[] bolt = new PointF[] {
-                new PointF(x + w * 0.565f, y + h * 0.21f),
-                new PointF(x + w * 0.335f, y + h * 0.53f),
-                new PointF(x + w * 0.50f,  y + h * 0.53f),
-                new PointF(x + w * 0.445f, y + h * 0.79f),
-                new PointF(x + w * 0.675f, y + h * 0.47f),
-                new PointF(x + w * 0.53f,  y + h * 0.47f)
+                new PointF(x + w * 0.56f, y + h * 0.19f),
+                new PointF(x + w * 0.30f, y + h * 0.54f),
+                new PointF(x + w * 0.49f, y + h * 0.54f),
+                new PointF(x + w * 0.43f, y + h * 0.81f),
+                new PointF(x + w * 0.70f, y + h * 0.46f),
+                new PointF(x + w * 0.52f, y + h * 0.46f)
             };
             using (var b = new SolidBrush(Accent))
                 g.FillPolygon(b, bolt);
-            using (var p = new Pen(Accent, 1.2f))
-            {
-                p.LineJoin = LineJoin.Round;
-                g.DrawPolygon(p, bolt);
-            }
         }
 
         // ---- Windows 11 窗口外观（圆角 + 标题栏随主题）----
@@ -785,19 +744,30 @@ namespace Fluxion
                 DwmSetWindowAttribute(hwnd, 33, ref round, 4);
                 int dark = Dark ? 1 : 0;
                 DwmSetWindowAttribute(hwnd, 20, ref dark, 4);
-                // ⚠ 标题栏色必须与**侧栏 Panel**（第一眼看到的窗口主体）一致，不能沿用 Bg(F5F7FA)：
-                //   F5F7FA 是冷蓝白，和纯白侧栏之间有一条横贯窗口的分界（用户原话"两块颜色太割裂"）。
-                //   浅色=纯白与侧栏无缝；深色 131B26 本来就等于 Panel，不动。
-                //  标题栏色 = 窗口主体色（2026-10-22 统一底色后主体是 Bg 不是 Panel：
-                //  再跟着 Panel 白走，窗口顶部又会横贯一条白条）。
-                int cap = Win32(Dark ? L(20, 20, 22) : L(242, 242, 247));
+                int cap = Win32(Bg);
                 DwmSetWindowAttribute(hwnd, 35, ref cap, 4);
-                int txt = Win32(Dark ? L(241, 245, 249) : L(15, 23, 42));
+                int txt = Win32(Text);
                 DwmSetWindowAttribute(hwnd, 36, ref txt, 4);
-                int brd = Win32(Dark ? L(30, 41, 59) : L(226, 232, 240));
+                int brd = Win32(Dark ? L(48, 52, 62) : L(204, 208, 216));
                 DwmSetWindowAttribute(hwnd, 34, ref brd, 4);
             }
             catch { }
+        }
+
+        public static bool ApplyMenuChrome(IntPtr hwnd)
+        {
+            if (hwnd == IntPtr.Zero) return false;
+            try
+            {
+                int round = 2; // DWMWCP_ROUND
+                int hr = DwmSetWindowAttribute(hwnd, 33, ref round, 4);
+                int dark = Dark ? 1 : 0;
+                DwmSetWindowAttribute(hwnd, 20, ref dark, 4);
+                int brd = Win32(CardEdge);
+                DwmSetWindowAttribute(hwnd, 34, ref brd, 4);
+                return hr == 0;
+            }
+            catch { return false; }
         }
         // ---- 深色模式下的原生滚动条 / ListView 表头 ----
         //  不做的话深色页面右缘会留一条白色滚动条（v2.7.1 深色设置页实测）。
@@ -870,6 +840,7 @@ namespace Fluxion
             // 末列的"默认"不是那个建表名义值，而是"填满剩余宽度"（列表自己 Resize 时也是这么做的）——
             // 不补这一句，复原后末列会停在一个和用户建表时看到的不同的宽度上。
             if (w.Length > 0) FillLastColumn(lv, w[w.Length - 1]);
+            if (lv.Parent is TableBox) lv.Parent.Invalidate();
         }
 
         // 末列"填满剩余宽度"。minW 只是"尽量留够"的偏好，不能拿它撑破客户区：
@@ -885,11 +856,13 @@ namespace Fluxion
                 if (lv == null || lv.Columns.Count == 0) return;
                 int used = 0;
                 for (int i = 0; i < lv.Columns.Count - 1; i++) used += lv.Columns[i].Width;
-                int avail = lv.ClientSize.Width - used - Theme.S(4);
-                int w = Math.Max(minW, avail);
-                if (w > avail && avail >= Theme.S(80)) w = avail;
-                if (w < Theme.S(40)) w = Theme.S(40);
-                lv.Columns[lv.Columns.Count - 1].Width = w;
+                int avail = lv.ClientSize.Width - used - Theme.S(8);
+                int w = Math.Max(Theme.S(40), avail);
+                if (lv.Columns[lv.Columns.Count - 1].Width != w)
+                {
+                    lv.Columns[lv.Columns.Count - 1].Width = w;
+                    if (lv.Parent is TableBox) lv.Parent.Invalidate();
+                }
             }
             catch { }
         }
@@ -909,10 +882,8 @@ namespace Fluxion
                 if (lv == null || lv.IsDisposed || lv.Columns.Count == 0) return;
                 int n = lv.Columns.Count;
                 if (n == 1) { FillLastColumn(lv, minLastW); return; }
-                //  ⚠ 留 4px 余量：ListView 在"列宽合计 == 客户区"这种临界状态下**仍会画横向滚动条**
-                //    （实测 513 vs 517 就有），但 16px 会在右侧留出一条被主题色刷灰的空区。
-                //    4px 既能避开滚动条，又窄到看不出来。
-                int avail = lv.ClientSize.Width - Theme.S(4);
+                //  留 S(8) 余量：Win11 SysListView32（LVS_REPORT + SmallImageList）在临界宽度仍会触发横向滚动条
+                int avail = lv.ClientSize.Width - Theme.S(8);
                 if (avail <= Theme.S(120)) return;
                 int fixedSum = 0;
                 for (int i = 0; i < n - 1; i++) fixedSum += lv.Columns[i].Width;
@@ -966,7 +937,11 @@ namespace Fluxion
         static void SetColWidth(ListView lv, int col, int w)
         {
             if (w <= 0 || col < 0 || col >= lv.Columns.Count) return;
-            if (lv.Columns[col].Width != w) lv.Columns[col].Width = w;
+            if (lv.Columns[col].Width != w)
+            {
+                lv.Columns[col].Width = w;
+                if (lv.Parent is TableBox) lv.Parent.Invalidate();
+            }
         }
 
         // ★ ListView 是原生 SysListView32 —— `Buffered()`（反射设 Control.DoubleBuffered）对它**无效**：
@@ -998,7 +973,7 @@ namespace Fluxion
         //   探针直接挂死（SIGTERM），那是给顶层窗口用的，不能套在 ListView 上。
         class ScrollRepaint : NativeWindow
         {
-            readonly ListView lv;
+            internal readonly ListView lv;
             public ScrollRepaint(ListView lv) { this.lv = lv; AssignHandle(lv.Handle); }
             protected override void WndProc(ref Message m)
             {
@@ -1026,7 +1001,7 @@ namespace Fluxion
         // 做法：把表头也用 NativeWindow 包一层，拦 WM_CONTEXTMENU 手动弹出同一个菜单。
         class HeaderMenu : NativeWindow
         {
-            readonly ListView lv;
+            internal readonly ListView lv;
             public HeaderMenu(ListView lv) { this.lv = lv; }
             protected override void WndProc(ref Message m)
             {
@@ -1052,6 +1027,15 @@ namespace Fluxion
             {
                 IntPtr hh = SendMessage(lv.Handle, LVM_GETHEADER, IntPtr.Zero, IntPtr.Zero);
                 if (hh == IntPtr.Zero) return;
+                HeaderMenu oldHm;
+                if (headerMenus.TryGetValue(hh, out oldHm))
+                {
+                    if (oldHm != null && (oldHm.lv == null || oldHm.lv.IsDisposed || oldHm.lv != lv))
+                    {
+                        try { oldHm.ReleaseHandle(); } catch { }
+                        headerMenus.Remove(hh);
+                    }
+                }
                 if (!headerMenus.ContainsKey(hh))
                 {
                     var hm = new HeaderMenu(lv);
@@ -1183,6 +1167,15 @@ namespace Fluxion
             {
                 IntPtr h = lv.Handle;
                 if (h == IntPtr.Zero) return;
+                ScrollRepaint old;
+                if (scrollPatched.TryGetValue(h, out old))
+                {
+                    if (old != null && (old.lv == null || old.lv.IsDisposed || old.lv != lv))
+                    {
+                        try { old.ReleaseHandle(); } catch { }
+                        scrollPatched.Remove(h);
+                    }
+                }
                 if (!scrollPatched.ContainsKey(h)) scrollPatched[h] = new ScrollRepaint(lv);
                 if (!scrollWatched.Contains(lv)) scrollWatched.Add(lv);
                 if (scrollWatch == null)
@@ -1232,13 +1225,41 @@ namespace Fluxion
                 }
                 var live = new HashSet<IntPtr>();
                 foreach (ListView l in scrollWatched) { try { live.Add(l.Handle); } catch { } }
-                if (live.Count == 0) { scrollTopIdx.Clear(); cellMask.Clear(); cellFixAt.Clear(); return; }
-                PruneHandleKeys(scrollTopIdx, live);
-                PruneHandleKeys(cellFixAt, live);
-                List<IntPtr> dead = new List<IntPtr>();
-                foreach (KeyValuePair<IntPtr, int[]> kv in cellMask)
-                    if (!live.Contains(kv.Key)) dead.Add(kv.Key);
-                foreach (IntPtr h in dead) cellMask.Remove(h);
+                if (live.Count == 0) { scrollTopIdx.Clear(); cellMask.Clear(); cellFixAt.Clear(); }
+                else
+                {
+                    PruneHandleKeys(scrollTopIdx, live);
+                    PruneHandleKeys(cellFixAt, live);
+                    List<IntPtr> dead = new List<IntPtr>();
+                    foreach (KeyValuePair<IntPtr, int[]> kv in cellMask)
+                        if (!live.Contains(kv.Key)) dead.Add(kv.Key);
+                    foreach (IntPtr h in dead) cellMask.Remove(h);
+                }
+                // BUG-G2: 同步清理 scrollPatched 和 headerMenus 的已死条目，释放 NativeWindow 句柄
+                {
+                    List<IntPtr> deadSp = new List<IntPtr>();
+                    foreach (KeyValuePair<IntPtr, ScrollRepaint> kv in scrollPatched)
+                    {
+                        if (kv.Value == null || kv.Value.lv == null || kv.Value.lv.IsDisposed)
+                        {
+                            deadSp.Add(kv.Key);
+                            if (kv.Value != null) { try { kv.Value.ReleaseHandle(); } catch { } }
+                        }
+                    }
+                    foreach (IntPtr h in deadSp) scrollPatched.Remove(h);
+                }
+                {
+                    List<IntPtr> deadHm = new List<IntPtr>();
+                    foreach (KeyValuePair<IntPtr, HeaderMenu> kv in headerMenus)
+                    {
+                        if (kv.Value == null || kv.Value.lv == null || kv.Value.lv.IsDisposed)
+                        {
+                            deadHm.Add(kv.Key);
+                            if (kv.Value != null) { try { kv.Value.ReleaseHandle(); } catch { } }
+                        }
+                    }
+                    foreach (IntPtr h in deadHm) headerMenus.Remove(h);
+                }
             }
             catch { }
         }
@@ -1306,8 +1327,9 @@ namespace Fluxion
         }
 
         // 实际 DPI / 96。进程是 DPI-aware 的（Core 里调了 SetProcessDPIAware），
-        // 所以这里读到的是真实缩放；界面用它把"固定像素尺寸"换算一次。
-        public static readonly float Scale;
+        // 所以这里读到的是真实缩放；支持跨显示器拖拽 WM_DPICHANGED 动态重算缩放。
+        public static float Scale;
+        static bool uiScalePinned;
         static Theme()
         {
             //  ★ 自带字体注册放在静态构造里（2026-10-20）：探针 StyleProbe 是直接 new MainForm 的，
@@ -1322,12 +1344,27 @@ namespace Fluxion
                 if (File.Exists(f))
                 {
                     float v;
-                    if (float.TryParse(File.ReadAllText(f).Trim(), out v) && v >= 0.8f && v <= 3f) k = v;
+                    if (float.TryParse(File.ReadAllText(f).Trim(), out v) && v >= 0.8f && v <= 3f)
+                    {
+                        k = v;
+                        uiScalePinned = true;
+                    }
                 }
             }
             catch { }
             if (k < 1f) k = 1f;
             Scale = k;
+        }
+        public static bool UpdateDpi(int dpi)
+        {
+            if (uiScalePinned || dpi <= 0) return false;
+            float k = dpi / 96f;
+            if (k < 1f) k = 1f;
+            if (k > 3f) k = 3f;
+            if (Math.Abs(k - Scale) < 0.01f) return false;
+            Scale = k;
+            try { textWCache.Clear(); } catch { }
+            return true;
         }
         public static int S(float v) { return (int)Math.Round(v * Scale); }
         public static string ScaleText() { return Scale.ToString("0.##") + "x / " + ((int)Math.Round(Scale * 96)) + " DPI"; }
@@ -1508,19 +1545,52 @@ namespace Fluxion
         public static void DrawTxt(Graphics g, string s, Font f, Rectangle r, Color c, TextFormatFlags tf)
         {
             if (string.IsNullOrEmpty(s) || f == null || r.Width <= 0 || r.Height <= 0) return;
-            var sf = FmtOf(tf);
-            var hint = g.TextRenderingHint;
-            g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            try { using (var b = new SolidBrush(c)) g.DrawString(s, f, b, (RectangleF)r, sf); }
-            finally { g.TextRenderingHint = hint; }
+            using (var sf = FmtOf(tf))
+            {
+                var hint = g.TextRenderingHint;
+                g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                try { using (var b = new SolidBrush(c)) g.DrawString(s, f, b, (RectangleF)r, sf); }
+                finally { g.TextRenderingHint = hint; }
+            }
         }
 
         //  与 DrawTxt 同一套 StringFormat 的量宽 —— 需要"量完再画"精确接缝的地方用它。
         public static SizeF MeasureTxt(Graphics g, string s, Font f, TextFormatFlags tf)
         {
-            var sf = FmtOf(tf);
-            sf.FormatFlags |= StringFormatFlags.MeasureTrailingSpaces;
-            return g.MeasureString(s ?? "", f, new SizeF(int.MaxValue, int.MaxValue), sf);
+            using (var sf = FmtOf(tf))
+            {
+                sf.FormatFlags |= StringFormatFlags.MeasureTrailingSpaces;
+                return g.MeasureString(s ?? "", f, new SizeF(int.MaxValue, int.MaxValue), sf);
+            }
+        }
+
+        //  与 TxtLbl.OnPaint 完全同源的 GDI+ 折行测高（根治 GDI MeasureText 与 GDI+ DrawString 度量不一致导致的尾字截断）
+        static Bitmap measureBmp;
+        static Graphics measureGfx;
+        public static int MeasureLabelHeight(string s, Font f, int width)
+        {
+            if (string.IsNullOrEmpty(s) || f == null || width <= 0) return 0;
+            try
+            {
+                if (measureBmp == null)
+                {
+                    measureBmp = new Bitmap(1, 1);
+                    measureGfx = Graphics.FromImage(measureBmp);
+                    measureGfx.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                }
+                using (var sf = new StringFormat(StringFormat.GenericTypographic))
+                {
+                    sf.FormatFlags |= StringFormatFlags.MeasureTrailingSpaces;
+                    SizeF sz = measureGfx.MeasureString(s, f, new SizeF(Math.Max(1, width - S(2)), 100000f), sf);
+                    return (int)Math.Ceiling(sz.Height) + S(4);
+                }
+            }
+            catch
+            {
+                var sz2 = TextRenderer.MeasureText(s, f, new Size(width, int.MaxValue),
+                    TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+                return sz2.Height + S(4);
+            }
         }
 
         static StringFormat FmtOf(TextFormatFlags tf)
@@ -1781,11 +1851,8 @@ namespace Fluxion
             FlatStyle = FlatStyle.Flat;
             UseVisualStyleBackColor = false;
             BackColor = Theme.Panel;          // 圆角外露出的底色（所在分区底色）
-            Font = Theme.F(10f);             // 按钮 13.3px（第 158 轮 9→10：与 14px 正文同层差半档）
-            //  高度 30 → 34（2026-10-20）：调研结论是"按钮越大，内边距越要宽松，
-            //  不能按字号等比"。30px 配 9pt 字，上下只剩 9px，按下去像个小方块；
-            //  34px 让按钮自己有一点分量，也不至于把按钮行撑开（宽度没动）。
-            Size = new Size(Theme.S(86), Theme.S(34));
+            Font = Theme.F(9.5f);
+            Size = new Size(Theme.S(86), Theme.S(32));
             Cursor = Cursors.Hand;
             TabStop = true;
             aHov = new Anim(this, Motion.Fast, Motion.Decel);
@@ -1798,42 +1865,42 @@ namespace Fluxion
 
         protected override void OnPaint(PaintEventArgs e)
         {
-            // ★ 先把自己整块矩形铺满（圆角之外的角落也要）：设置 UserPaint + AllPaintingInWmPaint 之后
-            //   WinForms 不再擦本控件的背景，不铺满就会留下上一次绘制的残留（黑框 / 文字重影 / 像叠了好几层）。
-            // 铺满整块矩形用的必须是"所在分区"的真实底色（写死白色会在灰页面上留白角）
             Color surf = Corner.HasValue ? Corner.Value : Theme.ParentSurface(this);
             using (var __bg = new SolidBrush(surf)) e.Graphics.FillRectangle(__bg, 0, 0, Width, Height);
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
 
-            // 两级混色：先按悬停进度在"常态 → 悬停"之间插值，再按按下进度往"按下态"拉。
-            //  h=0,d=0 与 h=1,d=0 与 d=1 三个端点的结果和改前逐字节相同。
             double h = aHov.Value, dn = aDown.Value;
             Color fill, edge, txt;
             switch (Kind)
             {
                 case BtnKind.Primary:
-                    fill = Theme.Mix(Theme.Mix(Theme.Accent, Theme.AccentLite, h), Theme.AccentDeep, dn);
-                    edge = fill; txt = Color.White; break;
+                    fill = Theme.Mix(Theme.Mix(Theme.Accent, Theme.AccentLite, h * 0.45), Theme.AccentDeep, dn);
+                    edge = Theme.Mix(Theme.AccentDeep, Color.Black, 0.08);
+                    txt = Color.White;
+                    break;
                 case BtnKind.Success:
                     fill = Theme.Mix(Theme.OkFill, Theme.OkSoft, Math.Max(h, dn));
-                    edge = Theme.Ok; txt = Theme.TextSafe(Theme.Ok); break;
+                    edge = Theme.Alpha(Theme.Ok, Theme.Dark ? 0.65 : 0.48);
+                    txt = Theme.TextSafe(Theme.Ok);
+                    break;
                 case BtnKind.Danger:
                     fill = Theme.Mix(Theme.ErrFill, Theme.ErrSoft, Math.Max(h, dn));
-                    edge = Theme.Err; txt = Theme.TextSafe(Theme.Err); break;
+                    edge = Theme.Alpha(Theme.Err, Theme.Dark ? 0.65 : 0.48);
+                    txt = Theme.TextSafe(Theme.Err);
+                    break;
                 default:
-                    //  Apple 的普通按钮 = 白底 + 1px 灰边 + 正文色标签，**悬停不变色相**，
-                    //  只把底压深一档。原来悬停会把描边染成强调色、文字从灰变黑 —— 那是"网页按钮"
-                    //  的语言：鼠标还没点，颜色先来抢注意力。
-                    fill = Theme.Mix(Theme.Mix(Theme.Panel, Theme.Hover, h), Theme.Field, dn);
-                    edge = Theme.Mix(Theme.FieldEdge, Theme.TextFaint, Math.Max(h, dn) * 0.55);
+                    Color restFill = Theme.Dark ? Theme.Field : Theme.Panel;
+                    Color hovFill = Theme.Dark ? Theme.Mix(Theme.Field, Color.White, 0.05) : Theme.Subtle;
+                    Color dnFill = Theme.Dark ? Theme.Subtle : Theme.Field;
+                    fill = Theme.Mix(Theme.Mix(restFill, hovFill, h), dnFill, dn);
+                    edge = Theme.Mix(Theme.FieldEdge, Theme.TextDim, Math.Max(h, dn) * 0.42);
                     txt = Theme.Text;
                     break;
             }
-            if (!Enabled) { fill = Theme.Subtle; edge = Theme.Line; txt = Theme.TextDisabled; }
+            if (!Enabled) { fill = Theme.Subtle; edge = Theme.LineSoft; txt = Theme.TextDisabled; }
 
-            //  按压缩进 1px：鼠标按下时按钮"陷"一下，配合颜色加深就是 Mac 的点击手感
             int pad = Theme.S(1);
             int press = (int)Math.Round(Math.Min(1.0, dn) * Theme.S(1));
             var r = new Rectangle(pad + press, pad + press, Width - 1 - (pad + press) * 2, Height - 1 - (pad + press) * 2);
@@ -1841,39 +1908,33 @@ namespace Fluxion
             bool primary = (Kind == BtnKind.Primary) && Enabled;
             if (primary)
             {
-                // 悬停外发光微光晕 (Ambient Glow)
-                if (h > 0.02 && dn < 0.8)
+                Color topC = Theme.Mix(fill, Color.White, 0.06);
+                Color botC = Theme.Mix(fill, Color.Black, 0.05);
+                using (var br = new LinearGradientBrush(new Rectangle(r.X, r.Y, Math.Max(1, r.Width), Math.Max(1, r.Height)), topC, botC, 90f))
                 {
-                    int glowAlpha = (int)Math.Round(45 * h);
-                    if (glowAlpha > 0)
-                    {
-                        var glowRect = new Rectangle(press, press, Width - 1 - press * 2, Height - 1 - press * 2);
-                        using (var glowPen = new Pen(Color.FromArgb(glowAlpha, Theme.Accent), Theme.S(2)))
-                        using (var gpG = Theme.Round(glowRect, rad + Theme.S(1)))
-                        {
-                            g.DrawPath(glowPen, gpG);
-                        }
-                    }
+                    Theme.FillRound(g, r, rad, br);
                 }
-                double down = Math.Max(h * 0.12, dn);
-                Theme.FillRound(g, r, rad, Theme.Mix(Theme.Accent, Theme.AccentDeep, down));
-                // 顶边微光漫反射高亮
-                using (var hlPen = new Pen(Color.FromArgb((int)Math.Round(35 + 25 * h), 255, 255, 255), 1f))
-                using (var gpHl = Theme.Round(r, rad))
+                Theme.EdgeRound(g, r, rad, edge, 1f);
+                var rIn = new Rectangle(r.X + 1, r.Y + 1, Math.Max(1, r.Width - 2), Math.Max(1, r.Height - 2));
+                using (var pIn = new Pen(Color.FromArgb(42, 255, 255, 255), 1f))
                 {
-                    g.DrawPath(hlPen, gpHl);
+                    g.DrawLine(pIn, rIn.X + rad, rIn.Y, rIn.Right - rad, rIn.Y);
                 }
             }
             else
             {
                 Theme.FillRound(g, r, rad, fill);
+                if (Enabled && Kind == BtnKind.Default)
+                {
+                    int hiA = Theme.Dark ? 12 : 160;
+                    using (var pHi = new Pen(Color.FromArgb(hiA, 255, 255, 255), 1f))
+                        g.DrawLine(pHi, r.X + rad, r.Y + 1, r.Right - rad, r.Y + 1);
+                }
                 Theme.EdgeRound(g, r, rad, edge, 1f);
             }
-            //  填充按钮（强调色底 + 白字）的标签走灰度抗锯齿：ClearType 是按"接近中性灰的底"
-            //  设计的，压在饱和蓝底上，每个笔画边缘都会带一圈橙/蓝彩边（截图放大可见）。
-            //  描边/浅底按钮仍然走 GDI（那里 ClearType 更清晰），只有填充按钮换。
             if (primary)
-                Theme.DrawPhotoText(g, Text, Theme.FB(9f), r, txt, StringAlignment.Center);
+                Theme.DrawTxt(g, Text, Theme.FM(9.5f), r, txt,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
             else
                 Theme.DrawTxt(g, Text, Font, r, txt,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
@@ -2094,57 +2155,40 @@ namespace Fluxion
             //    72px 瓦片的正确节奏：标签 [0,18) / 数字 [20,54) / 条 [67,72)。
             var numArea = new Rectangle(pad, Theme.S(20), Width - pad * 2, Theme.S(34));
             string body = NumBody();
+            if (body == null || body.Length == 0) body = "—";
+            bool placeholder = !hasNum && (body == "—" || body == "--");
             string unitText = hasNum ? numSuffix : "";
             float baseY = numArea.Top + (numArea.Height - fn.Height) / 2f + AscentOf(fn);
             Theme.DrawTxt(g, body, fn,
                 new Rectangle(numArea.Left, (int)Math.Round(baseY - AscentOf(fn)), numArea.Width, fn.Height + Theme.S(2)),
-                Theme.Text,
+                placeholder ? Theme.TextFaint : Theme.Text,
                 TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
             if (unitText.Length > 0)
             {
                 int bw = (int)Math.Ceiling(Theme.MeasureTxt(g, body, fn,
                              TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width);
-                int ux = numArea.Left + bw + Theme.S(1);
+                int ux = numArea.Left + bw + Theme.S(2);
                 Theme.DrawTxt(g, unitText, fu,
                     new Rectangle(ux, (int)Math.Round(baseY - AscentOf(fu)), Math.Max(Theme.S(8), numArea.Right - ux), fu.Height + Theme.S(2)),
                     Theme.TextDim,
                     TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
             }
 
-            int th = Theme.S(5);
+            int th = Theme.S(4);
             int ty = Height - pad - th;
             var track = new Rectangle(pad, ty, Width - pad * 2, th);
-            Theme.FillRound(g, track, th / 2, Color.FromArgb(Theme.Dark ? 44 : 28, BarColor));
-            int w = (int)Math.Round(track.Width * Math.Min(100, aBar.Value) / 100.0);   // 条宽跟着补间走
+            Theme.FillRound(g, track, th / 2, Theme.LineSoft);
+            int w = (int)Math.Round(track.Width * Math.Min(100, aBar.Value) / 100.0);
             if (w > 0)
             {
                 int barW = Math.Max(th, w);
                 var barRect = new Rectangle(pad, ty, barW, th);
-                Color endCol = Color.FromArgb(Math.Min(255, BarColor.R + 25), Math.Min(255, BarColor.G + 25), Math.Min(255, BarColor.B + 35));
-                using (var br = new LinearGradientBrush(barRect, BarColor, endCol, 0f))
-                {
-                    Theme.FillRound(g, barRect, th / 2, br);
-                }
-                // 端点高亮发光微球 (Glow Cap Highlight)
-                if (barW >= th)
-                {
-                    int capSz = Math.Max(2, th - Theme.S(1));
-                    int cx = barRect.Right - capSz / 2 - Theme.S(1);
-                    int cy = ty + th / 2;
-                    using (var gb = new SolidBrush(Color.FromArgb(90, 255, 255, 255)))
-                        g.FillEllipse(gb, cx - capSz / 2 - 1, cy - capSz / 2 - 1, capSz + 2, capSz + 2);
-                    using (var wb = new SolidBrush(Color.FromArgb(220, 255, 255, 255)))
-                        g.FillEllipse(wb, cx - capSz / 2, cy - capSz / 2, capSz, capSz);
-                }
+                Theme.FillRound(g, barRect, th / 2, BarColor);
             }
         }
     }
 
-    // ======================= 灰度文字的 Label（第 157 轮） =======================
-    //  WinForms Label 的文字走 GDI ClearType（实测面包屑一串文字 300+ 彩边像素）。
-    //  UserPaint 接管绘制后统一走 GDI+ AntiAliasGridFit，与自绘控件同一套字形渲染。
-    //  布局（AutoSize / TextAlign / AutoEllipsis）行为保持 Label 的；
-    //  本工程所有 Label 都是不透明底（BackColor 明确给色），这里按"铺满底色"画。
+    // ======================= 灰度文字的 Label（与 MeasureLabelHeight 同源） =======================
     public class TxtLbl : Label
     {
         public TxtLbl()
@@ -2158,36 +2202,38 @@ namespace Fluxion
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
             using (var bg = new SolidBrush(BackColor)) g.FillRectangle(bg, 0, 0, Width, Height);
             if (Text == null || Text.Length == 0 || !Enabled) { base.OnPaint(e); return; }
-            var sf = new StringFormat();
-            switch (TextAlign)
+            using (var sf = new StringFormat(StringFormat.GenericTypographic))
             {
-                case ContentAlignment.TopRight:
-                case ContentAlignment.MiddleRight:
-                case ContentAlignment.BottomRight:
-                    sf.Alignment = StringAlignment.Far; break;
-                case ContentAlignment.TopCenter:
-                case ContentAlignment.MiddleCenter:
-                case ContentAlignment.BottomCenter:
-                    sf.Alignment = StringAlignment.Center; break;
-            }
-            switch (TextAlign)
-            {
-                case ContentAlignment.BottomLeft:
-                case ContentAlignment.BottomCenter:
-                case ContentAlignment.BottomRight:
-                    sf.LineAlignment = StringAlignment.Far; break;
-                case ContentAlignment.MiddleLeft:
-                case ContentAlignment.MiddleCenter:
-                case ContentAlignment.MiddleRight:
-                    sf.LineAlignment = StringAlignment.Center; break;
-            }
-            if (AutoEllipsis)
-            {
-                sf.FormatFlags |= StringFormatFlags.NoWrap;      // 省略号是单行语义
+                switch (TextAlign)
+                {
+                    case ContentAlignment.TopRight:
+                    case ContentAlignment.MiddleRight:
+                    case ContentAlignment.BottomRight:
+                        sf.Alignment = StringAlignment.Far; break;
+                    case ContentAlignment.TopCenter:
+                    case ContentAlignment.MiddleCenter:
+                    case ContentAlignment.BottomCenter:
+                        sf.Alignment = StringAlignment.Center; break;
+                }
+                switch (TextAlign)
+                {
+                    case ContentAlignment.BottomLeft:
+                    case ContentAlignment.BottomCenter:
+                    case ContentAlignment.BottomRight:
+                        sf.LineAlignment = StringAlignment.Far; break;
+                    case ContentAlignment.MiddleLeft:
+                    case ContentAlignment.MiddleCenter:
+                    case ContentAlignment.MiddleRight:
+                        sf.LineAlignment = StringAlignment.Center; break;
+                }
                 sf.Trimming = StringTrimming.EllipsisCharacter;
+                if (AutoEllipsis)
+                {
+                    sf.FormatFlags |= StringFormatFlags.NoWrap;
+                }
+                using (var br = new SolidBrush(ForeColor))
+                    g.DrawString(Text, Font, br, new RectangleF(0, 0, Width, Height), sf);
             }
-            using (var br = new SolidBrush(ForeColor))
-                g.DrawString(Text, Font, br, new RectangleF(0, 0, Width, Height), sf);
         }
     }
 
@@ -2262,45 +2308,27 @@ namespace Fluxion
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
 
             int sz = Math.Min(Width, Height);
-            int pad = Theme.S(5);
-            int penW = Math.Max(Theme.S(5), sz / 13);
+            int pad = Theme.S(4);
+            int penW = Math.Max(Theme.S(4), sz / 15);
             int diam = Math.Max(1, sz - pad * 2 - penW);
             var rect = new Rectangle((Width - diam) / 2, (Height - diam) / 2, diam, diam);
             if (rect.Width <= 0 || rect.Height <= 0) return;
 
-            // 1. 底轨 (Track): 柔和半透明弧圈
-            int trackAlpha = Theme.Dark ? 40 : 25;
-            using (var trackPen = new Pen(Color.FromArgb(trackAlpha, arcColor), penW))
+            using (var trackPen = new Pen(Theme.LineSoft, penW))
             {
                 g.DrawEllipse(trackPen, rect);
             }
 
-            // 2. 动态活动环 (Active Arc)
             double curVal = Math.Max(0.0, Math.Min(100.0, aProgress.Value));
             float sweep = (float)(360.0 * curVal / 100.0);
             if (sweep > 0.5f)
             {
-                if (sweep > 2f)
-                {
-                    using (var glowPen = new Pen(Color.FromArgb(Theme.Dark ? 36 : 22, arcColor), penW + Theme.S(3)))
-                    {
-                        glowPen.StartCap = LineCap.Round; glowPen.EndCap = LineCap.Round;
-                        if (sweep >= 359.5f) g.DrawEllipse(glowPen, rect);
-                        else g.DrawArc(glowPen, rect, -90f, sweep);
-                    }
-                }
                 using (var activePen = new Pen(arcColor, penW))
                 {
                     activePen.StartCap = LineCap.Round;
                     activePen.EndCap = LineCap.Round;
-                    if (sweep >= 359.5f)
-                    {
-                        g.DrawEllipse(activePen, rect);
-                    }
-                    else
-                    {
-                        g.DrawArc(activePen, rect, -90f, sweep);
-                    }
+                    if (sweep >= 359.5f) g.DrawEllipse(activePen, rect);
+                    else g.DrawArc(activePen, rect, -90f, sweep);
                 }
             }
 
@@ -2410,30 +2438,23 @@ namespace Fluxion
             Color dotCol = inGame ? Theme.Accent : (inOffice ? Theme.Golden : Theme.Ok);
             float sinVal = (float)((Math.Sin(phase) + 1.0) * 0.5);
 
-            int dotDia = Theme.S(8);
+            int dotDia = Theme.S(7);
             int cy = Height / 2;
-            int cx = Theme.S(6);
+            int cx = Theme.S(5);
 
-            // Halo pulse
-            int haloMax = Theme.S(inGame ? 7 : 4);
+            int haloMax = Theme.S(inGame ? 5 : 3);
             int haloR = dotDia / 2 + (int)Math.Round(haloMax * sinVal);
-            int haloAlpha = (int)Math.Round((inGame ? 85 : 45) * (1.0f - sinVal * 0.6f));
+            int haloAlpha = (int)Math.Round((inGame ? 56 : 28) * (1.0f - sinVal * 0.55f));
             if (haloAlpha > 0)
             {
                 using (var haloBr = new SolidBrush(Color.FromArgb(haloAlpha, dotCol)))
                     g.FillEllipse(haloBr, cx - haloR, cy - haloR, haloR * 2, haloR * 2);
             }
 
-            // Core dot
             using (var dotBr = new SolidBrush(dotCol))
                 g.FillEllipse(dotBr, cx - dotDia / 2, cy - dotDia / 2, dotDia, dotDia);
 
-            // Center highlight
-            using (var hiBr = new SolidBrush(Color.FromArgb(200, 255, 255, 255)))
-                g.FillEllipse(hiBr, cx - Theme.S(1), cy - Theme.S(2), Theme.S(2), Theme.S(2));
-
-            // Text
-            int textX = cx + dotDia / 2 + Theme.S(7);
+            int textX = cx + dotDia / 2 + Theme.S(8);
             var textRect = new Rectangle(textX, 0, Math.Max(0, Width - textX), Height);
             Theme.DrawTxt(g, Text, Font, textRect, ForeColor,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
@@ -2513,48 +2534,43 @@ namespace Fluxion
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
 
             var f = Theme.F(8.5f);
-            var fv = Theme.FB(9.5f);
+            var fv = Theme.Num(10.5f);
 
-            // 标题
-            Theme.DrawTxt(g, Caption, f, new Rectangle(Theme.S(2), 0, Width / 2, f.Height + Theme.S(2)), Theme.TextDim,
-                TextFormatFlags.Left | TextFormatFlags.NoPrefix);
+            Theme.DrawTxt(g, Caption, f, new Rectangle(Theme.S(2), 0, Width / 2 + Theme.S(8), f.Height + Theme.S(4)), Theme.TextDim,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
-            // 右侧最新值（没数据时给"—"，位置与有数据时一致 —— 空/非空两态不要在布局上跳）
             if (data.Count > 0)
             {
                 float lastVal = data[data.Count - 1];
                 Theme.DrawTxt(g, ((int)Math.Round(lastVal)) + (Unit ?? "%"), fv,
-                    new Rectangle(Width / 2, 0, Width / 2 - Theme.S(4), f.Height + Theme.S(2)), LineColor,
-                    TextFormatFlags.Right | TextFormatFlags.NoPrefix);
+                    new Rectangle(Width / 2 - Theme.S(4), 0, Width / 2 + Theme.S(2), f.Height + Theme.S(4)), Theme.TextSafe(LineColor),
+                    TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
             }
             else
             {
                 Theme.DrawTxt(g, "—", fv,
-                    new Rectangle(Width / 2, 0, Width / 2 - Theme.S(4), f.Height + Theme.S(2)), Theme.TextFaint,
-                    TextFormatFlags.Right | TextFormatFlags.NoPrefix);
+                    new Rectangle(Width / 2 - Theme.S(4), 0, Width / 2 + Theme.S(2), f.Height + Theme.S(4)), Theme.TextFaint,
+                    TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
             }
 
-            int top = f.Height + Theme.S(8);
+            int top = f.Height + Theme.S(10);
             int h = Height - top - Theme.S(4);
             if (Width <= Theme.S(10) || h < Theme.S(10)) return;
 
-            // 背景参考网格线（第 147 轮：从 LineSoft 加深到 Line —— 原来那档太淡，
-            //  空态下整片看着像"图表坏了"，其实网格一直在，只是没人看得见）
-            using (var p = new Pen(Theme.Line, 1f))
+            using (var p = new Pen(Theme.LineSoft, 1f))
             {
-                p.DashStyle = DashStyle.Dot;
                 for (int i = 1; i <= 3; i++)
                 {
                     int y = top + h * i / 4;
                     g.DrawLine(p, 0, y, Width - 1, y);
                 }
+                g.DrawLine(p, 0, top + h, Width - 1, top + h);
             }
 
             if (data.Count < 2)
             {
-                //  空态提示压在**底部**，不与网格线交叠（原来居中，文字穿过虚线，看着像乱码）
-                Theme.DrawTxt(g, "等待采样…", f, new Rectangle(0, top + h - f.Height - Theme.S(4), Width, f.Height + Theme.S(2)),
-                    Theme.TextDim, TextFormatFlags.HorizontalCenter | TextFormatFlags.Bottom | TextFormatFlags.NoPrefix);
+                Theme.DrawTxt(g, "等待采样", f, new Rectangle(0, top + h - f.Height - Theme.S(6), Width, f.Height + Theme.S(2)),
+                    Theme.TextFaint, TextFormatFlags.HorizontalCenter | TextFormatFlags.Bottom | TextFormatFlags.NoPrefix);
                 return;
             }
 
@@ -2565,7 +2581,6 @@ namespace Fluxion
                 pts[i] = new PointF((Width - 1) * (float)i / (MaxPoints - 1), top + h - h * v / 100f);
             }
 
-            // 面积流光渐变填充
             using (var gp = new GraphicsPath())
             {
                 gp.AddLines(pts);
@@ -2573,14 +2588,13 @@ namespace Fluxion
                 gp.AddLine(new PointF(pts[pts.Length - 1].X, top + h), new PointF(pts[0].X, top + h));
                 gp.CloseFigure();
                 var fillRect = new Rectangle(0, top, Width, h);
-                using (var br = new LinearGradientBrush(fillRect, Color.FromArgb(50, LineColor), Color.FromArgb(0, LineColor), 90f))
+                using (var br = new LinearGradientBrush(fillRect, Color.FromArgb(34, LineColor), Color.FromArgb(0, LineColor), 90f))
                 {
                     g.FillPath(br, gp);
                 }
             }
 
-            // 曲线绘制
-            using (var p = new Pen(LineColor, 1.8f))
+            using (var p = new Pen(LineColor, 1.6f))
             {
                 p.LineJoin = LineJoin.Round;
                 p.StartCap = LineCap.Round;
@@ -2588,12 +2602,9 @@ namespace Fluxion
                 g.DrawLines(p, pts);
             }
 
-            // 最新采样点发光微珠
             PointF head = pts[pts.Length - 1];
-            using (var b = new SolidBrush(Color.FromArgb(90, LineColor)))
-                g.FillEllipse(b, head.X - 4f, head.Y - 4f, 8f, 8f);
-            using (var b = new SolidBrush(Color.White))
-                g.FillEllipse(b, head.X - 2f, head.Y - 2f, 4f, 4f);
+            using (var b = new SolidBrush(LineColor))
+                g.FillEllipse(b, head.X - 2.5f, head.Y - 2.5f, 5f, 5f);
         }
     }
 
@@ -2650,6 +2661,8 @@ namespace Fluxion
         public readonly ItemList Items;
         ToolStripDropDown openMenu;                 // 当前实际弹出的下拉（每次 ShowDrop 新建）
         static RoundCombo openOwner;                // 全局唯一弹出者：滚动发生时要能找到并收掉它
+        // BUG-G7: ProcessCmdKey 需要知道下拉弹窗是否打开，以便放行给弹窗处理
+        public static bool IsPopupOpen { get { return openOwner != null && openOwner.openMenu != null && openOwner.openMenu.Visible; } }
         int sel = -1;
         bool hover;
 
@@ -2660,10 +2673,10 @@ namespace Fluxion
             SetStyle(ControlStyles.Opaque | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer
                      | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
             Items = new ItemList(this);
-            Height = Theme.S(28);
+            Height = Theme.S(32);
             Width = Theme.S(120);
-            BackColor = Theme.Panel;   // 工具条里经 SetCorner 改为页面底色（四角不露白）
-            Font = Theme.F(10f);             // 下拉值文字（第 158 轮 9→10，与输入框同层）
+            BackColor = Theme.Panel;
+            Font = Theme.F(9.5f);
             Cursor = Cursors.Hand;
         }
 
@@ -2704,18 +2717,11 @@ namespace Fluxion
         void ShowDrop()
         {
             if (!Enabled || Items.Count == 0) return;
-            var m = MenuFactory.New();
-            //  显式指定渲染器：ToolStripManager.Renderer 对 ContextMenuStrip 不总是生效，
-            //  之前就退回了系统默认的**白底直角**列表（和整套自绘 UI 完全两张皮）。
-            m.Renderer = new ThemedMenuRenderer();
-            m.ShowImageMargin = false;
-            m.Font = Theme.F(9f);
-            m.BackColor = Theme.Field;
-            m.DropShadowEnabled = true;
-            //  限宽限高：原来 MinimumSize 直接取控件宽度，Block 拉伸后下拉和整行一样宽（一张大白板）；
-            //  高度不限时窗口底部还会被 ToolStrip 自动翻到控件上方，挡住下面的按钮。
-            m.MinimumSize = new Size(Theme.S(140), 0);
-            m.MaximumSize = new Size(Math.Min(Width, Theme.S(360)), Theme.S(340));
+            ThemedMenu m = MenuFactory.New();
+            m.Font = Theme.F(9.5f);
+            m.MinMenuWidth = Math.Max(Width - Theme.S(2), Theme.S(120));
+            m.MaxMenuWidth = Math.Max(Width, Theme.S(380));
+            m.MaxMenuHeight = Theme.S(340);
             for (int i = 0; i < Items.Count; i++)
             {
                 int idx = i;
@@ -2725,12 +2731,6 @@ namespace Fluxion
                 it.Click += delegate { SelectedIndex = idx; };
                 m.Items.Add(it);
             }
-            //  用**屏幕坐标**定位：原来传的是控件客户区坐标，控件处在滚动容器里时会被算到别的控件旁边
-            //  （截图里 SM86 列表飘到"架构(Router)"下拉右上、压住按钮，就是这么来的）。
-            //  ⚠ 顶层窗口 + 一次性坐标 = 只在**打开那一刻**是对的：页面一滚，锚点跟着内容搬走，
-            //    菜单还钉在旧屏幕位置上（2026-10-31 用户："滑动页面时菜单到处乱晃"）。
-            //    修法不是让它跟着挪（补间期间每帧重定位只会更乱），是**内容一动就收**——
-            //    Pg.SetScrollY 值变化时调 CloseOpenPopup()，和浏览器/系统菜单的直觉一致。
             CloseOpenPopup();                        // 互斥保险：理论上 AutoClose 已收掉旧弹层
             openMenu = m; openOwner = this;
             m.Closed += delegate
@@ -2739,7 +2739,8 @@ namespace Fluxion
                 if (openOwner == this) openOwner = null;
                 Invalidate();                        // 弹出态边框高亮随关闭恢复
             };
-            m.Show(PointToScreen(new Point(0, Height + 2)));
+            m.PrepareLayout();
+            m.Show(PointToScreen(new Point(Theme.S(1), Height + Theme.S(3))));
         }
 
         //  内容滚动时的统一收口（Pg.SetScrollY 调用）：收掉还钉在旧屏幕坐标上的下拉。
@@ -2764,23 +2765,24 @@ namespace Fluxion
 
         protected override void OnPaint(PaintEventArgs e)
         {
-            // ★ 先把自己整块矩形铺满（圆角之外的角落也要）：设置 UserPaint + AllPaintingInWmPaint 之后
-            //   WinForms 不再擦本控件的背景，不铺满就会留下上一次绘制的残留（黑框 / 文字重影 / 像叠了好几层）。
             using (var __bg = new SolidBrush(BackColor)) e.Graphics.FillRectangle(__bg, 0, 0, Width, Height);
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            var r = new Rectangle(0, 0, Width - 1, Height - 1);
-            Theme.FillRound(g, r, Theme.RField, Theme.FieldOn(BackColor));
-            Theme.EdgeRound(g, r, Theme.RField,
-                (hover || openMenu != null) && Enabled ? Theme.Accent : Theme.FieldEdge, 1f);
+            var r = new Rectangle(Theme.S(1), Theme.S(1), Width - 1 - Theme.S(2), Height - 1 - Theme.S(2));
+            Color fill = Theme.FieldOn(BackColor);
+            if (hover && Enabled && openMenu == null)
+                fill = Theme.Dark ? Theme.Mix(fill, Color.White, 0.04) : Theme.Mix(fill, Theme.Text, 0.02);
+            Theme.FillRound(g, r, Theme.RField, fill);
+            Color edge = openMenu != null ? Theme.Accent
+                       : (hover && Enabled ? Theme.Mix(Theme.FieldEdge, Theme.TextDim, 0.45) : Theme.FieldEdge);
+            Theme.EdgeRound(g, r, Theme.RField, Enabled ? edge : Theme.LineSoft, 1f);
             string tx = Text;
             if (tx.Length == 0) tx = "—";
-            Theme.DrawTxt(g, tx, Font, new Rectangle(Theme.S(10), 0, Width - Theme.S(30), Height),
+            Theme.DrawTxt(g, tx, Font, new Rectangle(Theme.S(11), 0, Width - Theme.S(32), Height),
                 Enabled ? Theme.Text : Theme.TextDisabled,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
-            // 自绘 chevron：原生箭头是系统色，深色主题下会突兀
             int cx = Width - Theme.S(14), cy = Height / 2;
-            using (var p = new Pen(Enabled ? Theme.TextDim : Theme.TextDisabled, 1.9f))
+            using (var p = new Pen(Enabled ? Theme.TextDim : Theme.TextDisabled, 1.5f))
             {
                 p.StartCap = LineCap.Round; p.EndCap = LineCap.Round; p.LineJoin = LineJoin.Round;
                 g.DrawLines(p, new Point[] {
@@ -2808,7 +2810,7 @@ namespace Fluxion
         public override Size GetPreferredSize(Size proposedSize)
         {
             Size bs = base.GetPreferredSize(proposedSize);
-            return new Size(bs.Width + Theme.S(14), Math.Max(bs.Height, Theme.S(20)));
+            return new Size(bs.Width + Theme.S(19), Math.Max(bs.Height, Theme.S(22)));
         }
         protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
         protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
@@ -2820,15 +2822,15 @@ namespace Fluxion
             using (var __bg = new SolidBrush(surf)) e.Graphics.FillRectangle(__bg, 0, 0, Width, Height);
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            //  ★ 2026-10-24 第 138 轮：14px 在 32px 行高里占比太小，看着"弱"；
-            //  未勾选用 Field（浅灰）填充，在白卡上和底色几乎没差别，看不清是个框。
-            //  改成 16px + 白底 + 1.2px 灰边，圆角收到 3（macOS checkbox 是 3/14 ≈ 21%）。
             int s = Theme.S(16);
             int y = (Height - s) / 2;
-            var box = new Rectangle(0, y, s, s);
-            Theme.FillRound(g, box, Theme.S(3), Enabled ? (Checked ? Theme.Accent : Theme.Panel) : Theme.LineSoft);
-            Theme.EdgeRound(g, box, Theme.S(3),
-                Checked ? Theme.Accent : ((hover && Enabled) ? Theme.Accent : Theme.Line), 1.2f);
+            var box = new Rectangle(Theme.S(3), y, s, s);
+            Color restFill = Theme.FieldOn(surf);
+            Color restEdge = Theme.Mix(Theme.FieldEdge, Theme.TextDim, 0.28);
+            Color hovEdge = Theme.Mix(Theme.FieldEdge, Theme.Accent, 0.65);
+            Theme.FillRound(g, box, Theme.S(4), Enabled ? (Checked ? Theme.Accent : restFill) : Theme.LineSoft);
+            Theme.EdgeRound(g, box, Theme.S(4),
+                Checked ? Theme.Accent : ((hover && Enabled) ? hovEdge : restEdge), 1.25f);
             if (Checked)
             {
                 using (var p = new Pen(Theme.OnAccent, 1.9f))
@@ -2840,17 +2842,16 @@ namespace Fluxion
                         new Point(box.Right - Theme.S(4), box.Y + Theme.S(4)) });
                 }
             }
-            Theme.DrawTxt(g, Text, Font, new Rectangle(Theme.S(20), 0, Width - Theme.S(20), Height),
+            Theme.DrawTxt(g, Text, Font, new Rectangle(Theme.S(25), 0, Math.Max(1, Width - Theme.S(25)), Height),
                 Enabled ? Theme.Text : Theme.TextDisabled,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
-            //  焦点环跟着勾选框本体（外扩 3px），不画整行 —— 行高 20px 画整行会挤到相邻行
             if (Focused && ShowFocusCues)
                 Theme.DrawFocusRing(g, new Rectangle(box.X - Theme.S(3), box.Y - Theme.S(3),
                     box.Width + Theme.S(6), box.Height + Theme.S(6)), Theme.S(7));
         }
     }
 
-    // 自绘单选框：原生单选框在深色主题下是刺眼的白色圆底高光，自绘为暗底圆环 + 翡翠绿中心实心点
+    // 自绘单选框：原生单选框在深色主题下是刺眼的白色圆底高光，自绘为暗底圆环 + 中心实心点
     public class RoundRadio : RadioButton
     {
         public Color? Corner;      // 框外底色（由所在分区下发）；不设则沿父链推断
@@ -2866,7 +2867,7 @@ namespace Fluxion
         public override Size GetPreferredSize(Size proposedSize)
         {
             Size bs = base.GetPreferredSize(proposedSize);
-            return new Size(bs.Width + Theme.S(14), Math.Max(bs.Height, Theme.S(20)));
+            return new Size(bs.Width + Theme.S(19), Math.Max(bs.Height, Theme.S(22)));
         }
         protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
         protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
@@ -2876,16 +2877,19 @@ namespace Fluxion
             using (var __bg = new SolidBrush(surf)) e.Graphics.FillRectangle(__bg, 0, 0, Width, Height);
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            int d = Theme.S(14);
+            int d = Theme.S(16);
             int y = (Height - d) / 2;
-            var circle = new Rectangle(0, y, d, d);
+            var circle = new Rectangle(Theme.S(3), y, d, d);
 
-            Color bg = Enabled ? (Checked ? Theme.CheckOn : Theme.Field) : Theme.LineSoft;
-            Color border = Checked ? Theme.Accent : ((hover && Enabled) ? Theme.Accent : Theme.FieldEdge);
+            Color restFill = Theme.FieldOn(surf);
+            Color restEdge = Theme.Mix(Theme.FieldEdge, Theme.TextDim, 0.28);
+            Color hovEdge = Theme.Mix(Theme.FieldEdge, Theme.Accent, 0.65);
+            Color bg = Enabled ? (Checked ? Theme.CheckOn : restFill) : Theme.LineSoft;
+            Color border = Checked ? Theme.Accent : ((hover && Enabled) ? hovEdge : restEdge);
 
             using (var b = new SolidBrush(bg))
                 g.FillEllipse(b, circle);
-            using (var p = new Pen(border, 1.2f))
+            using (var p = new Pen(border, 1.25f))
                 g.DrawEllipse(p, circle);
 
             if (Checked)
@@ -2897,12 +2901,12 @@ namespace Fluxion
                     g.FillEllipse(bDot, dotX, dotY, dotD, dotD);
             }
 
-            Theme.DrawTxt(g, Text, Font, new Rectangle(Theme.S(20), 0, Width - Theme.S(20), Height),
+            Theme.DrawTxt(g, Text, Font, new Rectangle(Theme.S(25), 0, Math.Max(1, Width - Theme.S(25)), Height),
                 Enabled ? Theme.Text : Theme.TextDisabled,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
             if (Focused && ShowFocusCues)
                 Theme.DrawFocusRing(g, new Rectangle(circle.X - Theme.S(3), circle.Y - Theme.S(3),
-                    circle.Width + Theme.S(6), circle.Height + Theme.S(6)), Theme.S(9));
+                    circle.Width + Theme.S(6), circle.Height + Theme.S(6)), Theme.S(11));
         }
     }
 
@@ -2915,66 +2919,204 @@ namespace Fluxion
         public override Color MenuItemPressedGradientBegin { get { return Theme.Hover; } }
         public override Color MenuItemPressedGradientEnd { get { return Theme.Hover; } }
         public override Color MenuItemBorder { get { return Theme.Line; } }
-        public override Color MenuBorder { get { return Theme.Line; } }
-        public override Color ToolStripDropDownBackground { get { return Theme.Field; } }
-        public override Color ImageMarginGradientBegin { get { return Theme.Field; } }
-        public override Color ImageMarginGradientMiddle { get { return Theme.Field; } }
-        public override Color ImageMarginGradientEnd { get { return Theme.Field; } }
+        public override Color MenuBorder { get { return Theme.CardEdge; } }
+        public override Color ToolStripDropDownBackground { get { return Theme.Panel; } }
+        public override Color ImageMarginGradientBegin { get { return Theme.Panel; } }
+        public override Color ImageMarginGradientMiddle { get { return Theme.Panel; } }
+        public override Color ImageMarginGradientEnd { get { return Theme.Panel; } }
         public override Color SeparatorDark { get { return Theme.Line; } }
         public override Color SeparatorLight { get { return Theme.Line; } }
         public override Color CheckBackground { get { return Theme.AccentSoft; } }
         public override Color CheckSelectedBackground { get { return Theme.AccentSoft; } }
     }
+
+    class ThemedMenu : ContextMenuStrip
+    {
+        public int MinMenuWidth = Theme.S(140);
+        public int MaxMenuWidth = Theme.S(380);
+        public int MaxMenuHeight = Theme.S(640);
+        public bool DwmCorners;
+
+        protected override Padding DefaultPadding
+        {
+            get { return new Padding(0, Theme.S(4), 0, Theme.S(4)); }
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            DwmCorners = Theme.ApplyMenuChrome(Handle);
+            if (DwmCorners && Region != null) { Region old = Region; Region = null; old.Dispose(); }
+        }
+
+        protected override void OnOpening(System.ComponentModel.CancelEventArgs e)
+        {
+            PrepareLayout();
+            base.OnOpening(e);
+        }
+
+        public void PrepareLayout()
+        {
+            StyleDropDown(this, MinMenuWidth, MaxMenuWidth, MaxMenuHeight);
+        }
+
+        internal static void StyleDropDown(ToolStripDropDownMenu dd, int minW, int maxW, int maxH)
+        {
+            if (dd == null) return;
+            dd.ShowImageMargin = false;
+            dd.ShowCheckMargin = false;
+            dd.BackColor = Theme.Panel;
+            dd.ForeColor = Theme.Text;
+            if (!(dd.Renderer is ThemedMenuRenderer)) dd.Renderer = new ThemedMenuRenderer();
+
+            int outerX = Theme.S(5), outerY = Theme.S(4);
+            int rowH = Theme.S(30), sepH = Theme.S(9);
+            int wantW = Math.Max(Theme.S(110), minW);
+            bool anyCheck = false;
+            foreach (ToolStripItem it in dd.Items)
+            {
+                ToolStripMenuItem mi = it as ToolStripMenuItem;
+                if (mi != null && mi.Available && mi.Checked) { anyCheck = true; break; }
+            }
+            int checkSpace = anyCheck ? Theme.S(18) : 0;
+
+            using (var mbmp = new Bitmap(1, 1))
+            using (var mg = Graphics.FromImage(mbmp))
+            {
+                mg.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                foreach (ToolStripItem it in dd.Items)
+                {
+                    if (!it.Available || it is ToolStripSeparator) continue;
+                    Font f = it.Font ?? dd.Font ?? Theme.F(9.5f);
+                    int tw = (int)Math.Ceiling(Theme.MeasureTxt(mg, it.Text ?? "", f, TextFormatFlags.NoPrefix).Width);
+                    ToolStripMenuItem mi = it as ToolStripMenuItem;
+                    int arrowSpace = (mi != null && mi.HasDropDownItems) ? Theme.S(24) : 0;
+                    int w = outerX * 2 + Theme.S(10) + checkSpace + tw + arrowSpace + Theme.S(18);
+                    if (w > wantW) wantW = w;
+                    if (mi != null && mi.HasDropDownItems)
+                    {
+                        ToolStripDropDownMenu sub = mi.DropDown as ToolStripDropDownMenu;
+                        if (sub != null)
+                        {
+                            sub.HandleCreated -= OnSubHandleCreated;
+                            sub.HandleCreated += OnSubHandleCreated;
+                            StyleDropDown(sub, Theme.S(150), maxW, maxH);
+                        }
+                    }
+                }
+            }
+            if (maxW > 0 && wantW > maxW) wantW = Math.Max(minW, maxW);
+
+            int padTop = (dd is ThemedMenu) ? outerY : dd.Padding.Top;
+            int padBot = (dd is ThemedMenu) ? outerY : dd.Padding.Bottom;
+            int totalH = padTop + padBot;
+            foreach (ToolStripItem it in dd.Items)
+            {
+                if (!it.Available) continue;
+                it.AutoSize = false;
+                if (it is ToolStripSeparator)
+                {
+                    it.Margin = Padding.Empty;
+                    it.Size = new Size(wantW, sepH);
+                    totalH += sepH;
+                }
+                else
+                {
+                    it.Margin = new Padding(0, 1, 0, 1);
+                    it.Size = new Size(wantW, rowH);
+                    totalH += rowH + 2;
+                }
+            }
+
+            if (maxH > 0 && totalH > maxH)
+            {
+                dd.AutoSize = true;
+                dd.MinimumSize = new Size(wantW, 0);
+                dd.MaximumSize = new Size(wantW, maxH);
+            }
+            else
+            {
+                dd.AutoSize = false;
+                dd.MinimumSize = Size.Empty;
+                dd.MaximumSize = Size.Empty;
+                dd.Size = new Size(wantW, totalH);
+            }
+            dd.PerformLayout();
+        }
+
+        static void OnSubHandleCreated(object s, EventArgs e)
+        {
+            ToolStripDropDown sub = s as ToolStripDropDown;
+            if (sub != null && Theme.ApplyMenuChrome(sub.Handle) && sub.Region != null)
+            {
+                Region old = sub.Region; sub.Region = null; old.Dispose();
+            }
+        }
+    }
+
     //  现代 Fluent / Apple 风格菜单渲染：
-    //  圆角白卡 + 发丝边 + 柔和半透明胶囊高亮 + 舒适的行距呼吸感。
+    //  圆角白卡 + 发丝边 + 四向对称胶囊高亮 + 对勾列对齐。
     class ThemedMenuRenderer : ToolStripProfessionalRenderer
     {
         Size lastRegion;
         public ThemedMenuRenderer() : base(new ThemedColors()) { RoundedEdges = false; }
 
+        static bool HasAnyChecked(ToolStrip ts)
+        {
+            if (ts == null) return false;
+            foreach (ToolStripItem it in ts.Items)
+            {
+                ToolStripMenuItem mi = it as ToolStripMenuItem;
+                if (mi != null && mi.Available && mi.Checked) return true;
+            }
+            return false;
+        }
+
         protected override void InitializeItem(ToolStripItem item)
         {
             base.InitializeItem(item);
             if (item is ToolStripMenuItem)
-            {
-                item.Padding = new Padding(Theme.S(12), Theme.S(5), Theme.S(12), Theme.S(5));
                 item.Margin = new Padding(0, 1, 0, 1);
-            }
             else if (item is ToolStripSeparator)
-            {
-                item.Margin = new Padding(Theme.S(8), Theme.S(3), Theme.S(8), Theme.S(3));
-            }
+                item.Margin = Padding.Empty;
         }
 
         protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
         {
+            if (string.IsNullOrEmpty(e.Text)) return;
             Color tc;
             bool isStatus = e.Item.Tag != null && (string)e.Item.Tag == "status";
+            ToolStripMenuItem mi = e.Item as ToolStripMenuItem;
+            bool chk = mi != null && mi.Checked;
 
             if (isStatus)
             {
-                // 顶部状态展示：有游戏运行时鲜绿，待命时典雅灰
                 tc = (e.Text.IndexOf("游戏中") >= 0 || e.Text.IndexOf("⚡") >= 0)
                     ? Theme.TextSafe(Theme.Ok)
                     : Theme.TextDim;
             }
             else
             {
-                tc = e.Item.Enabled ? Theme.Text : Theme.TextDisabled;
-                if ((e.Item.Selected || e.Item.Pressed) && e.Item.Enabled)
-                {
+                tc = !e.Item.Enabled ? Theme.TextDisabled
+                   : (chk ? Theme.TextSafe(Theme.Accent) : Theme.Text);
+                if ((e.Item.Selected || e.Item.Pressed) && e.Item.Enabled && !chk)
                     tc = Theme.Dark ? Color.FromArgb(255, 255, 255) : Theme.Text;
-                }
             }
+
+            int stripW = (e.ToolStrip != null && e.ToolStrip.ClientSize.Width > 0) ? e.ToolStrip.ClientSize.Width : e.Item.Width;
+            bool anyCheck = HasAnyChecked(e.ToolStrip);
+            int tx = (Theme.S(5) - e.Item.Bounds.X) + Theme.S(10) + (anyCheck ? Theme.S(18) : 0);
+            int rightReserve = (mi != null && mi.HasDropDownItems) ? Theme.S(24) : Theme.S(10);
+            int availW = Math.Max(1, stripW - e.Item.Bounds.X - tx - rightReserve);
+            var rect = new Rectangle(tx, 0, availW, e.Item.Height);
 
             var g = e.Graphics;
             var oldHint = g.TextRenderingHint;
             g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
             try
             {
-                var rect = e.TextRectangle;
-                rect.X += Theme.S(2);
-                Theme.DrawTxt(g, e.Text, e.TextFont, rect, tc, e.TextFormat);
+                Theme.DrawTxt(g, e.Text, e.TextFont, rect, tc,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
             }
             finally
             {
@@ -2985,72 +3127,155 @@ namespace Fluxion
         protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e)
         {
             var ts = e.ToolStrip;
-            int w = Math.Max(1, ts.Width - 1);
-            int h = Math.Max(1, ts.Height - 1);
-            var r = new Rectangle(0, 0, w, h);
             var g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.PixelOffsetMode = PixelOffsetMode.Half;
-            Theme.FillRound(g, r, Theme.S(8), Theme.Panel);
-            Theme.EdgeRound(g, r, Theme.S(8), Theme.CardEdge, 1f);
-            if (ts.Region == null || lastRegion != ts.Size)
+            g.Clear(Theme.Panel);
+            ThemedMenu tm = ts as ThemedMenu;
+            bool dwm = tm != null ? tm.DwmCorners : (ts.IsHandleCreated && Theme.ApplyMenuChrome(ts.Handle));
+            if (!dwm && ts.IsHandleCreated && (ts.Region == null || lastRegion != ts.Size))
             {
                 try
                 {
-                    using (var gp = Theme.Round(new Rectangle(0, 0, ts.Width, ts.Height), Theme.S(8))) ts.Region = new Region(gp);
+                    using (var gp = Theme.Round(new Rectangle(0, 0, ts.Width, ts.Height), Theme.S(8)))
+                        ts.Region = new Region(gp);
                     lastRegion = ts.Size;
                 }
                 catch { }
             }
         }
 
-        // 高亮：Win11 风格柔和半透明微圆角胶囊 (R=5)，状态项不高亮
+        protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e)
+        {
+            var ts = e.ToolStrip;
+            ThemedMenu tm = ts as ThemedMenu;
+            bool dwm = tm != null ? tm.DwmCorners : (ts.IsHandleCreated && Theme.ApplyMenuChrome(ts.Handle));
+            if (dwm) return;
+            var g = e.Graphics;
+            var oldSm = g.SmoothingMode;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            try
+            {
+                var r = new Rectangle(0, 0, Math.Max(1, ts.Width - 1), Math.Max(1, ts.Height - 1));
+                Theme.EdgeRound(g, r, Theme.S(8), Theme.CardEdge, 1f);
+            }
+            finally
+            {
+                g.SmoothingMode = oldSm;
+            }
+        }
+
         protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
         {
             bool isStatus = e.Item.Tag != null && (string)e.Item.Tag == "status";
-            if (isStatus || (!e.Item.Selected && !e.Item.Pressed) || !e.Item.Enabled) return;
-            var r = new Rectangle(Theme.S(4), 1, Math.Max(1, e.Item.Width - Theme.S(8)), Math.Max(1, e.Item.Height - 2));
+            if (isStatus) return;
+            ToolStripMenuItem mi = e.Item as ToolStripMenuItem;
+            bool chk = mi != null && mi.Checked;
+            bool hot = (e.Item.Selected || e.Item.Pressed) && e.Item.Enabled;
+            if (!hot && !chk) return;
+
+            int stripW = (e.ToolStrip != null && e.ToolStrip.ClientSize.Width > 0) ? e.ToolStrip.ClientSize.Width : e.Item.Width;
+            int padX = Theme.S(5);
+            int x = padX - e.Item.Bounds.X;
+            int w = Math.Max(1, stripW - padX * 2);
+            var r = new Rectangle(x, 0, w, e.Item.Height);
+
             var g = e.Graphics;
+            var oldSm = g.SmoothingMode;
+            var oldPo = g.PixelOffsetMode;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            Color hov = Theme.Dark ? Color.FromArgb(14, 255, 255, 255) : Color.FromArgb(12, 0, 0, 0);
-            Theme.FillRound(g, r, Theme.S(5), hov);
+            try
+            {
+                g.PixelOffsetMode = PixelOffsetMode.Half;
+                if (hot)
+                {
+                    Color hov = chk
+                        ? Theme.Alpha(Theme.Accent, Theme.Dark ? 0.22 : 0.14)
+                        : (Theme.Dark ? Color.FromArgb(20, 255, 255, 255) : Color.FromArgb(14, 0, 0, 0));
+                    Theme.FillRound(g, r, Theme.S(5), hov);
+                }
+                else if (chk)
+                {
+                    Theme.FillRound(g, r, Theme.S(5), Theme.Alpha(Theme.Accent, Theme.Dark ? 0.14 : 0.08));
+                }
+                g.PixelOffsetMode = oldPo;
+
+                if (chk)
+                {
+                    int cx = x + Theme.S(11);
+                    int cy = e.Item.Height / 2;
+                    using (var p = new Pen(Theme.Accent, 1.7f))
+                    {
+                        p.StartCap = LineCap.Round; p.EndCap = LineCap.Round; p.LineJoin = LineJoin.Round;
+                        g.DrawLines(p, new Point[] {
+                            new Point(cx - Theme.S(4), cy),
+                            new Point(cx - Theme.S(1), cy + Theme.S(3)),
+                            new Point(cx + Theme.S(4), cy - Theme.S(3))
+                        });
+                    }
+                }
+            }
+            finally
+            {
+                g.PixelOffsetMode = oldPo;
+                g.SmoothingMode = oldSm;
+            }
         }
 
         protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
         {
+            int stripW = (e.ToolStrip != null && e.ToolStrip.ClientSize.Width > 0) ? e.ToolStrip.ClientSize.Width : e.Item.Width;
+            int x1 = Theme.S(11) - e.Item.Bounds.X;
+            int x2 = Math.Max(x1 + 1, stripW - e.Item.Bounds.X - Theme.S(11));
             int y = e.Item.Height / 2;
             Color lineCol = Theme.Dark ? Color.FromArgb(24, 255, 255, 255) : Color.FromArgb(18, 0, 0, 0);
             using (var p = new Pen(lineCol))
-                e.Graphics.DrawLine(p, Theme.S(8), y, Math.Max(Theme.S(8), e.Item.Width - Theme.S(8)), y);
+                e.Graphics.DrawLine(p, x1, y, x2, y);
         }
 
         protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e)
         {
-            e.ArrowColor = Theme.TextDim;
-            base.OnRenderArrow(e);
+            ToolStrip owner = e.Item != null ? e.Item.Owner : null;
+            int stripW = (owner != null && owner.ClientSize.Width > 0) ? owner.ClientSize.Width : e.Item.Width;
+            int cx = stripW - e.Item.Bounds.X - Theme.S(14);
+            int cy = e.Item.Height / 2;
+            int q = Theme.S(3);
+            var g = e.Graphics;
+            var oldSm = g.SmoothingMode;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            try
+            {
+                Color ac = !e.Item.Enabled ? Theme.TextDisabled : ((e.Item.Selected || e.Item.Pressed) ? Theme.Text : Theme.TextDim);
+                using (var p = new Pen(ac, 1.4f))
+                {
+                    p.StartCap = LineCap.Round; p.EndCap = LineCap.Round; p.LineJoin = LineJoin.Round;
+                    g.DrawLines(p, new Point[] {
+                        new Point(cx - q / 2, cy - q),
+                        new Point(cx + q - q / 2, cy),
+                        new Point(cx - q / 2, cy + q)
+                    });
+                }
+            }
+            finally
+            {
+                g.SmoothingMode = oldSm;
+            }
         }
 
         protected override void OnRenderImageMargin(ToolStripRenderEventArgs e) { }
     }
 
-    //  统一的右键菜单外观：圆角白卡 + 自绘高亮 + 原生 DWM 阴影与圆角。
+    //  统一的右键菜单外观：圆角白卡 + 四向对称胶囊高亮 + 原生 DWM 阴影与圆角。
     static class MenuFactory
     {
-        public static ContextMenuStrip New()
+        public static ThemedMenu New()
         {
-            var m = new ContextMenuStrip();
+            var m = new ThemedMenu();
             m.Renderer = new ThemedMenuRenderer();
             m.ShowImageMargin = false;
             m.ShowCheckMargin = false;
             m.Font = Theme.F(9.5f);
             m.BackColor = Theme.Panel;
             m.ForeColor = Theme.Text;
-            m.MinimumSize = new Size(Theme.S(140), 0);
-            m.Padding = new Padding(Theme.S(4), Theme.S(5), Theme.S(4), Theme.S(5));
             m.DropShadowEnabled = true;
-            m.HandleCreated += delegate {
-                try { Theme.ApplyChrome(m.Handle); } catch { }
-            };
             Fx.FadeInMenu(m);
             return m;
         }
@@ -3148,7 +3373,7 @@ namespace Fluxion
             SetStyle(ControlStyles.Opaque | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer
                      | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
             BackColor = Theme.Panel;
-            Width = w; Height = Theme.S(30);
+            Width = w; Height = Theme.S(32);
 
             hintText = hint == null ? "" : hint;
             bool isSearch = hintText.Contains("搜索");
@@ -3156,17 +3381,19 @@ namespace Fluxion
 
             Box = new TextBox();
             Box.BorderStyle = BorderStyle.None;
-            //  TextBox 是矩形子控件，会整块盖在圆角框上 —— 底色必须与外框填充同一档，
-            //  否则白框里会露出一块灰矩形（2026-10-22 用户截图"搜索框周边有瑕疵"）。
             Box.BackColor = Theme.FieldOn(BackColor);
             Box.ForeColor = Theme.Text;
-            Box.Font = Theme.F(10f);         // 输入值 13.3px（第 158 轮 9.5→10，与 14px 正文差半档）
+            Box.Font = Theme.F(9.5f);
             Box.Left = leftPad;
-            Box.Top = Theme.S(7);
+            Box.Top = Math.Max(Theme.S(4), (Height - Box.PreferredHeight) / 2);
             Box.Width = w - leftPad - Theme.S(11);
             Box.TextChanged += delegate { Invalidate(); };
             Box.GotFocus += delegate { focus = true; Invalidate(); };
             Box.LostFocus += delegate { focus = false; Invalidate(); };
+            Box.MouseEnter += delegate { hover = true; Invalidate(); };
+            Box.MouseLeave += delegate { if (!ClientRectangle.Contains(PointToClient(Cursor.Position))) { hover = false; Invalidate(); } };
+            MouseEnter += delegate { hover = true; Invalidate(); };
+            MouseLeave += delegate { if (!ClientRectangle.Contains(PointToClient(Cursor.Position))) { hover = false; Invalidate(); } };
             Controls.Add(Box);
 
             if (hintText.Length > 0)
@@ -3190,6 +3417,7 @@ namespace Fluxion
                 };
             }
         }
+        bool hover;
 
         public void SetCorner(Color c)
         {
@@ -3232,6 +3460,7 @@ namespace Fluxion
             {
                 int leftPad = hintText.Contains("搜索") ? Theme.S(28) : Theme.S(11);
                 Box.Left = leftPad;
+                Box.Top = Math.Max(Theme.S(4), (Height - Box.PreferredHeight) / 2);
                 Box.Width = Math.Max(Theme.S(20), Width - leftPad - Theme.S(11));
             }
         }
@@ -3241,30 +3470,30 @@ namespace Fluxion
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            var r = new Rectangle(0, 0, Width - 1, Height - 1);
+            var r = new Rectangle(Theme.S(1), Theme.S(1), Width - 1 - Theme.S(2), Height - 1 - Theme.S(2));
             Theme.FillRound(g, r, Theme.RField, Theme.FieldOn(BackColor));
-            //  未聚焦不描边（2026-10-20）：填充色本身已经划出边界，再套一圈灰线就成了
-            //  "白底上贴了个控件"。聚焦时才画环。
-            //  ★ 2026-10-21：单根 1.6px 实线 → Apple 的"柔光圈"：外圈 3px 低透明度打底、
-            //   内圈 1px 实线收边。控件的矩形会裁掉描边外侧的那一半，所以两圈都画在边界内，
-            //   合起来的观感是 2~3px 的柔和光圈，而不是一条会"咬"住输入框的硬线。
             if (focus)
             {
-                var rGlow = new Rectangle(2, 2, Width - 5, Height - 5);
-                Theme.EdgeRound(g, rGlow, Math.Max(2, Theme.RField - 2), Theme.Alpha(Theme.Accent, 0.32), 3f);
-                Theme.EdgeRound(g, r, Theme.RField, Theme.Accent, 1.2f);
+                var rGlow = new Rectangle(Theme.S(2), Theme.S(2), Width - 1 - Theme.S(4), Height - 1 - Theme.S(4));
+                Theme.EdgeRound(g, rGlow, Math.Max(2, Theme.RField - 1), Theme.Alpha(Theme.Accent, 0.24), 2.5f);
+                Theme.EdgeRound(g, r, Theme.RField, Theme.Accent, 1.1f);
+            }
+            else
+            {
+                Color edge = hover ? Theme.Mix(Theme.FieldEdge, Theme.TextDim, 0.45) : Theme.FieldEdge;
+                Theme.EdgeRound(g, r, Theme.RField, edge, 1f);
             }
 
             if (hintText.Contains("搜索"))
             {
                 Color ic = focus ? Theme.Accent : Theme.TextFaint;
-                using (var p = new Pen(ic, 1.5f))
+                using (var p = new Pen(ic, 1.4f))
                 {
                     p.StartCap = LineCap.Round; p.EndCap = LineCap.Round;
                     int mgR = Theme.S(4);
-                    int mgX = Theme.S(10), mgY = (Height - mgR * 2) / 2 - 1;
+                    int mgX = Theme.S(10), mgY = (Height - Theme.S(11)) / 2;
                     g.DrawEllipse(p, mgX, mgY, mgR * 2, mgR * 2);
-                    g.DrawLine(p, mgX + mgR * 2 - 1, mgY + mgR * 2 - 1, mgX + mgR * 2 + Theme.S(4), mgY + mgR * 2 + Theme.S(4));
+                    g.DrawLine(p, mgX + mgR * 2 - 1, mgY + mgR * 2 - 1, mgX + mgR * 2 + Theme.S(3), mgY + mgR * 2 + Theme.S(3));
                 }
             }
         }
@@ -3730,20 +3959,25 @@ namespace Fluxion
 
             if (Meta.Length > 0)
             {
-                //  ① 开始游戏（叠在图上，不是单独一条白块）
-                Color bg = btnDown ? Theme.AccentDeep : (btnHot ? Theme.Ok : Theme.Accent);
+                //  ① 开始游戏（叠在图上，居中对称图标+文字）
+                Color bg = btnDown ? Theme.AccentDeep : (btnHot ? Theme.Mix(Theme.Accent, Theme.AccentLite, 0.45) : Theme.Accent);
                 using (var b = new SolidBrush(Color.FromArgb(40, 0, 0, 0)))
                     Theme.FillRound(g, new Rectangle(pr.X + 1, pr.Y + 2, pr.Width, pr.Height), Theme.S(6), b);
                 Theme.FillRound(g, pr, Theme.S(6), bg);
-                int tx = pr.X + Theme.S(16);
+                Font fPlay = Theme.FB(9.5f);
+                int tw = TextRenderer.MeasureText("开始游戏", fPlay, new Size(400, 100),
+                    TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine).Width;
+                int triW = Theme.S(8), gap = Theme.S(7);
+                int startX = pr.X + (pr.Width - (triW + gap + tw)) / 2;
+                float cy = pr.Y + pr.Height / 2f;
+                float th2 = Theme.S(11) / 2f;
                 using (var b = new SolidBrush(Color.White))
-                    g.FillPolygon(b, new Point[] {
-                        new Point(tx, pr.Y + Theme.S(11)),
-                        new Point(tx, pr.Y + Theme.S(23)),
-                        new Point(tx + Theme.S(9), pr.Y + Theme.S(17)) });
-                //  按钮标签同样走灰度抗锯齿：ClearType 的字边彩边在饱和蓝底上最刺眼
-                Theme.DrawPhotoText(g, "开始游戏", Theme.FB(9.5f),
-                    new Rectangle(tx + Theme.S(15), pr.Y, pr.Width - Theme.S(28), pr.Height), Color.White);
+                    g.FillPolygon(b, new PointF[] {
+                        new PointF(startX, cy - th2),
+                        new PointF(startX, cy + th2),
+                        new PointF(startX + triW, cy) });
+                Theme.DrawPhotoText(g, "开始游戏", fPlay,
+                    new Rectangle(startX + triW + gap, pr.Y, tw + Theme.S(8), pr.Height), Color.White);
 
                 //  ② 右端状态：把这一行的右半边填上（以前整条右半边是空的）
                 Font fNote = Theme.F(9f);
@@ -3879,7 +4113,7 @@ namespace Fluxion
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
-            int r = e.Y < 0 ? -1 : e.Y / RowH;
+            int r = (e.X < 0 || e.X >= Width || e.Y < 0) ? -1 : e.Y / RowH;
             if (r >= Labels.Length) r = -1;
             if (r != hot) { hot = r; Invalidate(); }
             base.OnMouseMove(e);
@@ -3887,7 +4121,7 @@ namespace Fluxion
         protected override void OnMouseLeave(EventArgs e) { hot = -1; Invalidate(); base.OnMouseLeave(e); }
         protected override void OnMouseDown(MouseEventArgs e)
         {
-            int r = e.Y < 0 ? -1 : e.Y / RowH;
+            int r = (e.X < 0 || e.X >= Width || e.Y < 0) ? -1 : e.Y / RowH;
             if (r >= 0 && r < Labels.Length && r != Selected)
             {
                 Selected = r; Invalidate();
@@ -3910,13 +4144,11 @@ namespace Fluxion
                 else if (i == hot) Theme.FillRound(g, row, Theme.S(6), Theme.Hover);
                 Color fg = sel ? Theme.Accent : Theme.Text;
                 Theme.DrawTxt(g, Labels[i], Theme.F(12f),
-                    new Rectangle(row.X + Theme.S(10), row.Y, row.Width - Theme.S(46), row.Height), fg,
+                    new Rectangle(row.X + Theme.S(10), row.Y, row.Width - Theme.S(48), row.Height), fg,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
                 if (Counts != null && i < Counts.Length)
-                    //  ⚠ 计数用界面字体，不用 Theme.Num（Bahnschrift）：
-                    //  实测在这个尺寸下 Bahnschrift 的数字**不落笔**（同一行中文正常、数字区整片空白）。
                     Theme.DrawTxt(g, Counts[i].ToString(), Theme.F(9f),
-                        new Rectangle(row.Right - Theme.S(40), row.Y, Theme.S(32), row.Height),
+                        new Rectangle(row.Right - Theme.S(42), row.Y, Theme.S(32), row.Height),
                         sel ? Theme.Accent : Theme.TextDim,
                         TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
             }
@@ -3956,7 +4188,7 @@ namespace Fluxion
         //  行高 40（2026-10-29 对齐「自考工作台」实测：导航项 py-2.5 = 40px 高）。
         //  行与行之间不留缝（study 的导航项是连续堆叠的 hover 块）——原来 RowH 36 里每行只画 34，
         //  2px 的缝在浅色下把导航切成了"一条条"。
-        int RowH { get { return Theme.S(40); } }
+        int RowH { get { return Theme.S(38); } }
 
         public void Reflow()
         {
@@ -3975,7 +4207,8 @@ namespace Fluxion
 
         int PageAt(int y)
         {
-            int slot = y < 0 ? -1 : y / RowH;
+            if (y < Theme.S(2)) return -1;
+            int slot = (y - Theme.S(2)) / RowH;
             int k = 0;
             for (int i = 0; i < items.Length; i++)
             {
@@ -4019,24 +4252,29 @@ namespace Fluxion
             for (int i = 0; i < items.Length; i++)
             {
                 if (show != null && !show[i]) continue;
-                //  行铺满 RowH（2026-10-29 对齐 study：导航项连续堆叠，行间不留缝）
-                var row = new Rectangle(0, y, Width, RowH);
+                var row = new Rectangle(Theme.S(1), y + Theme.S(1), Width - 1 - Theme.S(2), RowH - Theme.S(2));
                 bool sel = i == selected;
                 if (sel)
-                    using (var b = new SolidBrush(Theme.Mix(Theme.Accent, Theme.Bg, 0.90)))
-                        Theme.FillRound(g, row, Theme.RBtn, b);
+                {
+                    Color pillFill = Theme.Dark ? Theme.Panel : Color.White;
+                    Color pillEdge = Theme.Line;
+                    Theme.FillRound(g, row, Theme.RBtn, pillFill);
+                    Theme.EdgeRound(g, row, Theme.RBtn, pillEdge, 1f);
+                    int barH = Theme.S(15);
+                    var barR = new Rectangle(row.X + Theme.S(3), row.Y + (row.Height - barH) / 2, Math.Max(2, Theme.S(2)), barH);
+                    Theme.FillRound(g, barR, 2, Theme.Accent);
+                }
                 else if (i == hot)
-                    using (var b = new SolidBrush(Theme.Hover))
-                        Theme.FillRound(g, row, Theme.RBtn, b);
+                {
+                    Color hov = Theme.Mix(BackColor, Theme.Text, Theme.Dark ? 0.07 : 0.045);
+                    Theme.FillRound(g, row, Theme.RBtn, hov);
+                }
 
-                Color fg = sel ? Theme.Accent : Theme.Text;
-                Color ic = sel ? Theme.Accent : Theme.TextDim;
-                //  图标 16（study 图标 16px）、行内缩进 12、文字跟图标间距 12 —— 与 study 导航项同构
+                Color fg = sel ? Theme.Text : (i == hot ? Theme.Text : Theme.TextDim);
+                Color ic = sel ? Theme.Accent : (i == hot ? Theme.Text : Theme.TextDim);
                 int iz = Theme.S(16);
-                MainForm.DrawPageIcon(g, new Rectangle(Theme.S(12), y + (RowH - iz) / 2, iz, iz), i, ic);
-                //  ★ 2026-10-29 再对齐 study（实测 14px/600 ≈ 10.5pt Medium）：侧栏是导航不是标题，
-                //  字小一档 + Medium 字重才像 study 那种"安静的一列"。139 轮的 12pt regular 偏大偏轻。
-                Theme.DrawTxt(g, items[i], Theme.FM(10.5f),
+                MainForm.DrawPageIcon(g, new Rectangle(Theme.S(13), y + (RowH - iz) / 2, iz, iz), i, ic);
+                Theme.DrawTxt(g, items[i], sel ? Theme.FM(10f) : Theme.F(10f),
                     new Rectangle(Theme.S(40), y, Width - Theme.S(48), RowH), fg,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix
                     | TextFormatFlags.EndEllipsis);
@@ -4141,10 +4379,10 @@ namespace Fluxion
                 new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding).Width + Theme.S(28);
         }
 
-        // 可见槽位 slot 的 X（含轨道内边距）
+        // 可见槽位 slot 的 X
         int SlotX(int slot)
         {
-            int x = Theme.S(2);
+            int x = 0;
             for (int i = 0; i < items.Length; i++)
             {
                 if (slotOf[i] < 0) continue;
@@ -4156,7 +4394,7 @@ namespace Fluxion
 
         int TrackW()
         {
-            int w = Theme.S(4);
+            int w = 0;
             for (int i = 0; i < items.Length; i++) if (slotOf[i] >= 0) w += SegW(i);
             return w;
         }
@@ -4172,7 +4410,7 @@ namespace Fluxion
 
         Rectangle TrackRect()
         {
-            return new Rectangle(Theme.S(2), TrackY, Math.Max(Theme.S(8), TrackW() - Theme.S(4)), TrackH);
+            return new Rectangle(0, TrackY, Math.Max(Theme.S(8), TrackW()), TrackH);
         }
 
         Rectangle SlotRect(int slot)
@@ -4197,20 +4435,26 @@ namespace Fluxion
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
 
             var track = TrackRect();
-            //  轨道：底色统一之后不能再拿 Panel 去调（Panel 与灰底无关了），
-            //  按**自己的 BackColor** 往文字色方向压一档 —— 浅色差 18 级、深色差 20 级，刚好是一个"容器"。
             Color trackC = Theme.Mix(BackColor, Theme.Text, Theme.Dark ? 0.10 : 0.075);
             Theme.FillRound(g, track, track.Height / 2, trackC);
 
-            // 滑块：白浮块 + 发丝边（Apple 的选中段不发光、不描强调色）
+            for (int i = 0; i < items.Length; i++)
+            {
+                if (slotOf[i] < 0) continue;
+                if (hoverPage == i && i != selected)
+                {
+                    var hr = SlotRect(slotOf[i]);
+                    Theme.FillRound(g, hr, hr.Height / 2, Color.FromArgb(Theme.Dark ? 18 : 12, Theme.Text));
+                }
+            }
+
             double p = aThumb.Value;
-            int x = fromSlot == toSlot ? SlotRect(toSlot).X
-                  : SlotRect(fromSlot).X + (int)Math.Round((SlotRect(toSlot).X - SlotRect(fromSlot).X) * p);
-            int segW = SlotRect(toSlot).Width;
+            Rectangle srFrom = SlotRect(fromSlot), srTo = SlotRect(toSlot);
+            int x = fromSlot == toSlot ? srTo.X
+                  : srFrom.X + (int)Math.Round((srTo.X - srFrom.X) * p);
+            int segW = fromSlot == toSlot ? srTo.Width
+                     : srFrom.Width + (int)Math.Round((srTo.Width - srFrom.Width) * p);
             var thumb = new Rectangle(x, TrackY + Theme.S(3), segW, TrackH - Theme.S(6));
-            //  深色主题下滑块必须比轨道**亮一档**（Apple 深色分段的"浮块=抬升面"）：
-            //  Panel(#1F1F22) 压在 Field(#1A1A1D) 上只差 5 级，肉眼几乎认不出选中段；
-            //  Hover(#2A2A2E) 差 16 级，刚好是"浮起来"的量。浅色维持纯白。
             Theme.FillRound(g, thumb, thumb.Height / 2, Theme.Dark ? Theme.Hover : Theme.Panel);
             Theme.EdgeRound(g, thumb, thumb.Height / 2, Theme.CardEdge, 1f);
 
@@ -4241,11 +4485,8 @@ namespace Fluxion
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
-            using (var g = CreateGraphics())
-            {
-                int i = HitPage(e.Location);
-                if (i != hoverPage) { hoverPage = i; Invalidate(); }
-            }
+            int i = HitPage(e.Location);
+            if (i != hoverPage) { hoverPage = i; Invalidate(); }
         }
 
         protected override void OnMouseLeave(EventArgs e) { hoverPage = -1; Invalidate(); base.OnMouseLeave(e); }
@@ -4253,12 +4494,9 @@ namespace Fluxion
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
-            using (var g = CreateGraphics())
-            {
-                int i = HitPage(e.Location);
-                if (i < 0 || i == selected) return;
-                Pick(i);
-            }
+            int i = HitPage(e.Location);
+            if (i < 0 || i == selected) return;
+            Pick(i);
         }
 
         protected override void OnResize(EventArgs e)
@@ -4270,10 +4508,24 @@ namespace Fluxion
 
     //  帧生成页的子页签（概览 / 参数 / 诊断）：现在就是 Segmented 的一层壳。
     //  保留原类名与公开面（Tabs / Selected / SelectTab / SelectedChanged）——
-    //  探针（shell_probe）和主窗代码都按这套 API 走，壳一换里面全换。
+    //  探针（shell_probe / leak_probe）和主窗代码都按这套 API 走。
     public class TabBar : Control
     {
-        public string[] Tabs = new string[0];
+        string[] tabs = new string[0];
+        public string[] Tabs
+        {
+            get { return tabs; }
+            set
+            {
+                tabs = value ?? new string[0];
+                if (seg != null)
+                {
+                    seg.SetItems(tabs, null);
+                    seg.Location = new Point(0, Math.Max(0, (Height - seg.Height) / 2));
+                }
+                Invalidate();
+            }
+        }
         public int Selected;
         public event EventHandler SelectedChanged;
         readonly Segmented seg;
@@ -4288,7 +4540,8 @@ namespace Fluxion
             Cursor = Cursors.Hand;
 
             seg = new Segmented();
-            seg.Dock = DockStyle.Fill;
+            seg.Height = Theme.S(32);
+            seg.Location = new Point(0, Math.Max(0, (Height - seg.Height) / 2));
             seg.BackColor = Theme.Bg;
             seg.SelectedChanged += delegate
             {
@@ -4301,7 +4554,8 @@ namespace Fluxion
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
-            if (seg != null && Tabs.Length > 0) seg.SetItems(Tabs, null);
+            if (seg != null) seg.Location = new Point(0, Math.Max(0, (Height - seg.Height) / 2));
+            Invalidate();
         }
 
         protected override void OnEnabledChanged(EventArgs e)
@@ -4310,8 +4564,6 @@ namespace Fluxion
             if (seg != null) seg.Enabled = Enabled;
         }
 
-        //  兼容旧字段赋值（构造期 `tabsFg.Selected = curDetailTab` 在事件接线之前）：
-        //  走 OnPaint 前的同步兜底，不在这里发事件。
         public void SyncSelected()
         {
             if (seg != null) seg.SetSelected(Selected);
@@ -4319,20 +4571,15 @@ namespace Fluxion
 
         public void SelectTab(int i)
         {
-            if (i < 0 || i >= Tabs.Length || i == Selected) return;
+            if (i < 0 || i >= tabs.Length || i == Selected) return;
             Selected = i;
-            if (seg != null)
-            {
-                seg.SetItems(Tabs, null);
-                seg.Pick(i);
-            }
+            if (seg != null) seg.Pick(i);
             Invalidate();
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             using (var bg = new SolidBrush(BackColor)) e.Graphics.FillRectangle(bg, 0, 0, Width, Height);
-            //  字段被直接赋值过（构造期/换主题重建）→ 这里兜底同步，再交给子控件画
             if (seg != null && seg.Selected != Selected) seg.SetSelected(Selected);
         }
     }
@@ -4495,6 +4742,7 @@ namespace Fluxion
     public class SideGameList : Control
     {
         public event Action<DlssgGame> Picked;
+        public event Action<DlssgGame> RightClicked;
         public event Action MorePicked;      // "还有 N 款 ›" 被点（去游戏库）
         public string EmptyText = "扫描中…";   // 一条都没有时显示的话（由 RefreshSideGames 按库状态给）
 
@@ -4504,19 +4752,12 @@ namespace Fluxion
         string lastSig = "";        // 上一批游戏的签名（相同就不重取封面）
         int hot = -1;
 
-        //  行高 42（不是 46）：导航行是 36，列表带 36px 高的封面本来就得更高，
-        //  但 46 会让侧栏"上紧下松"—— 两段节奏差 10px，整列看着像拼的。
-        //  42 = 封面 36 + 上下各 3，与导航只差 6px，读起来还是一列。
         int RowH { get { return Theme.S(42); } }
         int CovW { get { return Theme.S(24); } }
         int CovH { get { return Theme.S(36); } }
-        //  左基准（第 145 轮对齐）：与 NavMenu 共用同一条。
-        //  导航那边是「块 x=0 / 图标 x=10 宽 18（中心 19）/ 文字 x=38」，
-        //  这里小封面比图标宽 6px，所以**对齐视觉中心而不是左缘**：
-        //  封面 24 从 x=7 起 → 中心 19，与图标中心同一条竖线；文字仍从 38 起。
-        //  这样导航和列表看起来是一列，不是两套缩进（差 8px 在侧栏里一眼能看出"歪"）。
-        int TagX { get { return Theme.S(38); } }
-        int CovX { get { return Theme.S(7); } }
+        //  左基准：与 NavMenu 共用同一条（图标 X=13 宽 16 中心 21，文字 X=40；小封面 X=9 宽 24 中心 21）。
+        int TagX { get { return Theme.S(40); } }
+        int CovX { get { return Theme.S(9); } }
         int RowsFit { get { return Math.Max(0, (Height - Theme.S(4)) / RowH); } }
         //  放不下时最后一行让给「还有 N 款 ›」—— 否则用户会以为库里就这些。
         //  不做滚轮：侧栏是常驻导航，滚轮命中要求控件先拿到焦点，抢焦点会打断页面滚动。
@@ -4591,7 +4832,7 @@ namespace Fluxion
 
         int RowAt(Point p)
         {
-            if (p.X < 0 || p.X >= Width || p.Y < 0 || p.Y >= Height) return -1;
+            if (p.X < 0 || p.X >= Width || p.Y < Theme.S(2) || p.Y >= Height) return -1;
             int i = (p.Y - Theme.S(2)) / RowH;
             if (i < 0 || i >= DrawRows) return -1;
             return i;
@@ -4623,14 +4864,17 @@ namespace Fluxion
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
+            int i = RowAt(e.Location);
+            if (i < 0) return;
             if (e.Button == MouseButtons.Left)
             {
-                int i = RowAt(e.Location);
-                if (i >= 0)
-                {
-                    if (i == MoreRow) { if (MorePicked != null) MorePicked(); }
-                    else if (i < items.Count && Picked != null) { Picked(items[i]); }
-                }
+                if (i == MoreRow) { if (MorePicked != null) MorePicked(); }
+                else if (i < items.Count && Picked != null) { Picked(items[i]); }
+            }
+            else if (e.Button == MouseButtons.Right)
+            {
+                if (i != MoreRow && i < items.Count && RightClicked != null)
+                    RightClicked(items[i]);
             }
         }
 
@@ -4645,47 +4889,48 @@ namespace Fluxion
                 int n = DrawRows;
                 if (n == 0)
                 {
-                    //  空态（扫描还没回来 / 一个游戏都没有）：给一行说明，别留一块纯白。
-                    //  颜色走 TextDim —— 有信息量的文字要过 AA 4.5:1（TextFaint 只有 4.05，是图标档）。
                     Theme.DrawTxt(g, EmptyText ?? "", Theme.F(9f),
                         new Rectangle(TagX, Theme.S(2), Width - TagX - Theme.S(8), RowH),
                         Theme.TextDim,
                         TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix
                         | TextFormatFlags.EndEllipsis);
                 }
+                Color hov = Theme.Mix(BackColor, Theme.Text, Theme.Dark ? 0.07 : 0.045);
                 for (int i = 0; i < n; i++)
                 {
                     bool hv = i == hot;
-                    //  行块满宽（与 NavMenu 的 row 一致）：缩进交给内部的 CovX/TagX，
-                    //  否则悬停块的左缘比导航块右 6px，"一列"就散了。
-                    var r = new Rectangle(0, Theme.S(2) + i * RowH, Width, RowH - Theme.S(2));
+                    var r = new Rectangle(Theme.S(1), Theme.S(2) + i * RowH, Width - 1 - Theme.S(2), RowH - Theme.S(2));
                     if (i == MoreRow)
                     {
-                        //  「还有 N 款」：不是游戏行，配色跟着弱化色走，点进去是游戏库。
-                        //  ⚠ 箭头是**矢量**画的，不用字面「›」—— CJK 标点按文字行高落位，
-                        //  比同行图标低 1~2px，而且笔画粗细和一套 1.4px 的图标对不上
-                        //  （同第 110 轮把「«」换成 chevron 的理由）。
-                        if (hv) Theme.FillRound(g, r, Theme.RBtn, Theme.Hover);
+                        if (hv) Theme.FillRound(g, r, Theme.RBtn, hov);
                         Theme.DrawTxt(g, "还有 " + (items.Count - MoreRow) + " 款", Theme.F(9f),
-                            new Rectangle(TagX, r.Y, r.Width - TagX - Theme.S(22), r.Height),
+                            new Rectangle(TagX, r.Y, r.Right - TagX - Theme.S(22), r.Height),
                             hv ? Theme.Text : Theme.TextDim,
                             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-                        //  ⚠ 箭头方向是**向右**（去游戏库），不是向下 ——
-                        //    我最初照抄了 LibActionBar 那个下拉箭头的画法（∨），那是"展开"的意思，
-                        //    用在这里会被读成"折叠这一组"。向右 = 继续走。
-                        int cx = r.Width - Theme.S(14), cy = r.Y + r.Height / 2, q = Theme.S(3);
+                        int cx = r.Right - Theme.S(12), cy = r.Y + r.Height / 2, q = Theme.S(3);
                         using (var p = new Pen(hv ? Theme.Text : Theme.TextFaint, 1.4f))
                         {
-                            g.DrawLine(p, cx - q, cy - q, cx + q, cy);
-                            g.DrawLine(p, cx - q, cy + q, cx + q, cy);
+                            p.StartCap = LineCap.Round; p.EndCap = LineCap.Round; p.LineJoin = LineJoin.Round;
+                            g.DrawLines(p, new Point[] {
+                                new Point(cx - q, cy - q),
+                                new Point(cx, cy),
+                                new Point(cx - q, cy + q)
+                            });
                         }
                         continue;
                     }
                     DlssgGame gi = items[i];
                     if (gi == null) continue;
                     bool on = selId.Length > 0 && selId == Lib.IdOf(gi);
-                    if (on) Theme.FillRound(g, r, Theme.RBtn, Theme.Subtle);
-                    else if (hv) Theme.FillRound(g, r, Theme.RBtn, Theme.Hover);
+                    if (on)
+                    {
+                        Theme.FillRound(g, r, Theme.RBtn, Theme.Dark ? Theme.Panel : Color.White);
+                        Theme.EdgeRound(g, r, Theme.RBtn, Theme.Line, 1f);
+                    }
+                    else if (hv)
+                    {
+                        Theme.FillRound(g, r, Theme.RBtn, hov);
+                    }
 
                     var cr = new Rectangle(CovX, r.Y + (r.Height - CovH) / 2, CovW, CovH);
                     Image im = i < covers.Count ? covers[i] : null;
@@ -4701,9 +4946,6 @@ namespace Fluxion
                                 g.DrawImage(im, cr);
                                 g.InterpolationMode = InterpolationMode.Default;
                             }
-                            //  ⚠ Graphics.Clip 的 getter 返回一个**新建的 Region**，必须 Dispose：
-                            //    只写 `g.Clip = old` 不释放，每画一帧就漏一个 GDI 对象 ——
-                            //    列表每行一次，悬停/滚动时一秒几十帧，GDI 句柄很快见底。
                             finally { g.Clip = old; old.Dispose(); }
                         }
                         Theme.EdgeRound(g, new Rectangle(cr.X, cr.Y, cr.Width - 1, cr.Height - 1),
@@ -4711,9 +4953,9 @@ namespace Fluxion
                     }
                     else Theme.FillRound(g, cr, Theme.S(4), Theme.FieldOn(BackColor));
 
-                    Theme.DrawTxt(g, gi.Title, Theme.F(10f),
-                        new Rectangle(TagX, r.Y, r.Width - TagX - Theme.S(8), r.Height),
-                        on ? Theme.Accent : (hv ? Theme.Text : Theme.TextDim),
+                    Theme.DrawTxt(g, gi.Title, on ? Theme.FM(9.5f) : Theme.F(9.5f),
+                        new Rectangle(TagX, r.Y, r.Right - TagX - Theme.S(8), r.Height),
+                        on ? Theme.Text : (hv ? Theme.Text : Theme.TextDim),
                         TextFormatFlags.Left | TextFormatFlags.VerticalCenter
                         | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
                 }
@@ -4732,6 +4974,7 @@ namespace Fluxion
     class RoundMemo : Panel
     {
         public readonly TextBox Box;
+        bool hover;
 
         public RoundMemo(int w, int h)
         {
@@ -4745,17 +4988,42 @@ namespace Fluxion
             Box.BorderStyle = BorderStyle.None;
             Box.Multiline = true;
             Box.AcceptsReturn = true;
-            Box.ScrollBars = ScrollBars.Vertical;
-            //  不折行：环境变量是"一行一条"，自动折行会让一条看起来像两条
+            Box.ScrollBars = ScrollBars.None;
             Box.WordWrap = false;
-            Box.BackColor = Theme.FieldOn(BackColor);   // 与外框填充同色，否则圆角里露出灰方块
+            Box.BackColor = Theme.FieldOn(BackColor);
             Box.ForeColor = Theme.Text;
-            Box.Font = Theme.Mono(9f);                  // 等宽：键值对齐看得清
+            Box.Font = Theme.Mono(9f);
             Controls.Add(Box);
+            Action syncScroll = delegate
+            {
+                try
+                {
+                    ScrollBars want = (Box.Lines != null && Box.Lines.Length > 5) ? ScrollBars.Vertical : ScrollBars.None;
+                    if (Box.ScrollBars != want)
+                    {
+                        Box.ScrollBars = want;
+                        if (Box.IsHandleCreated) Theme.ScrollThemeTree(Box);
+                    }
+                }
+                catch { }
+            };
+            Box.HandleCreated += delegate { try { syncScroll(); Theme.ScrollThemeTree(Box); } catch { } };
+            if (Box.IsHandleCreated) { try { Theme.ScrollThemeTree(Box); } catch { } }
             Box.GotFocus += delegate { Invalidate(); };
             Box.LostFocus += delegate { Invalidate(); };
-            Box.TextChanged += delegate { Invalidate(); };
+            Box.TextChanged += delegate { syncScroll(); Invalidate(); };
+            Box.MouseEnter += delegate { hover = true; Invalidate(); };
+            Box.MouseLeave += delegate { if (!ClientRectangle.Contains(PointToClient(Cursor.Position))) { hover = false; Invalidate(); } };
+            MouseEnter += delegate { hover = true; Invalidate(); };
+            MouseLeave += delegate { if (!ClientRectangle.Contains(PointToClient(Cursor.Position))) { hover = false; Invalidate(); } };
             Lay();
+        }
+
+        public void SetCorner(Color c)
+        {
+            BackColor = c;
+            if (Box != null) Box.BackColor = Theme.FieldOn(c);
+            Invalidate();
         }
 
         void Lay()
@@ -4773,13 +5041,18 @@ namespace Fluxion
             using (var bg = new SolidBrush(BackColor)) e.Graphics.FillRectangle(bg, 0, 0, Width, Height);
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            var r = new Rectangle(0, 0, Width - 1, Height - 1);
+            var r = new Rectangle(Theme.S(1), Theme.S(1), Width - 1 - Theme.S(2), Height - 1 - Theme.S(2));
             Theme.FillRound(g, r, Theme.RField, Theme.FieldOn(BackColor));
             if (Box != null && Box.Focused)
             {
-                var glow = new Rectangle(2, 2, Width - 5, Height - 5);
-                Theme.EdgeRound(g, glow, Math.Max(2, Theme.RField - 2), Theme.Alpha(Theme.Accent, 0.32), 3f);
-                Theme.EdgeRound(g, r, Theme.RField, Theme.Accent, 1.2f);
+                var glow = new Rectangle(Theme.S(2), Theme.S(2), Width - 1 - Theme.S(4), Height - 1 - Theme.S(4));
+                Theme.EdgeRound(g, glow, Math.Max(2, Theme.RField - 1), Theme.Alpha(Theme.Accent, 0.24), 2.5f);
+                Theme.EdgeRound(g, r, Theme.RField, Theme.Accent, 1.1f);
+            }
+            else
+            {
+                Color edge = hover ? Theme.Mix(Theme.FieldEdge, Theme.TextDim, 0.45) : Theme.FieldEdge;
+                Theme.EdgeRound(g, r, Theme.RField, edge, 1f);
             }
         }
     }
@@ -4963,7 +5236,7 @@ namespace Fluxion
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
             }
             else
-                Theme.DrawTxt(g, title, fT, new Rectangle(tx, y, tw, RowH - Theme.S(4)),
+                Theme.DrawTxt(g, title, fT, new Rectangle(tx, y + Theme.S(2), tw, RowH - Theme.S(4)),
                     sel ? Theme.Accent : Theme.Text,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
         }
@@ -5167,32 +5440,38 @@ namespace Fluxion
         static Color ActiveBg { get { return Theme.Mix(Theme.Bg, Theme.Text, 0.13); } }
         //  关闭键悬停红照 study §5 色阶表（白字对比度 6.54:1 / 暗 4.88:1，≥4.5 达标；
         //  systemRed #FF3B30 配白字只有 3.55:1，不达标）。
-        static Color CloseHotBg { get { return Theme.Dark ? Color.FromArgb(226, 83, 75) : Color.FromArgb(179, 38, 30); } }
-        static Color CloseHotFg { get { return Theme.Dark ? Color.FromArgb(22, 20, 15) : Color.White; } }
+        static Color CloseHotBg { get { return Theme.Dark ? Color.FromArgb(196, 43, 28) : Color.FromArgb(179, 38, 30); } }
+        static Color CloseHotFg { get { return Color.White; } }
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
-            g.Clear(Theme.Bg);
+            Color baseBg = BackColor;
+            g.Clear(baseBg);
             bool close = Kind == WinKind.Close;
             double h = aHov.Value, dn = aDn.Value;
             if (h > 0.001 || dn > 0.001)
             {
-                Color hotBg = close ? CloseHotBg : HoverBg;
-                Color dnBg = close ? Theme.Mix(CloseHotBg, Color.Black, 0.14) : ActiveBg;
-                using (var b = new SolidBrush(Theme.Mix(Theme.Mix(Theme.Bg, hotBg, h), dnBg, dn)))
+                Color hotBg = close ? CloseHotBg : Theme.Mix(baseBg, Theme.Text, 0.07);
+                Color dnBg = close ? Theme.Mix(CloseHotBg, Color.Black, 0.14) : Theme.Mix(baseBg, Theme.Text, 0.13);
+                using (var b = new SolidBrush(Theme.Mix(Theme.Mix(baseBg, hotBg, h), dnBg, dn)))
                 {
+                    var oldPo = g.PixelOffsetMode;
                     g.SmoothingMode = SmoothingMode.AntiAlias;
-                    Theme.FillRound(g, new Rectangle(0, 0, Width - 1, Height - 1), Theme.S(6), b);
+                    g.PixelOffsetMode = PixelOffsetMode.Half;
+                    Theme.FillRound(g, new Rectangle(0, 0, Width, Height), Theme.S(6), b);
+                    g.PixelOffsetMode = oldPo;
                 }
             }
-            //  图标墨色：默认次级（text-2）→ 悬停提到正文（text-1）；关闭键悬停按规范换白（亮）/深墨（暗）。
             Color fg = close
                 ? Theme.Mix(Theme.TextDim, CloseHotFg, Math.Max(h, dn))
                 : Theme.Mix(Theme.TextDim, Theme.Text, Math.Max(h, dn));
             float w = Math.Max(1f, (float)Theme.S(1f));
-            int cx = Width / 2;
-            int cy = Height / 2;
-            int s = Theme.S(10) / 2;
+            float cx = (Width - 1) / 2f;
+            float cy = (Height - 1) / 2f;
+            int span = Theme.S(9);
+            float hs = span / 2f;
+            int ix = (int)Math.Round(cx - hs);
+            int iy = (int)Math.Round(cy - hs);
             using (var p = new Pen(fg, w))
             {
                 p.StartCap = System.Drawing.Drawing2D.LineCap.Flat;
@@ -5201,38 +5480,31 @@ namespace Fluxion
                 if (Kind == WinKind.Min)
                 {
                     g.SmoothingMode = SmoothingMode.None;
-                    g.DrawLine(p, cx - s, cy, cx + s, cy);
+                    int my = (int)Math.Round(cy);
+                    g.DrawLine(p, ix, my, ix + span, my);
                 }
                 else if (Kind == WinKind.Max && !Restore)
                 {
                     g.SmoothingMode = SmoothingMode.None;
-                    g.DrawRectangle(p, cx - s, cy - s, s * 2, s * 2);
+                    g.DrawRectangle(p, ix, iy, span, span);
                 }
                 else if (Kind == WinKind.Max)
                 {
                     g.SmoothingMode = SmoothingMode.None;
                     int d = Theme.S(2);
-                    g.DrawRectangle(p, cx - s, cy - s + d, s * 2 - d, s * 2 - d);
+                    g.DrawRectangle(p, ix, iy + d, span - d, span - d);
                     g.DrawLines(p, new Point[] {
-                        new Point(cx - s + d, cy - s),
-                        new Point(cx + s, cy - s),
-                        new Point(cx + s, cy + s - d) });
+                        new Point(ix + d, iy),
+                        new Point(ix + span, iy),
+                        new Point(ix + span, iy + span - d) });
                 }
                 else
                 {
-                    if (w > 1.2f)
-                    {
-                        g.SmoothingMode = SmoothingMode.AntiAlias;
-                        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                        g.DrawLine(p, cx - s + 0.5f, cy - s + 0.5f, cx + s + 0.5f, cy + s + 0.5f);
-                        g.DrawLine(p, cx + s + 0.5f, cy - s + 0.5f, cx - s + 0.5f, cy + s + 0.5f);
-                    }
-                    else
-                    {
-                        g.SmoothingMode = SmoothingMode.None;
-                        g.DrawLine(p, cx - s, cy - s, cx + s, cy + s);
-                        g.DrawLine(p, cx + s, cy - s, cx - s, cy + s);
-                    }
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    p.StartCap = LineCap.Round;
+                    p.EndCap = LineCap.Round;
+                    g.DrawLine(p, cx - hs, cy - hs, cx + hs, cy + hs);
+                    g.DrawLine(p, cx + hs, cy - hs, cx - hs, cy + hs);
                 }
             }
         }
@@ -5250,12 +5522,13 @@ namespace Fluxion
     public class CoverTile : Control
     {
         public DlssgGame Game;
-        bool picked, hot;
+        bool picked, hot, hotScheme, hotPlay, eatClick;
         Image cover;
 
         public event EventHandler Chosen;                 // 单击：进详情
         public event EventHandler Launched;               // 右下 ▶：启动
         public event Action<CoverTile> SchemeMenu;        // 胶囊：换方案
+        public event Action<DlssgGame> RightClicked;      // 右键：游戏菜单
 
         Anim aHover, aPick;
         string tagCache;
@@ -5276,7 +5549,11 @@ namespace Fluxion
             aPick.Snap(0);
             cover = Program.ShareBuild ? null : CoverArt.Card(g, w, h);
             Theme.Tip.SetToolTip(this, g.Title + (g.Dir != null && g.Dir.Length > 0 ? "\r\n" + g.Dir : ""));
-            Click += delegate { if (Chosen != null) Chosen(this, EventArgs.Empty); };
+            Click += delegate
+            {
+                if (eatClick) { eatClick = false; return; }
+                if (Chosen != null) Chosen(this, EventArgs.Empty);
+            };
             DoubleClick += delegate { if (Launched != null) Launched(this, EventArgs.Empty); };
             MouseEnter += delegate { SetHover(true); };
             MouseLeave += delegate { SetHover(false); };
@@ -5317,6 +5594,7 @@ namespace Fluxion
         public void SetHover(bool on)
         {
             hot = on;
+            if (!on) { hotScheme = false; hotPlay = false; }
             aHover.To(on ? 1.0 : 0.0);
             Invalidate();
         }
@@ -5417,16 +5695,40 @@ namespace Fluxion
             return new Rectangle(Theme.S(10), Height - Theme.S(9) - Theme.S(18), w, Theme.S(18));
         }
 
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            bool hs = SchemeRect().Contains(e.Location);
+            bool hp = (aHover.Value > 0.15 || hot) && PlayRect().Contains(e.Location);
+            if (hs != hotScheme || hp != hotPlay)
+            {
+                hotScheme = hs;
+                hotPlay = hp;
+                Invalidate();
+            }
+            base.OnMouseMove(e);
+        }
+
         protected override void OnMouseDown(MouseEventArgs e)
         {
+            eatClick = false;
+            if (e.Button == MouseButtons.Right)
+            {
+                eatClick = true;
+                if (Game != null && RightClicked != null) RightClicked(Game);
+                base.OnMouseDown(e);
+                return;
+            }
             if (e.Button == MouseButtons.Left && SchemeRect().Contains(e.Location))
             {
+                eatClick = true;
                 if (SchemeMenu != null) SchemeMenu(this);
                 return;                                   // 不再触发"选中/进详情"
             }
-            if (e.Button == MouseButtons.Left && aHover.Value > 0.5 && PlayRect().Contains(e.Location))
+            if (e.Button == MouseButtons.Left && (aHover.Value > 0.15 || hot) && PlayRect().Contains(e.Location))
             {
+                eatClick = true;
                 if (Launched != null) Launched(this, EventArgs.Empty);
+                return;
             }
             base.OnMouseDown(e);
         }
@@ -5455,17 +5757,14 @@ namespace Fluxion
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
 
             double hv = Math.Max(0, aHover.Value);
-            //  聚焦感来自"这张弹起来"：放大 7%、上浮 6px。
-            //  3.5%/3px 太含蓄，鼠标移上去只是"亮了一下"（用户：沉浸感不够）。
-            int lift = (int)Math.Round(Theme.S(6) * hv);
-            var full = new Rectangle(0, -lift, Width, Height);
+            var full = new Rectangle(0, 0, Width, Height);
 
-            //  封面：悬停放大 3.5%（用裁切实现，不动控件尺寸，否则整排会重排）
+            //  封面：悬停微放大 2.5%（完全在 [0,0,Width-1,Height-1] 裁切内，不负向上移越界裁平顶部圆角）
             if (cover != null)
             {
-                double z = 1.0 + 0.07 * hv;
+                double z = 1.0 + 0.025 * hv;
                 var dst = new Rectangle((int)Math.Round((Width - Width * z) / 2),
-                                        -lift + (int)Math.Round((Height - Height * z) / 2),
+                                        (int)Math.Round((Height - Height * z) / 2),
                                         (int)Math.Round(Width * z), (int)Math.Round(Height * z));
                 var old = g.Clip;
                 try
@@ -5479,8 +5778,6 @@ namespace Fluxion
             }
             else Theme.FillRound(g, full, Theme.RCard, Theme.Panel);
 
-            //  底部渐变：0.58 才起始、最深 228α。再淡字就飘了（浅色封面上实测），
-            //  再浓封面下半截就糊成一块黑布 —— 这不是"让字可读"，是把图盖掉了。
             using (var gp = Theme.Round(full, Theme.RCard))
             using (var br = new LinearGradientBrush(full, Color.Black, Color.Black, 90f))
             {
@@ -5496,10 +5793,9 @@ namespace Fluxion
                 g.FillPath(br, gp);
             }
 
-            //  悬停提亮（按补间给 alpha，避免"一下全亮"）
             if (hv > 0.01 && aPick.Value < 0.5)
             {
-                int ha = (int)Math.Round(18 * hv);
+                int ha = (int)Math.Round(16 * hv);
                 if (ha > 0)
                 {
                     using (var ov = new SolidBrush(Color.FromArgb(ha, 255, 255, 255)))
@@ -5508,41 +5804,36 @@ namespace Fluxion
                 }
             }
 
-            //  外框：选中 = 强调色 2.2px + 外发光；悬停 = 颜色/粗细一起过渡 + 电光蓝微光外描边；静止 = 发丝边
-            var edgeRect = new Rectangle(0, -lift, Width - 1, Height - 1);
+            //  外框与内微光全部严格对齐在 [0, 0, Width - 1, Height - 1]
+            var edgeRect = new Rectangle(0, 0, Width - 1, Height - 1);
+            var glowRect = new Rectangle(Theme.S(1), Theme.S(1), Width - 1 - Theme.S(2), Height - 1 - Theme.S(2));
             double ap = aPick.Value;
             if (ap > 0.01)
             {
-                int ga = (int)Math.Round(40 * ap);
+                int ga = (int)Math.Round(42 * ap);
                 if (ga > 0)
                 {
-                    using (var pen = new Pen(Color.FromArgb(ga, Theme.Accent), 4f))
-                    using (var gpE = Theme.Round(edgeRect, Theme.RCard))
+                    using (var pen = new Pen(Color.FromArgb(ga, Theme.Accent), Theme.S(2)))
+                    using (var gpE = Theme.Round(glowRect, Math.Max(2, Theme.RCard - 1)))
                         g.DrawPath(pen, gpE);
                 }
-                Theme.EdgeRound(g, edgeRect, Theme.RCard, Theme.Accent, (float)(2.2 * ap));
+                Theme.EdgeRound(g, edgeRect, Theme.RCard, Theme.Accent, (float)(1.8 * ap));
             }
             else if (hv > 0.02)
             {
-                // 悬停电光蓝微光外描边
                 int ga = (int)Math.Round(45 * hv);
                 if (ga > 0)
                 {
-                    var glowRect = new Rectangle(Theme.S(1), Theme.S(1), Width - 1 - Theme.S(2), Height - 1 - Theme.S(2));
                     using (var glowPen = new Pen(Color.FromArgb(ga, Theme.Accent), Theme.S(2)))
-                    using (var gpE = Theme.Round(glowRect, Theme.RCard))
+                    using (var gpE = Theme.Round(glowRect, Math.Max(2, Theme.RCard - 1)))
                         g.DrawPath(glowPen, gpE);
                 }
                 Theme.EdgeRound(g, edgeRect, Theme.RCard,
-                    Theme.Mix(Theme.Line, Theme.Accent, hv), (float)(1.0 + 0.8 * hv));
+                    Theme.Mix(Theme.CardEdge, Theme.Accent, hv), (float)(1.0 + 0.5 * hv));
             }
             else
                 Theme.EdgeRound(g, edgeRect, Theme.RCard, Theme.CardEdge, 1f);
 
-            //  ---- 角标：左上收藏、右上累计时长 ----
-            //  卡面只写名字会显得"空"（用户原话：简陋）。这两样都是启动器本来就有的数据，
-            //  以前只藏在悬浮提示里。时长用黑底白字那种"视频缩略图"的做法，
-            //  压在任何封面上都读得出来（白字直接压浅色封面会飘）。
             if (Game != null && Game.Favorite)
                 Theme.DrawPhotoText(g, "★", Theme.FB(10f),
                     new Rectangle(Theme.S(8), Theme.S(6), Theme.S(18), Theme.S(18)),
@@ -5560,13 +5851,6 @@ namespace Fluxion
                                     StringAlignment.Center);
             }
 
-            //  ---- 角标：实测倍率（第 144 轮）----
-            //  这是本工具唯一"别人给不了"的那一格信息：代理到底跑起来了、实际几倍。
-            //  以前只有一行全局摘要（"最近生效：某某 · 6X"），用户得自己猜是不是这块游戏。
-            //  规则（刻意保守）：
-            //   · 只在**真读到 generated_count** 时出现 —— 没读数就当没有，绝不写"未生效"，
-            //     否则整面墙挂满告警牌，比不显示更糟（用户会开始无视它）；
-            //   · 数据来自 FgVerify 的缓存字典（纯查表），绘制路径里没有任何文件 IO。
             int genMz = FgVerify.MeasuredGen(Game);
             if (genMz >= 0)
             {
@@ -5578,13 +5862,10 @@ namespace Fluxion
                 var fr = new Rectangle(Width - fw - Theme.S(9), fy, fw, fh);
                 Theme.FillRound(g, fr, Theme.S(4), Color.FromArgb(140, 8, 12, 18));
                 Theme.EdgeRound(g, fr, Theme.S(4), Color.FromArgb(40, 255, 255, 255), 1f);
-                //  淡薄荷而不是纯 #34C759：白/绿系压在照片上要靠明度活下来，
-                //  饱和度顶满会变成"廉价贴纸"（同 DrawPhotoText 那条判据）。
                 Theme.DrawPhotoText(g, t2, fg2, fr, Color.FromArgb(240, 208, 255, 216),
                                     StringAlignment.Center);
             }
 
-            //  ---- 卡面文字：名字 + 方案胶囊，都贴着底边 ----
             int rowH = Theme.S(18);
             int my = Height - Theme.S(9) - rowH;
             Font fName = FName();
@@ -5597,36 +5878,37 @@ namespace Fluxion
             {
                 int k = (hv > 0.02 && ap < 0.9) ? 1 : 0;
                 double kk = k == 1 ? hv : 0;
-                Theme.FillRound(g, cr, cr.Height / 2,
-                    Color.FromArgb((int)Math.Round(26 + 202 * kk), 255, 255, 255));
-                if (kk > 0.02)
+                int pillA = hotScheme ? 250 : (int)Math.Round(26 + 202 * kk);
+                Theme.FillRound(g, cr, cr.Height / 2, Color.FromArgb(pillA, 255, 255, 255));
+                if (hotScheme)
+                    Theme.EdgeRound(g, new Rectangle(cr.X, cr.Y, cr.Width - 1, cr.Height - 1), cr.Height / 2, Theme.Accent, 1.2f);
+                else if (kk > 0.02)
                     Theme.EdgeRound(g, new Rectangle(cr.X, cr.Y, cr.Width - 1, cr.Height - 1), cr.Height / 2,
                         Color.FromArgb((int)Math.Round(44 * kk), 0, 0, 0), 1f);
                 int dot = Theme.S(4);
                 int dx = cr.X + Theme.S(9);
                 using (var b = new SolidBrush(DotColor()))
                     g.FillEllipse(b, dx, cr.Y + (cr.Height - dot) / 2, dot, dot);
-                int tx = (int)Math.Round(255 - 215 * kk);
-                int tg = (int)Math.Round(255 - 211 * kk);
-                int tb = (int)Math.Round(255 - 203 * kk);
+                int tx = hotScheme ? 20 : (int)Math.Round(255 - 215 * kk);
+                int tg = hotScheme ? 24 : (int)Math.Round(255 - 211 * kk);
+                int tb = hotScheme ? 32 : (int)Math.Round(255 - 203 * kk);
                 Theme.DrawPhotoText(g, SchemeTag(), FMeta(),
                     new Rectangle(dx + dot + Theme.S(5), cr.Y, cr.Width - (dx - cr.X) - dot - Theme.S(9), cr.Height),
                     Color.FromArgb(tx, tg, tb));
             }
 
-            //  ---- 悬停时右下角浮出 ▶ ----
             if (hv > 0.15 && ap < 0.5)
             {
                 var pr = PlayRect();
-                int kd = (int)Math.Round(232 * Math.Min(1.0, hv));
-                //  白圆压在浅色封面上会融进去（实测像一片白雾），先描一圈 30α 黑边托住
-                using (var b = new SolidBrush(Color.FromArgb((int)Math.Round(34 * Math.Min(1.0, hv)), 0, 0, 0)))
+                int kd = (int)Math.Round(236 * Math.Min(1.0, hv));
+                using (var b = new SolidBrush(Color.FromArgb((int)Math.Round(38 * Math.Min(1.0, hv)), 0, 0, 0)))
                     g.FillEllipse(b, pr.X - 1, pr.Y - 1, pr.Width + 2, pr.Height + 2);
-                using (var b = new SolidBrush(Color.FromArgb(kd, 255, 255, 255)))
+                Color playBg = hotPlay ? Theme.Accent : Color.FromArgb(kd, 255, 255, 255);
+                Color playFg = hotPlay ? Color.White : Color.FromArgb(kd, 12, 16, 24);
+                using (var b = new SolidBrush(playBg))
                     g.FillEllipse(b, pr);
-                using (var b = new SolidBrush(Color.FromArgb(kd, 12, 16, 24)))
+                using (var b = new SolidBrush(playFg))
                 {
-                    //  三角的光学居中：重心偏左，往右让 2px 才"看着在中间"
                     int tw = pr.Width * 2 / 7, th = pr.Height * 2 / 5;
                     int cx = pr.X + (pr.Width - tw) / 2 + Theme.S(2), cy = pr.Y + pr.Height / 2;
                     g.FillPolygon(b, new Point[] {
@@ -5665,13 +5947,13 @@ namespace Fluxion
                      | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint
                      | ControlStyles.ResizeRedraw, true);
             BackColor = Theme.Bg;
-            Height = Theme.S(28);
+            Height = Theme.S(32);
             Cursor = Cursors.Hand;
             aSel = new Anim(this, Motion.Fast, Motion.Decel);
             aSel.Snap(1);
         }
 
-        static Font FChip() { return Theme.F(8.5f); }
+        static Font FChip() { return Theme.FM(8.8f); }
 
         //  可见项：'all' 永远在；其余 count > 0 才露脸（12 个游戏时不会出现 WeGame 这种空分类）
         //  ⚠ 不能叫 Visible：Control.Visible 是基类属性
@@ -5686,7 +5968,8 @@ namespace Fluxion
         int ChipW(int i)
         {
             string t = Labels[i] + " " + (Counts != null && i < Counts.Length ? Counts[i] : 0);
-            return TextRenderer.MeasureText(t, FChip()).Width + Theme.S(18);
+            return TextRenderer.MeasureText(t, FChip(), new Size(int.MaxValue, int.MaxValue),
+                TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine).Width + Theme.S(24);
         }
 
         void LayoutChips()
@@ -5694,12 +5977,13 @@ namespace Fluxion
             rects.Clear();
             int x = 0;
             List<int> vis = VisibleItems();
+            int ch = Theme.S(28);
             for (int k = 0; k < vis.Count; k++)
             {
                 int i = vis[k];
                 int w = ChipW(i);
                 if (x + w > Width) break;                 // 放不下就不画（窄窗口时宁可少几项）
-                rects.Add(new Rectangle(x, (Height - Theme.S(24)) / 2, w, Theme.S(24)));
+                rects.Add(new Rectangle(x, (Height - ch) / 2, w, ch));
                 x += w + Theme.S(6);
             }
         }
@@ -5731,8 +6015,6 @@ namespace Fluxion
                 var r = rects[k];
                 string t = Labels[i] + " " + (Counts != null && i < Counts.Length ? Counts[i] : 0);
                 bool sel = Ids[i] == SelectedId;
-                //  选中 = 淡强调底 + 强调字；其余 = 无底 + 次级文字。不做描边（一排胶囊都描边会太吵）
-                //  选中切换带 110ms 过渡：新 chip 按进度淡入，旧 chip 同步淡出（重排不做动画，只有状态色做）
                 double sv = aSel.Value;
                 bool prev = !sel && prevSelId != null && Ids[i] == prevSelId && sv < 1.0;
                 if (sel && sv < 1.0)
@@ -5741,7 +6023,7 @@ namespace Fluxion
                     Theme.DrawTxt(g, t, FChip(), r,
                         Theme.Mix(Theme.TextDim, Theme.Accent, sv),
                         TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter
-                        | TextFormatFlags.NoPrefix);
+                        | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
                     continue;
                 }
                 if (prev)
@@ -5750,15 +6032,15 @@ namespace Fluxion
                     Theme.DrawTxt(g, t, FChip(), r,
                         Theme.Mix(Theme.Accent, Theme.TextDim, sv),
                         TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter
-                        | TextFormatFlags.NoPrefix);
+                        | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
                     continue;
                 }
                 if (sel) Theme.FillRound(g, r, r.Height / 2, Theme.AccentSoft);
                 else if (k == hot) Theme.FillRound(g, r, r.Height / 2, Theme.Hover);
                 Theme.DrawTxt(g, t, FChip(), r,
-                    sel ? Theme.Accent : Theme.TextDim,
+                    sel ? Theme.Accent : (k == hot ? Theme.Text : Theme.TextDim),
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter
-                    | TextFormatFlags.NoPrefix);
+                    | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
             }
         }
 
@@ -5830,7 +6112,7 @@ namespace Fluxion
             SetStyle(ControlStyles.Opaque | ControlStyles.OptimizedDoubleBuffer
                      | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint
                      | ControlStyles.ResizeRedraw, true);
-            BackColor = Theme.Bg;
+            BackColor = Theme.Panel;
             bInstall = MkBtn("安装并应用", BtnKind.Primary);
             bLaunch = MkBtn("启动", BtnKind.Default);
             bInstall.Click += delegate { if (Game != null && Install != null) Install(Game); };
@@ -5842,7 +6124,7 @@ namespace Fluxion
             var b = new FlatBtn();
             b.Text = text;
             b.Kind = k;
-            b.Corner = Theme.Bg;          // 圆角外的四角 = 状态栏底色（整条与页面同底，不是一张卡）
+            b.Corner = Theme.Panel;
             b.Font = Theme.F(9.5f);
             Controls.Add(b);
             return b;
@@ -5893,31 +6175,22 @@ namespace Fluxion
         protected override void OnLayout(LayoutEventArgs e)
         {
             base.OnLayout(e);
-            //  ⚠ 构造期 Controls.Add 会立刻触发一次 PerformLayout：那时按钮字段还是 null
             if (bInstall == null || bLaunch == null) return;
             int h = Theme.S(30);
             int cy = (Height - h) / 2;
             int right = Width - Theme.S(18);
             bLaunch.SetBounds(right - Theme.S(76), cy, Theme.S(76), h);
             bInstall.SetBounds(bLaunch.Left - Theme.S(8) - Theme.S(100), cy, Theme.S(100), h);
-            rDetail = new Rectangle(bInstall.Left - Theme.S(14) - Theme.S(76), cy, Theme.S(76), h);
-            rChip = new Rectangle(Theme.S(18), cy, Theme.S(150), h);
+            rDetail = new Rectangle(bInstall.Left - Theme.S(8) - Theme.S(84), cy + Theme.S(1), Theme.S(84), h - Theme.S(2));
+            rChip = new Rectangle(Theme.S(18), cy + Theme.S(1), Theme.S(154), h - Theme.S(2));
         }
 
-        //  顶部一条两端渐隐的发丝线：和标题栏、页脚同一套语言 —— 它是"区域边界"，不是"卡片边缘"。
         void PaintTopLine(Graphics g)
         {
             int w = Width;
             if (w <= 4) return;
-            using (var br = new LinearGradientBrush(new Rectangle(0, 0, w, 1),
-                       Color.FromArgb(0, Theme.Line), Theme.Line, 0f))
-            {
-                var cb = new ColorBlend(4);
-                cb.Colors = new Color[] { Color.FromArgb(0, Theme.Line), Theme.Line, Theme.Line, Color.FromArgb(0, Theme.Line) };
-                cb.Positions = new float[] { 0f, 0.08f, 0.9f, 1f };
-                br.InterpolationColors = cb;
-                g.FillRectangle(br, 0, 0, w, 1);
-            }
+            using (var p = new Pen(Theme.Line, 1f))
+                g.DrawLine(p, 0, 0, w, 0);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -5929,32 +6202,50 @@ namespace Fluxion
             PaintTopLine(g);
             if (Game == null) return;
 
-            //  只留"现在什么状态 + 能做什么"：名字和封面在主视觉里已经有一份，
-            //  同屏出现两遍就是噪音（用户看第一版截图时应该就是被这个劝退的）。
-            //  ⚠ 状态在 SetGame 里算好（见 RefreshState）：Plan.Current 会摸文件 + 验签，
-            //  留在 OnPaint 里等于"鼠标每动一下就读一遍磁盘"。
             string tag = tagCache ?? "";
             Color dot = dotCache;
 
             Theme.FillRound(g, rChip, Theme.RBtn, hotChip ? Theme.Hover : Theme.Subtle);
+            Theme.EdgeRound(g, rChip, Theme.RBtn, hotChip ? Theme.FieldEdge : Theme.LineSoft, 1f);
             int ds = Theme.S(6);
             using (var b = new SolidBrush(dot))
                 g.FillEllipse(b, rChip.X + Theme.S(11), rChip.Y + (rChip.Height - ds) / 2, ds, ds);
             Theme.DrawTxt(g, tag, Theme.F(9f),
-                new Rectangle(rChip.X + Theme.S(24), rChip.Y, rChip.Width - Theme.S(24) - Theme.S(20), rChip.Height),
+                new Rectangle(rChip.X + Theme.S(24), rChip.Y, rChip.Width - Theme.S(24) - Theme.S(22), rChip.Height),
                 dot == Theme.Ok ? Theme.OkText : Theme.Text,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter
                 | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
-            using (var p = new Pen(Theme.TextFaint, 1.4f))
+            using (var p = new Pen(hotChip ? Theme.Text : Theme.TextDim, 1.4f))
             {
-                int cx = rChip.Right - Theme.S(13), cy2 = rChip.Y + rChip.Height / 2 - Theme.S(1), q = Theme.S(3);
-                g.DrawLine(p, cx - q, cy2 - q / 2, cx, cy2 + q / 2);
-                g.DrawLine(p, cx, cy2 + q / 2, cx + q, cy2 - q / 2);
+                p.StartCap = LineCap.Round; p.EndCap = LineCap.Round; p.LineJoin = LineJoin.Round;
+                int cx = rChip.Right - Theme.S(13), cy2 = rChip.Y + rChip.Height / 2, q = Theme.S(3);
+                g.DrawLines(p, new Point[] {
+                    new Point(cx - q, cy2 - q / 2),
+                    new Point(cx, cy2 + q / 2 + 1),
+                    new Point(cx + q, cy2 - q / 2)
+                });
             }
 
-            Theme.DrawTxt(g, "详细设置 ›", Theme.F(9f), rDetail,
-                hotDetail ? Theme.Accent : Theme.TextDim,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            if (hotDetail) Theme.FillRound(g, rDetail, Theme.RBtn, Theme.Hover);
+            Font fDet = Theme.F(9f);
+            int dw = TextRenderer.MeasureText("详细设置", fDet, new Size(200, 60),
+                TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine).Width;
+            int dq = Theme.S(3), dgap = Theme.S(5);
+            int sx = rDetail.X + (rDetail.Width - (dw + dgap + dq)) / 2;
+            Color detCol = hotDetail ? Theme.Accent : Theme.TextDim;
+            Theme.DrawTxt(g, "详细设置", fDet,
+                new Rectangle(sx, rDetail.Y, dw + Theme.S(4), rDetail.Height),
+                detCol, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+            using (var p = new Pen(detCol, 1.4f))
+            {
+                p.StartCap = LineCap.Round; p.EndCap = LineCap.Round; p.LineJoin = LineJoin.Round;
+                int dcx = sx + dw + dgap + dq / 2, dcy = rDetail.Y + rDetail.Height / 2;
+                g.DrawLines(p, new Point[] {
+                    new Point(dcx - dq / 2, dcy - dq),
+                    new Point(dcx + dq - dq / 2, dcy),
+                    new Point(dcx - dq / 2, dcy + dq)
+                });
+            }
         }
 
         protected override void OnMouseMove(MouseEventArgs e)
@@ -6069,9 +6360,7 @@ namespace Fluxion
         protected override void OnLayout(LayoutEventArgs e)
         {
             base.OnLayout(e);
-            int h = Theme.S(34);
-            rLaunch = new Rectangle(Width - Theme.S(112) - Theme.S(16), Height - Theme.S(16) - h, Theme.S(112), h);
-            rDetail = new Rectangle(rLaunch.Left - Theme.S(88) - Theme.S(6), Height - Theme.S(16) - h, Theme.S(88), h);
+            OnLayoutClean();
         }
 
         protected override void OnMouseMove(MouseEventArgs e)
@@ -6080,9 +6369,9 @@ namespace Fluxion
             if (a != hotLaunch || b != hotDetail)
             {
                 hotLaunch = a; hotDetail = b;
-                Cursor = (a || b) ? Cursors.Hand : Cursors.Default;
                 Invalidate();
             }
+            if (Cursor != Cursors.Hand) Cursor = Cursors.Hand;
             base.OnMouseMove(e);
         }
 
@@ -6091,7 +6380,6 @@ namespace Fluxion
             if (hotLaunch || hotDetail)
             {
                 hotLaunch = hotDetail = false;
-                Cursor = Cursors.Default;
                 Invalidate();
             }
             base.OnMouseLeave(e);
@@ -6173,9 +6461,12 @@ namespace Fluxion
                     Color.FromArgb(205, 255, 255, 255));
 
             //  ---- 右下：详细设置 + 启动 ----
-            Theme.DrawTxt(g, "详细设置 ›", Theme.F(9f), rDetail,
-                Color.FromArgb(hotDetail ? 255 : 215, 255, 255, 255),
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            Theme.FillRound(g, rDetail, rDetail.Height / 2, Color.FromArgb(hotDetail ? 52 : 26, 255, 255, 255));
+            Theme.EdgeRound(g, new Rectangle(rDetail.X, rDetail.Y, rDetail.Width - 1, rDetail.Height - 1),
+                rDetail.Height / 2, Color.FromArgb(hotDetail ? 96 : 44, 255, 255, 255), 1f);
+            Theme.DrawTxt(g, "详细设置", Theme.FM(9f), rDetail,
+                Color.FromArgb(hotDetail ? 255 : 228, 255, 255, 255),
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
             Theme.FillRound(g, rLaunch, rLaunch.Height / 2,
                 hotLaunch ? Color.FromArgb(255, 255, 255) : Color.FromArgb(238, 255, 255, 255));
             Theme.DrawTxt(g, "启动游戏", Theme.FM(9.5f), rLaunch,
@@ -6207,7 +6498,7 @@ namespace Fluxion
         {
             int h = Theme.S(34);
             rLaunch = new Rectangle(Width - Theme.S(112) - Theme.S(20), Height - Theme.S(18) - h, Theme.S(112), h);
-            rDetail = new Rectangle(rLaunch.Left - Theme.S(84) - Theme.S(10), Height - Theme.S(18) - h, Theme.S(84), h);
+            rDetail = new Rectangle(rLaunch.Left - Theme.S(92) - Theme.S(10), Height - Theme.S(18) - h, Theme.S(92), h);
         }
 
         //  副标题：状态 + 最近游玩（"可接入 · 昨天玩过"）
@@ -6233,7 +6524,7 @@ namespace Fluxion
             {
                 if (Game.LastPlayed > 0)
                 {
-                    var t = new DateTime(1970, 1, 1, 8, 0, 0, DateTimeKind.Local).AddSeconds(Game.LastPlayed);
+                    var t = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(Game.LastPlayed).ToLocalTime();
                     TimeSpan d = DateTime.Now - t;
                     if (d.TotalMinutes < 60) when = "刚刚玩过";
                     else if (t.Date == DateTime.Today) when = "今天玩过";
@@ -6310,6 +6601,7 @@ namespace Fluxion
         {
             base.OnLayout(e);
             FitHeight();
+            PlaceEmptyBtn();
         }
 
         //  ★ 格宽必须在 base 之前定：OnLayout 一旦跑完，卡片位置就按旧 CellW 排好了 ——
@@ -6319,32 +6611,44 @@ namespace Fluxion
             FitCell();
             base.OnClientSizeChanged(e);
             FitHeight();
+            PlaceEmptyBtn();
+        }
+
+        int TileCount()
+        {
+            int n = 0;
+            foreach (Control c in Controls) if (c is CoverTile) n++;
+            return n;
+        }
+
+        void PlaceEmptyBtn()
+        {
+            if (btnEmpty == null || !btnEmpty.Visible) return;
+            if (TileCount() > 0) { btnEmpty.Visible = false; return; }
+            int bx = Math.Max(0, (Width - btnEmpty.Width) / 2);
+            int by = Theme.S(168);
+            if (btnEmpty.Left != bx || btnEmpty.Top != by)
+                btnEmpty.Location = new Point(bx, by);
         }
 
         void FitHeight()
         {
             if (busy) return;
-            //  宽度还没确定（启动初期 ClientSize≈0）→ 不算：否则会算出"每行 1 张、共 28 行"的假高度，
-            //  WinForms 会把它缓存成滚动区，之后滚出一大片空白（2026-09-15 实测）。
             if (ClientSize.Width <= CellW) return;
             busy = true;
             bool changed = false;
             try
             {
+                int tiles = TileCount();
                 int perRow = Math.Max(1, ClientSize.Width / CellW);
-                int rows = Controls.Count == 0 ? 0 : (Controls.Count + perRow - 1) / perRow;
-                //  Padding 不参与行数计算，必须自己加回来，否则最后一行会被父容器裁掉
+                int rows = tiles == 0 ? 0 : (tiles + perRow - 1) / perRow;
                 int want = rows == 0
-                    ? (Placeholder.Length > 0 ? Theme.S(150) : 0)
+                    ? (Placeholder.Length > 0 ? Theme.S(238) : 0)
                     : rows * CellH + Padding.Top + Padding.Bottom;
                 if (Height != want) { Height = want; changed = true; }
             }
             finally { busy = false; }
 
-            //  ★ 高度变了必须通知所属分区重排（2026-10-24 第 127 轮补回）。
-            //  漏掉这一段的表现很隐蔽：窗口一改大小，网格行数变了、卡片也重排了，
-            //  但 Pg 的滚动范围还停在旧值 —— 于是能滚到内容之外，看到整片空白。
-            //  （第 124 轮重写 CoverGrid 时把 CardGrid 里这段丢了，探针用 SetScrollY(9999) 才抓到。）
             if (!changed) return;
             Sec sec = Tag as Sec;
             if (sec != null) { try { sec.Resync(); } catch { } }
@@ -6354,39 +6658,33 @@ namespace Fluxion
         {
             base.OnPaint(e);
 
-            //  顶部一条两端渐隐的发丝线：把"工具条"和"卡片墙"分成两段。
-            //  没有它，一排筛选字和第一排封面之间只有 12px 空白，读起来是"一坨"（用户：简陋）。
             if (Width > Theme.S(40))
             {
-                var g0 = e.Graphics;
-                using (var br = new LinearGradientBrush(new Rectangle(0, 0, Width, 1),
-                           Color.FromArgb(0, Theme.Line), Theme.Line, 0f))
-                {
-                    var cbl = new ColorBlend(4);
-                    cbl.Colors = new Color[] { Color.FromArgb(0, Theme.Line), Theme.Line, Theme.Line, Color.FromArgb(0, Theme.Line) };
-                    cbl.Positions = new float[] { 0f, 0.06f, 0.94f, 1f };
-                    br.InterpolationColors = cbl;
-                    g0.FillRectangle(br, 0, 0, Width, 1);
-                }
+                using (var pLine = new Pen(Theme.Line, 1f))
+                    e.Graphics.DrawLine(pLine, 0, 0, Width, 0);
             }
 
             if (Placeholder.Length == 0 || Width <= 0) { if (btnEmpty != null) btnEmpty.Visible = false; return; }
-            //  空态 = 图标 + 标题 + 说明 + 主行动按钮（「扫描游戏」）。有卡片时按钮隐藏、空态不画。
-            bool hasTiles = false;
-            foreach (Control c in Controls) { if (c is CoverTile) { hasTiles = true; break; } }
+            bool hasTiles = TileCount() > 0;
             if (hasTiles) { if (btnEmpty != null) btnEmpty.Visible = false; return; }
             var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+
+            // 空态沉静内框：避免大面积无边界空地显得像页面未加载完
+            var well = new Rectangle(0, Theme.S(14), Math.Max(1, Width - 1), Math.Max(1, Height - Theme.S(20)));
+            Theme.FillRound(g, well, Theme.RPanel, Theme.Panel);
+            Theme.EdgeRound(g, well, Theme.RPanel, Theme.CardEdge, 1f);
+
             string head = Placeholder, tail = null;
             int bar = Placeholder.IndexOf('|');
             if (bar > 0) { head = Placeholder.Substring(0, bar); tail = Placeholder.Substring(bar + 1); }
-            Font f1 = Theme.F(11f), f2 = Theme.F(9.5f);
-            //  纵向排布全部居中：图标 48 → 标题 → 说明 → 按钮（宽/高与页头「扫描游戏」同规格）
-            int y = Theme.S(28);
-            var ir = new Rectangle((Width - Theme.S(48)) / 2, y, Theme.S(48), Theme.S(48));
+            Font f1 = Theme.FM(11.5f), f2 = Theme.F(9.5f);
+            int y = Theme.S(44);
+            var ir = new Rectangle((Width - Theme.S(40)) / 2, y, Theme.S(40), Theme.S(40));
             Theme.DrawIconGamepad(g, ir, Theme.TextFaint);
-            y += Theme.S(48) + Theme.S(12);
-            Theme.DrawTxt(g, head, f1, new Rectangle(0, y, Width, f1.Height), Theme.TextDim,
+            y += Theme.S(40) + Theme.S(14);
+            Theme.DrawTxt(g, head, f1, new Rectangle(0, y, Width, f1.Height), Theme.Text,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
             y += f1.Height;
             if (tail != null)
@@ -6399,18 +6697,17 @@ namespace Fluxion
             if (btnEmpty == null)
             {
                 btnEmpty = new FlatBtn();
-                btnEmpty.Text = "扫描游戏";
-                btnEmpty.Width = Theme.S(92);
+                btnEmpty.Text = "立即扫描游戏";
+                btnEmpty.Kind = BtnKind.Primary;
+                btnEmpty.Corner = Theme.Panel;
+                btnEmpty.Width = Theme.S(116);
                 btnEmpty.Height = Theme.S(32);
                 btnEmpty.Click += delegate { var h = ScanRequested; if (h != null) h(); };
                 Controls.Add(btnEmpty);
             }
+            btnEmpty.Corner = Theme.Panel;
             btnEmpty.Visible = ScanEnabled;
-            if (ScanEnabled)
-            {
-                btnEmpty.Left = (Width - btnEmpty.Width) / 2;
-                btnEmpty.Top = y + Theme.S(16);
-            }
+            if (ScanEnabled) PlaceEmptyBtn();
         }
     }
 
@@ -6581,6 +6878,7 @@ namespace Fluxion
     class TipForm : Form
     {
         string text = "";
+        bool dwmCorners;
         public string CurText { get { return text; } }
         public TipForm()
         {
@@ -6603,39 +6901,53 @@ namespace Fluxion
                 return cp;
             }
         }
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            dwmCorners = Theme.ApplyMenuChrome(Handle);
+            if (dwmCorners && Region != null) { Region old = Region; Region = null; old.Dispose(); }
+        }
         public void SetText(string t)
         {
             text = t == null ? "" : t;
-            //  ⚠ 用**离屏位图**测，别用 CreateGraphics()：窗体还没 Show 时拿到的 DC 不可靠，
-            //    实测会量出偏小的尺寸 → 提示框把文字裁掉（第一版就是这么翻车的）。
+            BackColor = Theme.Panel;
             Size sz;
             using (var bmp = new Bitmap(1, 1))
             using (var g = Graphics.FromImage(bmp))
             {
-                //  高度上限给 int.MaxValue：传 0 会被当成"高度 0"，量出来的宽度也偏小
                 sz = TextRenderer.MeasureText(g, text, Theme.F(9f), new Size(Theme.S(320), int.MaxValue),
                     TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
             }
-            //  +26/+17：MeasureText 给的是**紧贴**的尺寸，只加 20 会让最后一个字贴边
             Size = new Size(sz.Width + Theme.S(26), sz.Height + Theme.S(17));
-            try
+            if (IsHandleCreated) dwmCorners = Theme.ApplyMenuChrome(Handle);
+            if (dwmCorners)
             {
-                int rad = Theme.S(8);
-                using (var path = Theme.Round(new Rectangle(0, 0, Width, Height), rad))
-                    Region = new Region(path);
+                if (Region != null) { Region old = Region; Region = null; old.Dispose(); }
             }
-            catch { }
+            else
+            {
+                try
+                {
+                    int rad = Theme.S(8);
+                    using (var path = Theme.Round(new Rectangle(0, 0, Width, Height), rad))
+                        Region = new Region(path);
+                }
+                catch { }
+            }
             Invalidate();
         }
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            var r = new Rectangle(0, 0, Width - 1, Height - 1);
             using (var br = new SolidBrush(Theme.Panel)) g.FillRectangle(br, ClientRectangle);
-            using (var pen = new Pen(Theme.Line, 1f)) using (var gp = Theme.Round(r, Theme.S(8))) g.DrawPath(pen, gp);
+            if (!dwmCorners)
+            {
+                var r = new Rectangle(0, 0, Width - 1, Height - 1);
+                Theme.EdgeRound(g, r, Theme.S(8), Theme.CardEdge, 1f);
+            }
             Theme.DrawTxt(g, text, Theme.F(9f),
-                new Rectangle(Theme.S(10), Theme.S(7), Width - Theme.S(20), Height - Theme.S(14)),
+                new Rectangle(Theme.S(12), Theme.S(7), Width - Theme.S(24), Height - Theme.S(14)),
                 Theme.Text, TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
         }
     }
@@ -6648,7 +6960,7 @@ namespace Fluxion
     public class TableBox : Panel
     {
         public ListView List;
-        public int HeadH = Theme.S(30);
+        public int HeadH = Theme.S(32);
         public TableBox(ListView lv)
         {
             List = lv;
@@ -6676,24 +6988,75 @@ namespace Fluxion
             var g = e.Graphics;
             g.Clear(BackColor == Color.Empty ? Theme.Panel : BackColor);
             if (List == null) return;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+            Theme.FillRound(g, new Rectangle(0, 0, Math.Max(1, Width - 1), Math.Max(1, HeadH - 2)), Theme.S(5), Theme.Subtle);
             var fh = Theme.FM(8.5f);
             int x = 0;
             for (int i = 0; i < List.Columns.Count; i++)
             {
                 ColumnHeader col = List.Columns[i];
                 if (x >= Width) break;
-                var r = new Rectangle(x + Theme.S(4), 0, Math.Max(0, col.Width - Theme.S(8)), HeadH);
-                //  ⚠ 不加 NoPadding：单元格那条路（DrawSubItem）用的是默认内边距，
-                //    表头若用 NoPadding 就会比单元格左 4px（实测 303 vs 307）。两边算法一致才对齐。
+                var r = new Rectangle(x + Theme.S(8), 0, Math.Max(0, col.Width - Theme.S(16)), HeadH - 1);
                 Theme.DrawTxt(g, col.Text, fh, r, Theme.TextDim,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter
                     | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
                 x += col.Width;
             }
-            //  唯一的一条分隔：表头与内容的发丝线（不画竖线 —— 竖线是"老表格"的观感来源之一）
             using (var p = new Pen(Theme.Line, 1f))
                 g.DrawLine(p, 0, HeadH - 1, Width, HeadH - 1);
+        }
+    }
+
+    // BUG-S3/S4: 区分整表展开页表（AutoFitMinRows > 0，滚轮 100% 独占转发给 Pg）
+    // 与弹窗固定高内滚表（AutoFitMinRows == 0，内滚未触顶/底时只滚自身，触界才链式滚 Pg）
+    class TableListView : ListView
+    {
+        const int WM_MOUSEWHEEL = 0x020A;
+        public int AutoFitMinRows;
+
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == WM_MOUSEWHEEL)
+            {
+                int delta = unchecked((short)((m.WParam.ToInt64() >> 16) & 0xFFFF));
+                if (AutoFitMinRows > 0)
+                {
+                    Pg pg = MainForm.PgOfControl(this);
+                    if (pg != null) pg.ScrollByWheel(delta);
+                    m.Result = IntPtr.Zero;
+                    return;
+                }
+                bool canInner = false;
+                if (Items.Count > 0 && delta != 0)
+                {
+                    try
+                    {
+                        if (delta > 0)
+                        {
+                            Rectangle rFirst = GetItemRect(0);
+                            canInner = rFirst.Top < 0;
+                        }
+                        else
+                        {
+                            Rectangle rLast = GetItemRect(Items.Count - 1);
+                            canInner = rLast.Bottom > ClientSize.Height;
+                        }
+                    }
+                    catch { }
+                }
+                if (canInner)
+                {
+                    base.WndProc(ref m);
+                    Invalidate(false);
+                    return;
+                }
+                Pg pgModal = MainForm.PgOfControl(this);
+                if (pgModal != null) pgModal.ScrollByWheel(delta);
+                m.Result = IntPtr.Zero;
+                return;
+            }
+            base.WndProc(ref m);
         }
     }
 
@@ -6733,11 +7096,8 @@ namespace Fluxion
         //   现在卡片内缩这么多像素，阴影正好填满控件，圆角处不再出现直角。
         //   Plain（无标题工具条）不画卡片，所以 inset = 0，布局完全不受影响。
         int inset;
-        //  ★ 第 150 轮：5 → 7。SoftShadow 的层数 = 边距，层数越多投影越"化开"。
-        //    原来 5 层在浅色上是一圈能看出边界的灰 —— 那就是"廉价卡片"的来源；
-        //    7 层 + 同样的 8% 发丝边，边界化开，卡片才像"浮起"。
-        public static int ShadowMargin { get { return Theme.S(7); } }
-        Color contentBg;   // 行内容底色：盒式分区=Panel，工具条（Plain）=Bg。写死 Panel 会在灰底上留白补丁
+        public static int ShadowMargin { get { return Theme.S(4); } }
+        Color contentBg;
         //  "下一行之前多留 n px"。为什么需要：gap 是全局量，但**语义分组**需要不同的行距 ——
         //  「结论 + 评星」是一组判词，要贴紧；「依据」是另一层内容，要拉开。全用 14 就成了
         //  "每行都一样远"，读起来没有层次（方案推荐卡改版时发现）。
@@ -6752,9 +7112,11 @@ namespace Fluxion
             RoundCheck rc = c as RoundCheck; if (rc != null) rc.Corner = contentBg;
             RoundRadio rr = c as RoundRadio; if (rr != null) rr.Corner = contentBg;
             RoundField rf = c as RoundField; if (rf != null) rf.SetCorner(contentBg);
+            RoundMemo rm = c as RoundMemo; if (rm != null) rm.SetCorner(contentBg);
             RoundCombo rb = c as RoundCombo; if (rb != null) rb.SetCorner(contentBg);
             BreathingLabel bl = c as BreathingLabel; if (bl != null) bl.Corner = contentBg;
             RadialGauge rg = c as RadialGauge; if (rg != null) rg.Corner = contentBg;
+            FilterChips fc = c as FilterChips; if (fc != null) fc.BackColor = contentBg;
             foreach (Control ch in c.Controls) ApplySurface(ch);
         }
         // 分区色相表。顺序即优先级（先判的赢）：
@@ -6808,7 +7170,7 @@ namespace Fluxion
             //    而顶部内边距 t - inset = S(13) —— 上 13 / 下 24，每张卡的下半截都多空 11px。
             //    单看一张不明显，一屏三张卡就是"内容浮在上半、下面一片白"，这是最容易被读成
             //    "没做完"的那种空。18 让上下接近对称（底部仍略大 5px，视觉重心偏上才稳）。
-            padX = Theme.S(28); padY = Theme.S(18); gap = Theme.S(22); labelW = Theme.S(112);
+            padX = Theme.S(24); padY = Theme.S(18); gap = Theme.S(14); labelW = Theme.S(112);
             Width = Theme.S(600);
             inset = 0;          // Plain 工具条不画卡片，也就没有阴影边距（下面非 Plain 分支才置上）
             secTitle = title == null ? "" : title;
@@ -6826,29 +7188,23 @@ namespace Fluxion
                 return;
             }
 
-            inset = ShadowMargin;               // 从这里往下都是"有卡片"的路径：四周留出阴影边距
-            int t = Theme.S(13) + inset;
+            inset = ShadowMargin;
+            int t = Theme.S(16) + inset;
             var lb = new TxtLbl();
             lb.AutoSize = true; lb.UseMnemonic = false; lb.BackColor = Theme.Panel;
-            //  标题 10f → 11.5f：和正文 9f 拉开 2.5pt（≈3.4px），接近"标题/正文至少差 4px"的经验线。
-            //
-            //  ★ 括号补充拆成第二枚**浅色小字**（2026-10-20）：「优化项明细（当前系统实际设置）」
-            //    整串按标题字重画出来是一坨，主标题和限定语没有层级。拆开后标题只有主干，
-            //    括号里那句退到 TextFaint 小一号 —— 既保住信息，又立刻有了"文气"。
             string titleMain = title, titleNote = "";
             int bp = title.IndexOf('（');
             if (bp <= 0) bp = title.IndexOf('(');
             if (bp > 0) { titleMain = title.Substring(0, bp).TrimEnd(); titleNote = title.Substring(bp); }
-            lb.Text = titleMain; lb.Font = Theme.FM(13f); lb.ForeColor = Theme.Text;
-            lb.Location = new Point(padX + inset, t);                  // 第 136 轮：图标槽取消，标题直接贴左基准线
+            lb.Text = titleMain; lb.Font = Theme.FM(12f); lb.ForeColor = Theme.Text;
+            lb.Location = new Point(padX + inset, t);
             Controls.Add(lb);
             titleLbl = lb;
             if (titleNote.Length > 0 && !Plain)
             {
                 var ln = new TxtLbl();
                 ln.AutoSize = true; ln.UseMnemonic = false; ln.BackColor = Theme.Panel;
-                ln.Text = titleNote; ln.Font = Theme.F(10.5f); ln.ForeColor = Theme.TextDim;
-                //  基线对齐：小字比标题矮，按高度差往下压，两者的底边才在同一条线上
+                ln.Text = titleNote; ln.Font = Theme.F(9.5f); ln.ForeColor = Theme.TextFaint;
                 ln.Location = new Point(lb.Right + Theme.S(6), t + Math.Max(0, lb.Height - ln.Height - Theme.S(1)));
                 Controls.Add(ln);
             }
@@ -6865,45 +7221,22 @@ namespace Fluxion
             g.SmoothingMode = SmoothingMode.AntiAlias;
             if (Plain) return;
 
-            // 卡片内缩 inset，阴影正好扩到控件边缘 —— 不再被 Control 剪成直角
             var r = new Rectangle(inset, inset,
                 Math.Max(1, Width - inset * 2 - 1), Math.Max(1, Height - inset * 2 - 1));
 
-            // 柔和投影：层数 = 边距（外扩量正好等于预留空间，一圈都不越界）
             Theme.SoftShadow(g, r, Theme.RPanel, inset);
-
-            // 卡片底板
             Theme.FillRound(g, r, Theme.RPanel, Theme.Panel);
 
-            // 顶边微高光线 (漫反射与立体感)
-            int hiAlpha = Theme.Dark ? 20 : 90;
-            using (var pLight = new Pen(Color.FromArgb(hiAlpha, 255, 255, 255), 1f))
+            if (Theme.Dark)
             {
-                int arcD = Theme.RPanel * 2;
-                g.DrawArc(pLight, r.X, r.Y, arcD, arcD, 180, 90);
-                g.DrawLine(pLight, r.X + Theme.RPanel, r.Y, r.Right - Theme.RPanel, r.Y);
-                g.DrawArc(pLight, r.Right - arcD, r.Y, arcD, arcD, 270, 90);
+                var rIn = new Rectangle(r.X + 1, r.Y + 1, Math.Max(1, r.Width - 2), Math.Max(1, r.Height - 2));
+                using (var pLight = new Pen(Color.FromArgb(14, 255, 255, 255), 1f))
+                {
+                    g.DrawLine(pLight, rIn.X + Theme.RPanel, rIn.Y, rIn.Right - Theme.RPanel, rIn.Y);
+                }
             }
 
-            //  浅色不再画 1px 描边：阴影 + 边框同时用，是"廉价卡片"最典型的组合
-            //  （Refactoring UI 与多篇设计规范都明确二选一）。深色保留细边 —— 那里底色分层弱，需要边。
-            //  ★ 2026-10-21 反过来补上了：这条结论成立的前提是"边框用 Line 那种实色"（#E2E8F0，
-            //    在白卡上是明显的一条线）。Apple 的做法是 8% 黑的**发丝边**——肉眼几乎看不见，
-            //    只负责把边界"钉住"，投影因此可以画得更淡。所以现在两套主题都画，但用的是 CardEdge。
             Theme.EdgeRound(g, r, Theme.RPanel, Theme.CardEdge, 1f);
-
-            //  「领头卡」的强调色顶线已删除（2026-10-22 用户截图"很廉价"）：
-            //  卡片顶边一条彩色渐隐带是典型的"模板仪表盘"记号 —— Apple 的层级从不靠
-            //  给卡片描色，第一张卡的身份由"它在最上面 + 页头正下方"这一位置表达。
-            //  Hero 标记保留（布局与探针还在引用），只是不再画出任何东西。
-
-            //  ★ 分区标题不再画图标（2026-10-24 第 136 轮）。
-            //  原来的方案是按标题关键词分派 12 种单线图标（联动→手柄、负载→脉搏、方案→芯片…），
-            //  设计上没错，但**16px 是多线图标的死线**：芯片那种七八条横线的图形缩到 16px
-            //  就是一团灰点，同屏五六张卡各顶一个灰点，看起来像"没画完"。
-            //  库页已经走"内容为主、装饰最少"（纯图 + 标题），这里对齐：只留标题，
-            //  层级靠字号和字重 —— Apple 的分组标题（设置、音乐）本来也没有图标。
-            //  槽位一起取消：标题直接贴 padX，与正文、按钮共享同一条左基准线。
         }
 
         Label MkLabel(string text, Font f, Color c)
@@ -7010,7 +7343,7 @@ namespace Fluxion
         {
             var l = MkLabel(text, Theme.F(10.5f), Theme.TextDim);   // 与 Body 同层（第 158 轮）
             l.AutoSize = false;
-            l.AutoEllipsis = true;
+            l.AutoEllipsis = (lines <= 1);
             var it = new Item();
             it.Kind = KText;
             it.A = l;
@@ -7132,12 +7465,8 @@ namespace Fluxion
                         l.Location = new Point(pxl, y);
                         continue;                 // 不推进 y、不加 gap
                     }
-                    // 换行高度用 TextRenderer 自己量（含 \n 与自动折行），不依赖 Label.PreferredHeight
-                    // 的内部实现 —— 量出来的高度和 Label 实际渲染用同一套 GDI 度量，必然一致。
-                    var sz = TextRenderer.MeasureText(l.Text, l.Font, new Size(w, int.MaxValue),
-                                                      TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
                     l.AutoSize = false;
-                    l.Height = sz.Height + Theme.S(2);
+                    l.Height = Theme.MeasureLabelHeight(l.Text, l.Font, w);
                     l.Width = w;
                     l.Location = new Point(pxl, y);
                     y += l.Height + gap;
@@ -7221,30 +7550,15 @@ namespace Fluxion
                 if (it.D != null && it.D.Height > h) h = it.D.Height;
                 if (h == 0) continue;
                 if (it.A != null) { it.A.Left = pxl; it.A.Top = y + (h - it.A.Height) / 2; }
-                // ★ 标签宽度按真实文字量算，不能用固定值 labelW（102px）：
-                //   标签是不透明底色（contentBg），比 labelW 长的标题会**直接盖住右侧控件** ——
-                //   用户截图里那个只显示 "n.dll" 的下拉就是这么来的（"version.dll" 左半被标题糊掉）。
-                int lwA = (it.A == null) ? 0 : Math.Max(labelW, it.A.Width + Theme.S(8));
+                bool isPair = (it.C != null || it.D != null);
+                int minLw = isPair ? Theme.S(56) : labelW;
+                int lwA = (it.A == null) ? 0 : Math.Max(minLw, it.A.Width + (isPair ? Theme.S(10) : Theme.S(8)));
                 if (it.B != null)
                 {
                     int avail = Width - pxl * 2 - lwA;
                     if (avail > Theme.S(48) && it.B.Width > avail) it.B.Width = avail;   // 放不下就缩，宁可窄也不重叠
                     it.B.Left = (it.A == null) ? pxl : pxl + lwA;
                     it.B.Top = y + (h - it.B.Height) / 2;
-                    //  ★ 第 142 轮：单列行的「值」**右对齐到内容区右缘**。
-                    //  原来是紧贴标签列左对齐，右边留一大片空 —— 卡片越宽空得越多，
-                    //  读起来像"表单没写完"（窗口 1080 时右侧空出 400px）。
-                    //  右对齐之后所有下拉框/输入框共用一条右边界，一列
-                    //  「标签 ←……→ 值」的结构就立起来了（macOS 设置 / iOS 表单都是这一派）。
-                    //  ⚠ 三条边界：
-                    //   ① 只动输入类控件（RoundCombo/RoundField）。复选框、按钮自带文字，
-                    //     右对齐会让它的字长长地伸向左边，读起来更乱；
-                    //   ② 只动单列行。Pair 的左右两列各有各的列宽，右对齐会把左列的值
-                    //     推出列外压到标签上（实测 B.Width 237 时左对齐位 135 < 标签右缘 169）；
-                    //   ③ 右对齐后不能压到标签，压到就退回左对齐。
-                    //   ④ **必须有标签**。`Row(null, cb, 0)` 这种"只有值"的行（详情页的「方案」下拉）
-                    //     一旦右对齐，下拉框会孤零零飘到卡片右上角，和它下面那行说明文字失联 ——
-                    //     那种行左对齐、与说明文字同一条左基线才对。
                     if (it.A != null && it.C == null && it.D == null
                         && (it.B is RoundCombo || it.B is RoundField))
                     {
@@ -7254,12 +7568,6 @@ namespace Fluxion
                 }
                 if (it.C != null || it.D != null)
                 {
-                    //  ★ 第 142 轮：Pair 重新算两列。
-                    //  原来右列写死 `half`、左列控件不限宽 —— 左列的下拉框右缘会**压到右列标签下面**
-                    //  （标签是不透明白底，视觉上下拉框被截掉一截，箭头都没了），
-                    //  右列控件也不收宽，直接顶出卡片右边被父容器裁掉。
-                    //  现在两列各自给出闭区间、且**列内的值靠右对齐** ——
-                    //  和单列行同一个规则（标签在左、值在右），整张卡片的右缘才连成一条线。
                     int colGap = Theme.S(16);
                     int halfX = Width / 2;
                     int leftColEnd = halfX - colGap / 2;      // 左列右缘
@@ -7274,14 +7582,12 @@ namespace Fluxion
                     }
                     if (it.D != null)
                     {
-                        int lwC = Math.Max(labelW, (it.C == null ? 0 : it.C.Width + Theme.S(8)));
+                        int lwC = (it.C == null) ? 0 : Math.Max(Theme.S(56), it.C.Width + Theme.S(10));
                         int dl = rightColX + lwC;
                         int dw = Math.Min(it.D.Width, rightColEnd - dl);
                         it.D.Width = dw;
                         it.D.Left = Math.Max(dl, rightColEnd - dw);
                         it.D.Top = y + (h - it.D.Height) / 2;
-                        //  ★ 右列的标签**跟着值走**：值既然靠右，标签要贴着它 ——
-                        //  否则「档位」孤零零留在列首、下拉框在列尾，中间空 140px，读起来两个东西失联。
                         if (it.C != null)
                         {
                             int cl = it.D.Left - it.C.Width - Theme.S(10);
@@ -7465,15 +7771,8 @@ namespace Fluxion
         readonly List<Sec> secs = new List<Sec>();
         readonly List<HeadBox> heads = new List<HeadBox>();
         bool busy, pending;
-        //  卡片之间的呼吸：14 → 18（2026-10-20）。14 时卡片挨得太紧，一页看起来像"堆起来的"；
-        //  18 让每张卡都有独立边界，代价只是页面高 4px×卡数（本来就能滚）。
-        public int GapSize = Theme.S(24);
-        //  ★ 卡片(分区)之间的**纵向**间距（2026-10-29 第 155 轮）：24 与卡内行距 22 只差 2px，
-        //    组内 22 / 组间 24 ≈ 1.09，三张卡读起来是"一条清单"而不是"三组"。
-        //    经验线是组间 ≈ 组内 × 1.5 → 32（4/8 栅格）。
-        //    ⚠ GapSize 同时是页面左右内边距与 hero 的对齐基准，不能直接改它 ——
-        //    所有纵向推进单独走 SecGap；hero 后的 +GapSize 是与顶部偏移 mg 配对的补偿，保持不动。
-        public int SecGap = Theme.S(32);
+        public int GapSize = Theme.S(22);
+        public int SecGap = Theme.S(16);
         //  完整重排（LayoutOnce relayout=true）的执行次数。重排闸的判据：
         //  几何自检修好后，内容与宽度都没变的 Reflow 必须命中缓存 → 计数不再增长。
         //  （ui_snapshot real 模式打印 [reflow] runs before → after）
@@ -7542,7 +7841,7 @@ namespace Fluxion
                 for (int i = 0; i < Controls.Count; i++)
                 {
                     Control c = Controls[i];
-                    if (c == null || !c.Visible) continue;
+                    if (c == null || c == sb || !c.Visible) continue;
                     int bottom = c.Bottom + sb.Value;
                     if (bottom > real) real = bottom;
                 }
@@ -7794,9 +8093,35 @@ namespace Fluxion
             }
         }
 
-        int lastW = -1, lastCount = -1, lastTotal = -1;
+        int lastW = -1, lastH = -1, lastCount = -1, lastTotal = -1, lastStamp = 0;
+        bool lastSbVis;
         int laidBottom;                 // LayoutOnce 定位后实测的内容底（ContentHeight 的同源来源）
         static bool healLogged;
+
+        int MeasureStamp()
+        {
+            unchecked
+            {
+                int h = 17;
+                h = h * 31 + heads.Count;
+                for (int i = 0; i < heads.Count; i++)
+                {
+                    HeadBox hb = heads[i];
+                    if (hb == null) continue;
+                    h = h * 31 + (hb.Visible ? 1 : 0);
+                    if (hb.Visible) h = h * 31 + hb.Height;
+                }
+                h = h * 31 + secs.Count;
+                for (int i = 0; i < secs.Count; i++)
+                {
+                    Sec s = secs[i];
+                    if (s == null) continue;
+                    h = h * 31 + (s.Visible ? 1 : 0);
+                    if (s.Visible) h = (h * 31 + s.Height) * 31 + (s.FullSpan ? 1 : 0);
+                }
+                return h;
+            }
+        }
 
         // ★ 布局自检：确认"算出来的位置"真的落到控件上了。
         //   为什么必须有这道检查：早退闸原先只看三个缓存数（宽度 / 分区数 / 内容总高），
@@ -7879,17 +8204,22 @@ namespace Fluxion
                         if (sF.Top + sy != curY) return false;
                         curY += sF.Height;
                     }
+                    if (curY + Theme.S(24) != laidBottom) return false;
                     return true;
                 }
                 //  双栏（AddLeft / LeftRatio）时左右列各自推进，单列断言不适用。
                 if (LeftWidth > 0 || LeftRatio > 0) return true;
+                int visSec = 0;
                 foreach (Sec s in secs)
                 {
                     if (!s.Visible) continue;                        // 隐藏分区不占位、不参与自检
                     if (s.Height < Theme.S(30)) return false;        // 分区被压扁（这条能抓住"封面带"）
                     if (s.Top + sy != y) return false;
                     y += s.Height + SecGap;
+                    visSec++;
                 }
+                int expectBottom = (visSec > 0 ? y - SecGap : y) + Theme.S(24);
+                if (laidBottom > 0 && expectBottom != laidBottom) return false;
                 return true;
             }
             catch { return true; }
@@ -7897,13 +8227,18 @@ namespace Fluxion
 
         public void Reflow()
         {
+            if (!Visible) { InvalidateLayout(); return; }
             if (busy) { pending = true; return; }
             SyncScrollRange();
+            int stamp = MeasureStamp();
+            bool hSame = !FillHead || lastH == ClientSize.Height;
             // ★ 宽度 / 分区数量 / 内容总高都没变 → 通常不做任何重排。
             //   少了这道闸，每次改一行文字（如点卡片刷新状态行）都会整页重排并重设滚动位置，
             //   表现就是"点一下游戏图标强制跳回最上面"（2026-09-14 用户反馈）。
             //   但缓存一致 **不等于** 布局正确，所以还要过一遍几何自检；不一致就强制重排。
-            if (lastCount == secs.Count && lastW == ClientSize.Width && lastTotal == ContentHeight())
+            if (laidBottom > 0 && hSame && lastSbVis == sb.Visible
+                && lastCount == secs.Count && lastW == ClientSize.Width
+                && lastTotal == laidBottom && lastStamp == stamp)
             {
                 if (GeometryLooksRight()) return;
                 if (!healLogged)
@@ -7934,8 +8269,11 @@ namespace Fluxion
                     assumedV = sb.Visible;
                 }
                 lastW = ClientSize.Width;
+                lastH = ClientSize.Height;
+                lastSbVis = sb.Visible;
                 lastCount = secs.Count;
-                lastTotal = ContentHeight();
+                lastTotal = laidBottom;
+                lastStamp = MeasureStamp();
             }
             finally { busy = false; }
         }
@@ -7956,7 +8294,7 @@ namespace Fluxion
             catch { }
         }
 
-        public void InvalidateLayout() { laidBottom = 0; }
+        public void InvalidateLayout() { laidBottom = 0; lastTotal = -1; lastStamp = 0; }
         public int ContentHeightPublic() { return ContentHeight(); }
 
         // 内容总高 = 各分区已算好的高度之和（DoLayout 之后才有意义）
@@ -8434,7 +8772,7 @@ namespace Fluxion
     // =========================================================================
     class ChangeDataDirDialog : Form
     {
-        TextBox txtPath;
+        RoundField fldPath;
         Label lblMsg;
         FlatBtn btnMigrate;
         FlatBtn btnBrowse;
@@ -8445,74 +8783,118 @@ namespace Fluxion
         {
             this.parent = parent;
             Text = "迁移数据目录";
+            AutoScaleMode = AutoScaleMode.None;
+            ShowIcon = false;
+            ShowInTaskbar = false;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
-            ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
-            Size = new Size(Theme.S(540), Theme.S(230));
-            BackColor = Theme.Panel;
+            Font = Theme.F(9.5f);
+            BackColor = Theme.Bg;
             ForeColor = Theme.Text;
+            ClientSize = new Size(Theme.S(540), Theme.S(236));
+            if (parent != null) { try { Icon = parent.Icon; } catch { } }
+            HandleCreated += delegate { try { Theme.ApplyChrome(Handle); } catch { } };
+            Fx.FadeOnClose(this);
 
-            var lblCur = new Label();
-            lblCur.Text = "当前数据目录：" + Program.DataDir;
-            lblCur.Location = new Point(Theme.S(20), Theme.S(16));
-            lblCur.Size = new Size(Theme.S(490), Theme.S(20));
+            var card = new Panel();
+            card.Location = new Point(Theme.S(16), Theme.S(14));
+            card.Size = new Size(Theme.S(508), Theme.S(154));
+            card.BackColor = Theme.Bg;
+            try { typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).SetValue(card, true, null); } catch { }
+            card.Paint += delegate(object s, PaintEventArgs e)
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                var cr = new Rectangle(0, 0, card.Width - 1, card.Height - 1);
+                Theme.FillRound(g, cr, Theme.RPanel, Theme.Panel);
+                Theme.EdgeRound(g, cr, Theme.RPanel, Theme.CardEdge, 1f);
+            };
+            Controls.Add(card);
+
+            var lblCur = new TxtLbl();
+            lblCur.AutoSize = false;
+            lblCur.AutoEllipsis = true;
+            lblCur.UseMnemonic = false;
+            lblCur.BackColor = Theme.Panel;
+            lblCur.Font = Theme.F(9.5f);
             lblCur.ForeColor = Theme.Text;
-            Controls.Add(lblCur);
+            lblCur.Text = "当前目录：" + Program.DataDir;
+            lblCur.Bounds = new Rectangle(Theme.S(20), Theme.S(16), Theme.S(468), Theme.S(22));
+            card.Controls.Add(lblCur);
 
-            var lblDesc = new Label();
-            lblDesc.Text = "新目录（可直接粘贴/手动输入路径，或点击「浏览」选择）：";
-            lblDesc.Location = new Point(Theme.S(20), Theme.S(44));
-            lblDesc.Size = new Size(Theme.S(490), Theme.S(20));
+            var lblDesc = new TxtLbl();
+            lblDesc.AutoSize = false;
+            lblDesc.UseMnemonic = false;
+            lblDesc.BackColor = Theme.Panel;
+            lblDesc.Font = Theme.F(9f);
             lblDesc.ForeColor = Theme.TextDim;
-            Controls.Add(lblDesc);
+            lblDesc.Text = "目标目录（可直接粘贴路径，或点击右侧「浏览」选择）：";
+            lblDesc.Bounds = new Rectangle(Theme.S(20), Theme.S(44), Theme.S(468), Theme.S(20));
+            card.Controls.Add(lblDesc);
 
-            txtPath = new TextBox();
-            txtPath.Location = new Point(Theme.S(20), Theme.S(70));
-            txtPath.Size = new Size(Theme.S(380), Theme.S(26));
-            txtPath.Font = new Font(Font.FontFamily, 10f);
-            txtPath.BackColor = Theme.Dark ? Color.FromArgb(36, 36, 38) : Color.White;
-            txtPath.ForeColor = Theme.Text;
-            Controls.Add(txtPath);
+            fldPath = new RoundField(Theme.S(372), "输入或粘贴新的数据目录路径…");
+            fldPath.SetCorner(Theme.Panel);
+            fldPath.Location = new Point(Theme.S(20), Theme.S(70));
+            card.Controls.Add(fldPath);
 
             btnBrowse = new FlatBtn();
-            btnBrowse.Text = "📁 浏览…";
-            btnBrowse.Location = new Point(Theme.S(410), Theme.S(68));
-            btnBrowse.Size = new Size(Theme.S(100), Theme.S(28));
+            btnBrowse.Text = "浏览…";
+            btnBrowse.Corner = Theme.Panel;
+            btnBrowse.Bounds = new Rectangle(Theme.S(400), Theme.S(70), Theme.S(88), Theme.S(32));
             btnBrowse.Click += delegate
             {
                 string picked = ModernFolderPicker.PickFolder(this.Handle, "选择新的数据目录", Program.AppDir);
-                if (!string.IsNullOrEmpty(picked)) txtPath.Text = picked;
+                if (!string.IsNullOrEmpty(picked)) fldPath.SetText(picked);
             };
-            Controls.Add(btnBrowse);
+            card.Controls.Add(btnBrowse);
 
-            lblMsg = new Label();
-            lblMsg.Text = "提示：配置、封面、备份与插帧包将整体搬移，源目录清空。";
-            lblMsg.Location = new Point(Theme.S(20), Theme.S(110));
-            lblMsg.Size = new Size(Theme.S(490), Theme.S(22));
+            lblMsg = new TxtLbl();
+            lblMsg.AutoSize = false;
+            lblMsg.AutoEllipsis = true;
+            lblMsg.UseMnemonic = false;
+            lblMsg.BackColor = Theme.Panel;
+            lblMsg.Font = Theme.F(9f);
             lblMsg.ForeColor = Theme.TextDim;
-            Controls.Add(lblMsg);
+            lblMsg.Text = "配置、封面、备份与组件包将整体迁移至目标目录。";
+            lblMsg.Bounds = new Rectangle(Theme.S(20), Theme.S(112), Theme.S(468), Theme.S(24));
+            card.Controls.Add(lblMsg);
+
+            var bar = new Panel();
+            bar.Dock = DockStyle.Bottom;
+            bar.Height = Theme.S(54);
+            bar.BackColor = Theme.Panel;
+            try { typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).SetValue(bar, true, null); } catch { }
+            bar.Paint += delegate(object s, PaintEventArgs e)
+            {
+                using (var p = new Pen(Theme.Line, 1f))
+                    e.Graphics.DrawLine(p, 0, 0, bar.Width, 0);
+            };
+            Controls.Add(bar);
 
             btnMigrate = new FlatBtn();
             btnMigrate.Text = "开始迁移";
             btnMigrate.Kind = BtnKind.Primary;
-            btnMigrate.Location = new Point(Theme.S(300), Theme.S(145));
-            btnMigrate.Size = new Size(Theme.S(100), Theme.S(32));
+            btnMigrate.Corner = Theme.Panel;
+            btnMigrate.Bounds = new Rectangle(Theme.S(318), Theme.S(11), Theme.S(104), Theme.S(32));
             btnMigrate.Click += delegate { DoStartMigrate(); };
-            Controls.Add(btnMigrate);
+            bar.Controls.Add(btnMigrate);
 
             btnCancel = new FlatBtn();
             btnCancel.Text = "取消";
-            btnCancel.Location = new Point(Theme.S(410), Theme.S(145));
-            btnCancel.Size = new Size(Theme.S(100), Theme.S(32));
+            btnCancel.Corner = Theme.Panel;
+            btnCancel.Bounds = new Rectangle(Theme.S(432), Theme.S(11), Theme.S(92), Theme.S(32));
             btnCancel.Click += delegate { Close(); };
-            Controls.Add(btnCancel);
+            bar.Controls.Add(btnCancel);
+
+            AcceptButton = btnMigrate;
+            CancelButton = btnCancel;
         }
 
         void DoStartMigrate()
         {
-            string tgt = txtPath.Text.Trim();
+            string tgt = fldPath.RealText.Trim();
             if (string.IsNullOrEmpty(tgt))
             {
                 MessageBox.Show(this, "请输入或浏览选择目标目录。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -8529,8 +8911,8 @@ namespace Fluxion
             btnBrowse.Enabled = false;
             btnCancel.Enabled = false;
             btnMigrate.Text = "迁移中…";
-            lblMsg.ForeColor = Theme.Accent;
-            lblMsg.Text = ">>> 正在准备迁移，请稍候…";
+            lblMsg.ForeColor = Theme.TextSafe(Theme.Accent);
+            lblMsg.Text = "正在准备迁移…";
 
             System.Threading.ThreadPool.QueueUserWorkItem(delegate
             {
@@ -8555,15 +8937,15 @@ namespace Fluxion
                         btnBrowse.Enabled = true;
                         btnCancel.Enabled = true;
                         btnMigrate.Text = "开始迁移";
-                        lblMsg.ForeColor = Color.Red;
-                        lblMsg.Text = "⚠ 迁移失败：" + err;
-                        MessageBox.Show(this, "迁移失败：\\n" + err, "数据目录", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        lblMsg.ForeColor = Theme.TextSafe(Theme.Err);
+                        lblMsg.Text = "迁移失败：" + err;
+                        MessageBox.Show(this, "迁移失败：\n" + err, "数据目录", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return;
                     }
 
-                    lblMsg.ForeColor = Color.FromArgb(46, 175, 80);
-                    lblMsg.Text = "✓ 数据目录已成功搬移！";
-                    if (MessageBox.Show(this, "数据已成功迁移到：\\n  " + tgt + "\\n\\n现在立即重启应用生效吗？", "数据目录", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                    lblMsg.ForeColor = Theme.TextSafe(Theme.Ok);
+                    lblMsg.Text = "✓ 数据目录迁移完成";
+                    if (MessageBox.Show(this, "数据已迁移至：\n" + tgt + "\n\n是否立即重启应用以生效？", "数据目录", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                     {
                         try { System.Diagnostics.Process.Start(Application.ExecutablePath); } catch { }
                         Application.Exit();
@@ -8582,6 +8964,7 @@ namespace Fluxion
         const int WM_ENTERSIZEMOVE = 0x0231;
         const int WM_EXITSIZEMOVE = 0x0232;
         const int WM_DROPFILES = 0x0233;
+        const int WM_DPICHANGED = 0x02E0;
         const int WM_NCCALCSIZE = 0x0083;
         const int WM_NCHITTEST = 0x0084;
         static readonly int WM_ACTIVATE_INSTANCE = Native.RegisterWindowMessage("FLUXION_SHOW_EXISTING_INSTANCE");
@@ -8611,7 +8994,7 @@ namespace Fluxion
         //  现在导航上移，左栏常驻游戏列表，选中游戏 → 右侧就是这台游戏的一切。
         const int GameSideW = 256;   // 「自考工作台」侧栏宽（实测 w-64 = 256px）
         const int TopH = 52;
-        const int FootH = 30;
+        const int FootH = 36;
 
         Config Cfg;
         Control rootPanel;      // 外层骨架：换主题时要整棵摘掉重建
@@ -8656,13 +9039,13 @@ namespace Fluxion
             string txt;
             if (n == 0)
             {
-                txt = rw < Theme.S(180) ? "🟢 优化良好" : "🟢 极致低延迟 · 全部已生效";
+                txt = rw < Theme.S(180) ? "状态良好" : "低延迟状态良好 · 全部已生效";
             }
             else
             {
-                if (rw < Theme.S(170)) txt = "⚠ 建议优化 (" + n + "项)";
-                else if (rw < Theme.S(220)) txt = "⚠ 建议优化 (" + n + " 项未生效)";
-                else txt = "⚠ 建议一键优化 · " + n + " 项未生效";
+                if (rw < Theme.S(170)) txt = "建议优化 · " + n + " 项";
+                else if (rw < Theme.S(220)) txt = "建议优化 · " + n + " 项待生效";
+                else txt = "建议一键优化 · " + n + " 项待生效";
             }
             SetBody(lblHealth, txt);
         }
@@ -8687,7 +9070,10 @@ namespace Fluxion
         Sec logSec;              // 日志所在分区（高度变了要 Resync，否则 Pg 滚动范围停在旧值）
         // 优化
         ListView lvOpt;
+        FlatBtn btnKnobSel;
         Label lblDrift;
+        FilterChips optChips;
+        string optFilterId = "all";
         // 帧生成
         Label lblRt, lblD3d12, lbl030, lblDlssLib;
         Label lblJunk;   // 设置页：备份/隔离区占用一行（P0-1）
@@ -8742,6 +9128,7 @@ namespace Fluxion
         readonly Dictionary<Sec, int> secTab = new Dictionary<Sec, int>();
         readonly Dictionary<Sec, bool> secWant = new Dictionary<Sec, bool>();   // 方案区块：这一套当前是否该显示
         Sec s030Sec, s040Sec, sNvSec, sSmSec;
+        Sec sSpoofSec;
         string curRecAction = "";      // 当前建议的动作（opti/030/asi/040/nvbr/none），供"自动"用
         // 0.4.x 的四个常用参数（写进游戏目录那份 dlssg_sm86.ini）
         RoundCombo cbOpt040, cbPreset040, cbEngine040, cbSr040;
@@ -8877,6 +9264,9 @@ namespace Fluxion
         System.Windows.Forms.Timer fgCheckTimer;   // 退出后延迟自检的定时器（见 DelayFgSelfCheck）
         int gameMiss = 0;                // 连续"没检测到游戏"的轮询次数（退出防抖，见 UpdateLink）
         bool linkActive = false;         // 本次游戏会话是否真的执行过联动（决定退出时是否收尾）
+        // A4/A5: 联动进入/退出锁，防止闪退时 Enter 与 Exit 后台线程交叉执行导致状态卡死
+        readonly object linkOpLock = new object();
+        int linkSeq;
         // 启动前预应用的显示联动（v3.9.1）：点「启动」时先按规则禁屏 / 切分辨率，再拉起游戏。
         // 记时刻是为了看门狗 —— 若之后一直没检测到游戏进程（启动失败 / 用户中途放弃），
         // 要能自动还原，否则桌面会一直停在游戏分辨率、显示器还禁着（用户会以为程序坏了）。
@@ -8928,9 +9318,18 @@ namespace Fluxion
             try { ToolStripManager.Renderer = new ThemedMenuRenderer(); } catch { }
             System.Threading.ThreadPool.QueueUserWorkItem(delegate
             {
+                try { Program.GetCpu(); } catch { }
                 try { Program.DetectSystem(); } catch { }
-                try { Invoke((Action)(delegate { if (lblSysInfo != null) SetBody(lblSysInfo, Program.SystemSummary()); })); } catch { }
+                try
+                {
+                    string sum = Program.SystemSummary();
+                    if (sum != null) sum = sum.Replace(" | ", "  ·  ");
+                    Invoke((Action)(delegate { if (lblSysInfo != null) SetBody(lblSysInfo, sum); }));
+                }
+                catch { }
                 Program.Log("系统探测: " + Program.SystemSummary());
+                System.Threading.Thread.Sleep(420);
+                try { if (!closing && IsHandleCreated) BeginInvoke((Action)(delegate { try { UpdateSys(); } catch { } })); } catch { }
             });
             Program.Log("GUI 已启动（管理员: " + IsAdmin() + (startMinimized ? "，最小化到托盘" : "") + "）");
             //  判据是从哪份来的必须留痕：catalog.json 读坏了会静默退回内置默认，
@@ -8989,6 +9388,18 @@ namespace Fluxion
             catch { return false; }
         }
 
+        void SyncMaxBounds()
+        {
+            try
+            {
+                Screen sc = Screen.FromHandle(Handle);
+                Rectangle wa = sc.WorkingArea;
+                Rectangle bd = sc.Bounds;
+                MaximizedBounds = new Rectangle(wa.X - bd.X, wa.Y - bd.Y, wa.Width, wa.Height);
+            }
+            catch { }
+        }
+
         // ---------------------- 界面搭建 ----------------------
         void BuildUi()
         {
@@ -9007,7 +9418,7 @@ namespace Fluxion
             Icon = Program.GetAppIcon();
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = new Size(Theme.S(860), Theme.S(560));
-            ClientSize = new Size(Theme.S(1040), Theme.S(700));
+            ClientSize = new Size(Theme.S(1160), Theme.S(780));
             SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw | ControlStyles.AllPaintingInWmPaint, true);
             UpdateStyles();
 
@@ -9081,8 +9492,7 @@ namespace Fluxion
                 //    （系统边框原来自带这个约束，FormBorderStyle.None 之后必须自己给）。
                 try
                 {
-                    var sc = Screen.FromHandle(Handle);
-                    MaximizedBounds = sc.WorkingArea;
+                    SyncMaxBounds();
                 }
                 catch { }
                 for (int i = 0; i < pages.Length; i++) pages[i].Reflow();
@@ -9107,8 +9517,8 @@ namespace Fluxion
             RunScan(false);     // 起步即后台自动扫描一遍（静默、不阻塞界面）
             //  建页时那次扫盘如果早于句柄创建，结果暂存在 junkPending —— 这里句柄一定已建，补填一次
             if (junkPending != null) { ApplyJunkLabel(junkPending); junkPending = null; }
-            Log("界面已就绪（缩放 " + Theme.ScaleText() + "，窗口 " + Width + "x" + Height + "）· 字体：" + Theme.FaceInfo());
-            Log("Fluxion 已启动（管理员: " + IsAdmin() + "）");
+            Program.Log("界面已就绪（缩放 " + Theme.ScaleText() + "，窗口 " + Width + "x" + Height + "）· 字体：" + Theme.FaceInfo());
+            Program.Log("Fluxion 已启动（管理员: " + IsAdmin() + "）");
         }
 
         // 外层骨架（纵贯全高侧栏 / 内容工作台区 / 底栏）。抽出来是为了"换主题时原地重建"能复用同一段代码。
@@ -9231,40 +9641,32 @@ namespace Fluxion
             bar.MouseDown += dragDown;
             bar.DoubleClick += dblMax;
 
-            // 中：面包屑 = 小图标 + 当前页名（FileButler 的 crumb：13px / 500 / opacity .88）
+            // 中：面包屑 = 小图标 + 当前页名
             bar.Paint += delegate(object s, PaintEventArgs e)
             {
                 var g = e.Graphics;
                 g.Clear(Theme.Bg);
                 g.SmoothingMode = SmoothingMode.AntiAlias;
-                //  图标：跟着面包屑文字左缘走（文字是子 Label，宽度由它自己量）
-                //  文字为空时连图标一起不画 —— 留一个孤立图标比留空更像 bug。
                 if (lblCrumb != null && crumbText.Length > 0)
                 {
-                    //  图标固定在左缘 S(20)（页头左基准），文字由 place() 跟着它走
                     int iz = Theme.S(16);
-                    DrawPageIcon(g, new Rectangle(Theme.S(20), (bar.Height - iz) / 2, iz, iz),
-                                 crumbIcon, Theme.TextDim);
+                    DrawPageIcon(g, new Rectangle(Theme.S(22), (bar.Height - iz) / 2, iz, iz),
+                                 crumbIcon, Theme.Accent);
                 }
-                //  后台活动指示：避开面包屑文字区域，防止在左侧重叠遮挡
                 if (scanOn)
                 {
-                    int sx = (lblCrumb != null && crumbText.Length > 0) ? lblCrumb.Right + Theme.S(16) : Theme.S(20);
+                    int sx = (lblCrumb != null && crumbText.Length > 0) ? lblCrumb.Right + Theme.S(14) : Theme.S(22);
                     DrawScanPulse(g, sx, bar.Height / 2);
                 }
-                //  底部发丝线：整条栏与下面导航同一底色，没有这条线两者会连成一块 92px 的灰板
-                //  页头与内容区之间一条 1px 实线（照「自考工作台」的 `border-bottom`）：
                 using (var pen = new Pen(Theme.Line, 1f))
                     g.DrawLine(pen, 0, bar.Height - 1, bar.Width, bar.Height - 1);
             };
 
-            //  面包屑用真 Label：自绘文字要靠"谁记得 Invalidate"来刷新，切页/选中游戏时
-            //  经常是别的地方在重绘、这条栏不在重绘范围里 —— 实测出现过"文字停在旧页名"。
             lblCrumb = new CaptionLabel();
             lblCrumb.AutoSize = false;
             lblCrumb.BackColor = Theme.Bg;
-            lblCrumb.ForeColor = Theme.Text;        // 页名是主文字，不是注脚
-            lblCrumb.Font = Theme.FM(15f);          // 与 study 页头标题同档（15px / 600）
+            lblCrumb.ForeColor = Theme.Text;
+            lblCrumb.Font = Theme.FM(13.5f);
             lblCrumb.TextAlign = ContentAlignment.MiddleLeft;
             lblCrumb.AutoEllipsis = true;
             lblCrumb.Text = crumbText;
@@ -9275,39 +9677,40 @@ namespace Fluxion
             Action place = delegate
             {
                 if (lblCrumb == null || bar.Width <= 0) return;
-                int w = TextRenderer.MeasureText(lblCrumb.Text, lblCrumb.Font).Width + Theme.S(8);
+                int w = TextRenderer.MeasureText(lblCrumb.Text, lblCrumb.Font).Width + Theme.S(10);
                 lblCrumb.Width = Math.Max(Theme.S(20), w);
-                lblCrumb.Height = Math.Max(1, bar.Height - Theme.S(1));   // 别盖住页头底线，见上
-                lblCrumb.Left = Theme.S(20) + Theme.S(16) + Theme.S(9);
+                lblCrumb.Height = Math.Max(1, bar.Height - Theme.S(1));
+                lblCrumb.Left = Theme.S(22) + Theme.S(16) + Theme.S(9);
                 lblCrumb.Top = 0;
             };
             bar.Layout += delegate { place(); };
             lblCrumb.TextChanged += delegate { place(); bar.Invalidate(); };
             crumbPlace = place;
 
-            //  扫描指示要动起来，得有个节拍器；只在扫描期间跑（平时一个定时器都不多开）
+            if (scanBeat != null) { try { scanBeat.Stop(); scanBeat.Dispose(); } catch { } }
             scanBeat = new Timer();
             scanBeat.Interval = 90;
             scanBeat.Tick += delegate { if (titleBar != null && scanOn) titleBar.Invalidate(); };
+            if (scanOn) scanBeat.Start();
 
-            // 右：窗口按钮（细线矢量，与图标同一套笔画粗细）
-            int bw = Theme.S(34), bh = Theme.S(32), gap = Theme.S(2), lead = Theme.S(10);
-            btnMin = MakeWinBtn(WinKind.Min); btnMin.Width = bw;
-            btnMax = MakeWinBtn(WinKind.Max); btnMax.Width = bw;
-            btnClose = MakeWinBtn(WinKind.Close); btnClose.Width = bw;
+            // 右：业务按钮 + 分隔竖线 + 窗口控制按钮
+            int bw = Theme.S(36), bh = Theme.S(30), gap = Theme.S(2), lead = Theme.S(12);
+            btnMin = MakeWinBtn(WinKind.Min); btnMin.Width = bw; btnMin.Height = bh;
+            btnMax = MakeWinBtn(WinKind.Max); btnMax.Width = bw; btnMax.Height = bh;
+            btnClose = MakeWinBtn(WinKind.Close); btnClose.Width = bw; btnClose.Height = bh;
 
             btnScanTop = new FlatBtn();
             btnScanTop.Text = "扫描游戏";
-            btnScanTop.Width = Theme.S(92);
-            btnScanTop.Height = Theme.S(32);
+            btnScanTop.Width = Theme.S(86);
+            btnScanTop.Height = Theme.S(30);
+            btnScanTop.Corner = Theme.Bg;
             btnScanTop.Click += delegate { RunScan(true); };
 
-            //  「添加游戏」提升为页头可见按钮（2026-11-01）：手动添加功能一直藏在 btnMore 菜单里，
-            //  用户从来没发现过（"手动导入游戏到底在哪儿"）。放页头与「扫描游戏」并列。
             btnAddTop = new FlatBtn();
             btnAddTop.Text = "添加游戏";
-            btnAddTop.Width = Theme.S(92);
-            btnAddTop.Height = Theme.S(32);
+            btnAddTop.Width = Theme.S(86);
+            btnAddTop.Height = Theme.S(30);
+            btnAddTop.Corner = Theme.Bg;
             btnAddTop.Click += delegate { DoAddGame(); };
 
             var box = new CaptionPanel();
@@ -9315,24 +9718,29 @@ namespace Fluxion
             box.BackColor = Theme.Bg;
             box.Margin = Padding.Empty;
             box.Height = Theme.S(TitleH);
-            int scanGap = Theme.S(14);                       // 业务按钮 ↔ 窗口按钮的距离
-            box.Width = Theme.S(12) + btnScanTop.Width + Theme.S(8) + btnAddTop.Width + scanGap + lead + bw * 3 + gap * 2 + Theme.S(12);
+            int scanGap = Theme.S(12);
+            box.Width = Theme.S(12) + btnScanTop.Width + Theme.S(6) + btnAddTop.Width + scanGap + lead + bw * 3 + gap * 2 + Theme.S(10);
             Buffered(box);
             box.MouseDown += dragDown;
             box.DoubleClick += dblMax;
 
-            //  从左到右：扫描游戏 添加游戏 (间距) 最小化 最大化 关闭
             btnScanTop.Left = Theme.S(12);
             btnScanTop.Top = (box.Height - btnScanTop.Height) / 2;
-            btnAddTop.Left = btnScanTop.Right + Theme.S(8);
+            btnAddTop.Left = btnScanTop.Right + Theme.S(6);
             btnAddTop.Top = btnScanTop.Top;
             int sepX = btnAddTop.Right + scanGap;
             box.Paint += delegate(object s2, PaintEventArgs e)
             {
                 var g = e.Graphics;
                 g.Clear(Theme.Bg);
-                using (var pLine = new Pen(Theme.Line, 1f))
-                    g.DrawLine(pLine, 0, box.Height - 1, box.Width, box.Height - 1);
+                int divX = (btnAddTop.Right + btnMin.Left) / 2;
+                int divH = Theme.S(16);
+                int divY = (box.Height - divH) / 2;
+                using (var pDiv = new Pen(Theme.Line, 1f))
+                {
+                    g.DrawLine(pDiv, divX, divY, divX, divY + divH);
+                    g.DrawLine(pDiv, 0, box.Height - 1, box.Width, box.Height - 1);
+                }
             };
             int bx = sepX + lead;
             foreach (WinBtn b in new WinBtn[] { btnMin, btnMax, btnClose })
@@ -9341,11 +9749,11 @@ namespace Fluxion
                 b.Left = bx; b.Top = (box.Height - bh) / 2; b.Width = bw; b.Height = bh;
                 bx += bw + gap;
             }
-            box.Controls.Add(btnClose);   // 先加的在最右：关闭在最右边
+            box.Controls.Add(btnClose);
             box.Controls.Add(btnMax);
             box.Controls.Add(btnMin);
             box.Controls.Add(btnScanTop);
-            box.Controls.Add(btnAddTop);   // 2026-11-01：创建+定位了却没挂进容器，按钮永远不显示（漏加 Controls.Add）
+            box.Controls.Add(btnAddTop);
             bar.Controls.Add(box);
             titleBtnBox = box;
             Action placeBtnBox = delegate
@@ -9355,7 +9763,8 @@ namespace Fluxion
                 box.Left = bar.Width - box.Width;
                 box.Top = 0;
                 btnScanTop.Top = (box.Height - btnScanTop.Height) / 2;
-                int bx2 = btnAddTop.Right + scanGap + lead;   // 2026-11-01：从「添加游戏」右边起摆 —— 旧的按扫描游戏算会叠在添加游戏上
+                btnAddTop.Top = btnScanTop.Top;
+                int bx2 = btnAddTop.Right + scanGap + lead;
                 foreach (WinBtn b in new WinBtn[] { btnMin, btnMax, btnClose })
                 {
                     if (b != null)
@@ -9376,6 +9785,7 @@ namespace Fluxion
                 if (titleBar != null) titleBar.Invalidate();
             };
             Resize += syncMax;
+            bar.Disposed += delegate { Resize -= syncMax; };
             return bar;
         }
 
@@ -9389,8 +9799,11 @@ namespace Fluxion
             {
                 if (kind == WinKind.Min) WindowState = FormWindowState.Minimized;
                 else if (kind == WinKind.Max)
+                {
+                    if (WindowState != FormWindowState.Maximized) SyncMaxBounds();
                     WindowState = WindowState == FormWindowState.Maximized
                         ? FormWindowState.Normal : FormWindowState.Maximized;
+                }
                 else Close();                 // 走原有的"最小化到托盘 / 退出"询问
             };
             return b;
@@ -9400,7 +9813,7 @@ namespace Fluxion
         bool OnWindowButton(Point pt)
         {
             Point sPt = PointToScreen(pt);
-            Control[] ctrls = new Control[] { btnMin, btnMax, btnClose, btnScanTop, btnSideMore, btnRailExpand };
+            Control[] ctrls = new Control[] { btnMin, btnMax, btnClose, btnScanTop, btnAddTop, btnSideMore, btnRailExpand };
             for (int i = 0; i < ctrls.Length; i++)
             {
                 Control c = ctrls[i];
@@ -9417,14 +9830,16 @@ namespace Fluxion
         {
             long ms = Motion.Now;
             double a = (ms % 900) / 900.0 * 2 * Math.PI;
-            using (var pen = new Pen(Theme.Accent, Math.Max(1.2f, Theme.S(1.4f))))
+            int r = Theme.S(5);
+            using (var pen = new Pen(Theme.Accent, Math.Max(1.3f, Theme.S(1.4f))))
             {
                 pen.StartCap = System.Drawing.Drawing2D.LineCap.Round;
-                g.DrawArc(pen, x - Theme.S(6), cy - Theme.S(6), Theme.S(12), Theme.S(12),
-                          (float)(a * 180 / Math.PI), 110f);
+                pen.EndCap = System.Drawing.Drawing2D.LineCap.Round;
+                g.DrawArc(pen, x, cy - r, r * 2, r * 2,
+                          (float)(a * 180 / Math.PI), 120f);
             }
-            Theme.DrawTxt(g, "扫描中", Theme.F(11f),
-                new Rectangle(x + Theme.S(10), cy - Theme.S(10), Theme.S(90), Theme.S(20)), Theme.TextDim,
+            Theme.DrawTxt(g, "正在扫描", Theme.F(9f),
+                new Rectangle(x + r * 2 + Theme.S(6), cy - Theme.S(10), Theme.S(84), Theme.S(20)), Theme.TextDim,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
         }
 
@@ -9500,11 +9915,24 @@ namespace Fluxion
                 // Win32 标准：WM_SETREDRAW 窗口级原子更新，彻底消除换主题时的黑白混杂撕裂与闪烁
         const int WM_SETREDRAW = 0x000B;
 
-        // 递归确保整棵控件树底色与前景色彻底对齐当前主题，杜绝黑白斑驳
+        static bool IsInSidebar(Control c)
+        {
+            for (Control p = c; p != null; p = p.Parent)
+                if (p.Tag as string == "sidebar") return true;
+            return false;
+        }
+
+        // 递归确保整棵控件树底色与前景色彻底对齐当前主题，同时保留侧栏专属底色层级
         static void ApplyThemeToTree(Control root)
         {
             if (root == null) return;
-            if (root is Pg || root is CaptionTable || root is CaptionPanel)
+            if (IsInSidebar(root))
+            {
+                if (root.Tag as string != "sidebar-card")
+                    root.BackColor = Theme.Sidebar;
+                root.ForeColor = Theme.Text;
+            }
+            else if (root is Pg || root is CaptionTable || root is CaptionPanel)
             {
                 root.BackColor = Theme.Bg;
                 root.ForeColor = Theme.Text;
@@ -9520,6 +9948,7 @@ namespace Fluxion
         void RebuildChrome()
         {
             int keepPage = page;
+            try { Theme.Tip.HideNow(); } catch { }
             Cursor = Cursors.WaitCursor;
             try
             {
@@ -9555,7 +9984,15 @@ namespace Fluxion
                 try { RefreshFgSummary(); } catch { }
                 try { UpdateSys(); } catch { }
                 try { UpdateLink(); } catch { }
-                try { RefreshGridAsync(); } catch { }
+                try
+                {
+                    if (lastStatus != null && lastStatus.Count > 0)
+                        FillList(lastStatus);
+                    else
+                        RefreshGridAsync();
+                }
+                catch { }
+                try { Theme.Tip.HideNow(); } catch { }
             }
             catch (Exception ex)
             {
@@ -9585,43 +10022,75 @@ namespace Fluxion
         Control BuildSideRail()
         {
             var rail = new CaptionPanel();
+            rail.Tag = "sidebar";
             rail.Dock = DockStyle.Fill;
-            rail.BackColor = Theme.Bg;
+            rail.BackColor = Theme.Sidebar;
             rail.Margin = Padding.Empty;
+            rail.Padding = new Padding(0, 0, 1, 0);
             Buffered(rail);
             rail.Paint += delegate(object s2, PaintEventArgs e)
             {
+                e.Graphics.Clear(Theme.Sidebar);
                 using (var p = new Pen(Theme.Line, 1f))
                     e.Graphics.DrawLine(p, rail.Width - 1, 0, rail.Width - 1, rail.Height);
             };
 
-            //  收起成导轨时窗口上没有任何品牌了（品牌行在展开态侧栏里），这里补一枚居中的徽标
             var logo = new CaptionPanel();
             logo.Dock = DockStyle.Top;
-            logo.Height = Theme.S(46);
-            logo.BackColor = Theme.Bg;
+            logo.Height = Theme.S(TitleH);
+            logo.BackColor = Theme.Sidebar;
             logo.Paint += delegate(object s2, PaintEventArgs e)
             {
+                e.Graphics.Clear(Theme.Sidebar);
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                int z = Theme.S(24);
+                int z = Theme.S(26);
                 Theme.DrawBrandLogo(e.Graphics, new Rectangle((logo.Width - z) / 2, (logo.Height - z) / 2, z, z));
+                using (var p = new Pen(Theme.Line, 1f))
+                    e.Graphics.DrawLine(p, 0, logo.Height - 1, logo.Width, logo.Height - 1);
             };
-            rail.Controls.Add(logo);
 
-            var btn = new TxtLbl();
+            var btn = new Panel();
+            Buffered(btn);
             btn.Dock = DockStyle.Top;
-            btn.Height = Theme.S(52);            // 与标题行同高，展开后按钮落回原位
-            btn.Text = "»";
-            btn.TextAlign = ContentAlignment.MiddleCenter;
-            btn.Font = Theme.FM(11f);
-            btn.ForeColor = Theme.TextDim;
-            btn.BackColor = Theme.Bg;
+            btn.Height = Theme.S(44);
+            btn.BackColor = Theme.Sidebar;
             btn.Cursor = Cursors.Hand;
+            bool railHot = false, railDown = false;
             Theme.Tip.SetToolTip(btn, "展开侧边栏（Ctrl+B）");
+            btn.Paint += delegate(object s2, PaintEventArgs e)
+            {
+                var g = e.Graphics;
+                g.Clear(Theme.Sidebar);
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                int sz = Theme.S(30);
+                var pill = new Rectangle((btn.Width - sz) / 2, (btn.Height - sz) / 2, sz, sz);
+                if (railHot || railDown)
+                    Theme.FillRound(g, pill, Theme.S(6), Theme.Mix(Theme.Sidebar, Theme.Text, railDown ? 0.12 : 0.07));
+                float cx = btn.Width / 2f, cy = btn.Height / 2f;
+                float q = Theme.S(3.2f), dx = Theme.S(2.2f);
+                Color ic = (railHot || railDown) ? Theme.Text : Theme.TextDim;
+                using (var p = new Pen(ic, 1.4f))
+                {
+                    p.StartCap = LineCap.Round; p.EndCap = LineCap.Round; p.LineJoin = LineJoin.Round;
+                    g.DrawLines(p, new PointF[] {
+                        new PointF(cx - dx - q / 2f, cy - q),
+                        new PointF(cx - dx + q / 2f, cy),
+                        new PointF(cx - dx - q / 2f, cy + q)
+                    });
+                    g.DrawLines(p, new PointF[] {
+                        new PointF(cx + dx - q / 2f, cy - q),
+                        new PointF(cx + dx + q / 2f, cy),
+                        new PointF(cx + dx - q / 2f, cy + q)
+                    });
+                }
+            };
             btn.Click += delegate { SetSideCollapsed(false); };
-            btn.MouseEnter += delegate { btn.ForeColor = Theme.Text; };
-            btn.MouseLeave += delegate { btn.ForeColor = Theme.TextDim; };
+            btn.MouseEnter += delegate { railHot = true; btn.Invalidate(); };
+            btn.MouseLeave += delegate { railHot = false; railDown = false; btn.Invalidate(); };
+            btn.MouseDown += delegate { railDown = true; btn.Invalidate(); };
+            btn.MouseUp += delegate { railDown = false; btn.Invalidate(); };
             rail.Controls.Add(btn);
+            rail.Controls.Add(logo);
             btnRailExpand = btn;
             return rail;
         }
@@ -9665,44 +10134,48 @@ namespace Fluxion
         Control BuildGameSide()
         {
             var side = new CaptionTable();
+            side.Tag = "sidebar";
             side.Dock = DockStyle.Fill;
             Buffered(side);
             side.ColumnCount = 1; side.RowCount = 4;
             side.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            side.RowStyles.Add(new RowStyle(SizeType.Absolute, Theme.S(68)));   // 品牌与操作
-            side.RowStyles.Add(new RowStyle(SizeType.Absolute, Theme.S(248)));  // 竖向菜单（6×40 + 8）
-            side.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));           // 弹性硬件状态看板
-            side.RowStyles.Add(new RowStyle(SizeType.Absolute, Theme.S(52)));   // 版本脚注
-            side.BackColor = Theme.Bg;
+            side.RowStyles.Add(new RowStyle(SizeType.Absolute, Theme.S(TitleH))); // 与右侧标题栏精确平齐（64px）
+            side.RowStyles.Add(new RowStyle(SizeType.Absolute, Theme.S(246)));    // 竖向菜单
+            side.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));             // 快捷游戏与守护状态
+            side.RowStyles.Add(new RowStyle(SizeType.Absolute, Theme.S(FootH)));  // 与右侧底栏精确平齐（36px）
+            side.BackColor = Theme.Sidebar;
             side.Margin = Padding.Empty;
-            side.Padding = Padding.Empty;
+            side.Padding = new Padding(0, 0, 1, 0); // 留出右侧 1px 脊线不被子面板覆盖
             side.Paint += delegate(object s2, PaintEventArgs e)
             {
+                e.Graphics.Clear(Theme.Sidebar);
                 using (var p = new Pen(Theme.Line, 1f))
                     e.Graphics.DrawLine(p, side.Width - 1, 0, side.Width - 1, side.Height);
             };
             sideCol = side;
 
-            // 品牌（FileButler 的 fb-brand）：logo 32 圆角 9 + 名称 14.5 + 标语 10.5
             var brandPane = new CaptionPanel();
             brandPane.Dock = DockStyle.Fill;
-            brandPane.BackColor = Theme.Bg;
+            brandPane.BackColor = Theme.Sidebar;
             brandPane.Margin = Padding.Empty;
             Buffered(brandPane);
             brandPane.Paint += delegate(object s2, PaintEventArgs e)
             {
                 var g = e.Graphics;
+                g.Clear(Theme.Sidebar);
                 g.SmoothingMode = SmoothingMode.AntiAlias;
-                int z = Theme.S(32);
-                Theme.DrawBrandLogo(g, new Rectangle(Theme.S(14), (brandPane.Height - z) / 2, z, z));
-                int tx = Theme.S(14) + z + Theme.S(10);
-                Theme.DrawTxt(g, "Fluxion", Theme.FB(12f),
-                    new Rectangle(tx, Theme.S(12), brandPane.Width - tx - Theme.S(38), Theme.S(22)), Theme.Text,
+                int z = Theme.S(30);
+                Theme.DrawBrandLogo(g, new Rectangle(Theme.S(16), (brandPane.Height - z) / 2, z, z));
+                int tx = Theme.S(16) + z + Theme.S(10);
+                Theme.DrawTxt(g, "Fluxion", Theme.FB(11.5f),
+                    new Rectangle(tx, Theme.S(12), brandPane.Width - tx - Theme.S(44), Theme.S(20)), Theme.Text,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-                Theme.DrawTxt(g, "游戏启动与帧生成", Theme.F(9f),
-                    new Rectangle(tx, brandPane.Height / 2 + Theme.S(2), brandPane.Width - tx - Theme.S(38), Theme.S(18)),
+                Theme.DrawTxt(g, "系统调优与帧生成", Theme.F(8.5f),
+                    new Rectangle(tx, Theme.S(32), brandPane.Width - tx - Theme.S(44), Theme.S(18)),
                     Theme.TextDim,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                using (var p = new Pen(Theme.Line, 1f))
+                    g.DrawLine(p, 0, brandPane.Height - 1, brandPane.Width, brandPane.Height - 1);
             };
 
             brandPane.MouseDown += delegate(object sender, MouseEventArgs e)
@@ -9718,101 +10191,124 @@ namespace Fluxion
                 WindowState = WindowState == FormWindowState.Maximized ? FormWindowState.Normal : FormWindowState.Maximized;
             };
 
-            // 库操作菜单按钮
-            var btnMore = new TxtLbl();
-            btnMore.Text = "";
+            var btnMore = new Panel();
+            Buffered(btnMore);
             btnMore.Dock = DockStyle.Right;
-            btnMore.Width = Theme.S(34);
-            btnMore.ForeColor = Theme.TextDim;
-            btnMore.BackColor = Theme.Bg;
+            btnMore.Width = Theme.S(42);
+            btnMore.Margin = Padding.Empty;
+            btnMore.BackColor = Theme.Sidebar;
             btnMore.Cursor = Cursors.Hand;
+            bool moreHot = false, moreDown = false;
             Theme.Tip.SetToolTip(btnMore, "库操作菜单");
             btnMore.Paint += delegate(object s, PaintEventArgs e)
             {
                 var g = e.Graphics;
+                g.Clear(Theme.Sidebar);
                 g.SmoothingMode = SmoothingMode.AntiAlias;
-                float d = Math.Max(2.6f, Theme.S(3.2f));          // 点径
-                float gap = Theme.S(5.5f);                         // 点距
-                float cy = btnMore.Height / 2f, cx = btnMore.Width / 2f;
-                using (var b = new SolidBrush(btnMore.ForeColor))
+                int sz = Theme.S(30);
+                var pill = new Rectangle(btnMore.Width - Theme.S(12) - sz, (btnMore.Height - sz) / 2, sz, sz);
+                if (moreHot || moreDown)
+                    Theme.FillRound(g, pill, Theme.S(6), Theme.Mix(Theme.Sidebar, Theme.Text, moreDown ? 0.12 : 0.07));
+                float d = Math.Max(2.6f, Theme.S(3.0f));
+                float gap = Theme.S(5.2f);
+                float cx = pill.X + pill.Width / 2f, cy = pill.Y + pill.Height / 2f;
+                Color dc = (moreHot || moreDown) ? Theme.Text : Theme.TextDim;
+                using (var b = new SolidBrush(dc))
                     for (int i = -1; i <= 1; i++)
-                        g.FillEllipse(b, cx + i * gap - d / 2, cy - d / 2, d, d);
+                        g.FillEllipse(b, cx + i * gap - d / 2f, cy - d / 2f, d, d);
+                using (var p = new Pen(Theme.Line, 1f))
+                    g.DrawLine(p, 0, btnMore.Height - 1, btnMore.Width, btnMore.Height - 1);
             };
             btnMore.Click += delegate { ShowLibMenu(btnMore); };
-            btnMore.MouseEnter += delegate { btnMore.ForeColor = Theme.Text; btnMore.Invalidate(); };
-            btnMore.MouseLeave += delegate { btnMore.ForeColor = Theme.TextDim; btnMore.Invalidate(); };
+            btnMore.MouseEnter += delegate { moreHot = true; btnMore.Invalidate(); };
+            btnMore.MouseLeave += delegate { moreHot = false; moreDown = false; btnMore.Invalidate(); };
+            btnMore.MouseDown += delegate { moreDown = true; btnMore.Invalidate(); };
+            btnMore.MouseUp += delegate { moreDown = false; btnMore.Invalidate(); };
             brandPane.Controls.Add(btnMore);
             btnSideMore = btnMore;
 
-            // 竖向菜单：两侧留 12px
             var menuWrap = new Panel();
             menuWrap.Dock = DockStyle.Fill;
-            menuWrap.BackColor = Theme.Bg;
+            menuWrap.BackColor = Theme.Sidebar;
             menuWrap.Margin = Padding.Empty;
-            menuWrap.Padding = new Padding(Theme.S(12), 0, Theme.S(12), 0);
+            menuWrap.Padding = new Padding(Theme.S(12), Theme.S(10), Theme.S(12), Theme.S(4));
             Buffered(menuWrap);
             navMenu = new NavMenu();
+            navMenu.BackColor = Theme.Sidebar;
             navMenu.Dock = DockStyle.Top;
             navMenu.SetItems(PageNames, Program.ShareBuild
                 ? new bool[] { false, false, true, false, true, true }
                 : new bool[] { true, true, true, true, true, true });
             navMenu.SelectedChanged += delegate { SwitchFromNav(navMenu.Selected); };
             menuWrap.Controls.Add(navMenu);
+            side.RowStyles[1].Height = navMenu.Height + menuWrap.Padding.Vertical;
 
-            // 侧栏下半区：快捷游戏列表 + 系统守护状态看板
             var guardWrap = new Panel();
             guardWrap.Dock = DockStyle.Fill;
-            guardWrap.BackColor = Theme.Bg;
+            guardWrap.BackColor = Theme.Sidebar;
             guardWrap.Margin = Padding.Empty;
-            guardWrap.Padding = new Padding(Theme.S(12), Theme.S(16), Theme.S(12), Theme.S(12));
+            guardWrap.Padding = new Padding(Theme.S(12), Theme.S(32), Theme.S(12), Theme.S(10));
             Buffered(guardWrap);
+            guardWrap.Paint += delegate(object s2, PaintEventArgs e)
+            {
+                var g = e.Graphics;
+                g.Clear(Theme.Sidebar);
+                using (var p = new Pen(Theme.LineSoft, 1f))
+                    g.DrawLine(p, Theme.S(13), 0, guardWrap.Width - Theme.S(13), 0);
+                Theme.DrawTxt(g, "快捷游戏", Theme.FM(8.5f),
+                    new Rectangle(Theme.S(16), Theme.S(8), guardWrap.Width - Theme.S(60), Theme.S(18)),
+                    Theme.TextFaint, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                if (sideGameCount > 0)
+                {
+                    Theme.DrawTxt(g, sideGameCount.ToString(), Theme.Num(8.5f),
+                        new Rectangle(guardWrap.Width - Theme.S(49), Theme.S(8), Theme.S(36), Theme.S(18)),
+                        Theme.TextFaint, TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                }
+            };
 
             var guardCard = new Panel();
+            guardCard.Tag = "sidebar-card";
             guardCard.Dock = DockStyle.Bottom;
-            guardCard.Height = Theme.S(96);
-            guardCard.BackColor = Theme.Bg;
+            guardCard.Height = Theme.S(62);
+            guardCard.BackColor = Theme.Sidebar;
             guardCard.Margin = Padding.Empty;
             Buffered(guardCard);
             guardCard.Paint += delegate(object s2, PaintEventArgs e)
             {
                 var g = e.Graphics;
-                g.Clear(Theme.Bg);
+                g.Clear(Theme.Sidebar);
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-                var cr = new Rectangle(0, 0, guardCard.Width - 1, guardCard.Height - 1);
-                Theme.FillRound(g, cr, Theme.RCard, Theme.Panel);
-                Theme.EdgeRound(g, cr, Theme.RCard, Theme.CardEdge, 1f);
+                var cr = new Rectangle(Theme.S(1), Theme.S(1), guardCard.Width - 1 - Theme.S(2), guardCard.Height - 1 - Theme.S(2));
+                Color cardFill = Theme.Dark ? Theme.Panel : Color.FromArgb(247, 248, 250);
+                Theme.FillRound(g, cr, Theme.S(8), cardFill);
+                Theme.EdgeRound(g, cr, Theme.S(8), Theme.Line, 1f);
 
-                // 状态指示点与微标题
                 int dotR = Theme.S(6);
                 int dotX = Theme.S(12);
-                int dotY = Theme.S(14);
+                int dotY = Theme.S(15);
                 using (var b = new SolidBrush(Theme.Ok))
                     g.FillEllipse(b, dotX, dotY, dotR, dotR);
 
                 int tx = dotX + dotR + Theme.S(6);
-                Theme.DrawTxt(g, "系统守护待命", Theme.FB(9.5f),
-                    new Rectangle(tx, Theme.S(8), guardCard.Width - tx - Theme.S(10), Theme.S(18)),
+                Theme.DrawTxt(g, "守护待命", Theme.FM(9f),
+                    new Rectangle(tx, Theme.S(9), guardCard.Width - tx - Theme.S(72), Theme.S(18)),
                     Theme.Text, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
-                // 硬件显卡型号/能力
+                Theme.DrawTxt(g, "DLSSG", Theme.Mono(8f),
+                    new Rectangle(guardCard.Width - Theme.S(72), Theme.S(9), Theme.S(60), Theme.S(18)),
+                    Theme.Accent, TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+
                 string gpu = Dlssg.GpuName();
                 if (gpu.Length == 0) gpu = Program.GpuDisplayName;
                 if (gpu.Length == 0 || gpu.Contains("探测")) gpu = "DirectX 12 独显";
-                Theme.DrawTxt(g, gpu, Theme.F(9f),
-                    new Rectangle(Theme.S(12), Theme.S(34), guardCard.Width - Theme.S(24), Theme.S(18)),
+                Theme.DrawTxt(g, gpu, Theme.F(8.5f),
+                    new Rectangle(Theme.S(12), Theme.S(35), guardCard.Width - Theme.S(24), Theme.S(18)),
                     Theme.TextDim, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
-
-                // 优化能力/帧生成就绪徽章
-                int badgeY = Theme.S(58);
-                int badgeH = Theme.S(22);
-                var bRect = new Rectangle(Theme.S(12), badgeY, guardCard.Width - Theme.S(24), badgeH);
-                Theme.FillRound(g, bRect, Theme.S(4), Theme.Field);
-                Theme.DrawTxt(g, "DLSSG / 帧生成已就绪", Theme.FM(8.5f),
-                    bRect, Theme.Accent, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
             };
 
             sideList = new SideGameList();
+            sideList.BackColor = Theme.Sidebar;
             sideList.Dock = DockStyle.Fill;
             sideList.Picked += delegate(DlssgGame g)
             {
@@ -9820,6 +10316,14 @@ namespace Fluxion
                 {
                     SelectGame(g);
                     Switch(P_FG);
+                }
+            };
+            sideList.RightClicked += delegate(DlssgGame g)
+            {
+                if (g != null)
+                {
+                    SelectGame(g, false);
+                    ShowRowMenu(Cursor.Position);
                 }
             };
             sideList.MorePicked += delegate
@@ -9831,21 +10335,22 @@ namespace Fluxion
             guardWrap.Controls.Add(sideList);
             guardWrap.Controls.Add(guardCard);
 
-            // 底部：版本与权限
             var verCard = new Panel();
             verCard.Dock = DockStyle.Fill;
-            verCard.BackColor = Theme.Bg;
+            verCard.BackColor = Theme.Sidebar;
             verCard.Margin = Padding.Empty;
-            verCard.Padding = new Padding(Theme.S(14), 0, Theme.S(14), Theme.S(10));
+            verCard.Padding = Padding.Empty;
             Buffered(verCard);
             verCard.Paint += delegate(object s2, PaintEventArgs e)
             {
                 var g = e.Graphics;
+                g.Clear(Theme.Sidebar);
                 g.SmoothingMode = SmoothingMode.AntiAlias;
-                int cy = (verCard.Height - Theme.S(18)) / 2;
-                Theme.DrawTxt(g, "v" + Program.AppVersion + (Program.IsAdmin() ? " · 管理员" : ""),
-                    Theme.F(9f),
-                    new Rectangle(Theme.S(14), cy, verCard.Width - Theme.S(28), Theme.S(18)),
+                using (var p = new Pen(Theme.Line, 1f))
+                    g.DrawLine(p, 0, 0, verCard.Width, 0);
+                Theme.DrawTxt(g, "v" + Program.AppVersion + (Program.IsAdmin() ? "  ·  管理员" : ""),
+                    Theme.F(8.5f),
+                    new Rectangle(Theme.S(16), 1, verCard.Width - Theme.S(32), verCard.Height - 1),
                     Theme.TextDim,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
             };
@@ -9887,21 +10392,24 @@ namespace Fluxion
         void ShowSchemeMenuAt(DlssgGame gm, Control anchor, Point at)
         {
             if (gm == null || cbScheme == null || anchor == null) return;
-            var m = MenuFactory.New();
-            m.Renderer = new ThemedMenuRenderer();
-            m.ShowImageMargin = false;
+            ThemedMenu m = MenuFactory.New();
             string cur = Plan.Current(gm.Dir);
             for (int i = 0; i < cbScheme.Items.Count; i++)
             {
                 int idx = i;
                 string label = cbScheme.Items[i].ToString();
-                //  标一下"当前这套"：菜单里能一眼看出改之前是什么
-                if (i > 0 && SchemeShort(ChosenActionAt(idx)) == cur) label = "✓ " + label;
-                m.Items.Add(label, null, delegate { PickSchemeFor(gm, idx); });
+                var mi = new ToolStripMenuItem(label);
+                if (i > 0 && SchemeShort(ChosenActionAt(idx)) == cur) mi.Checked = true;
+                mi.Click += delegate { PickSchemeFor(gm, idx); };
+                m.Items.Add(mi);
             }
             m.Items.Add(new ToolStripSeparator());
             m.Items.Add("打开完整详情…", null, delegate { SelectGame(gm, true); });
-            m.Show(anchor, at);
+            m.PrepareLayout();
+            if (at.Y < 0)
+                m.Show(anchor, at, ToolStripDropDownDirection.AboveRight);
+            else
+                m.Show(anchor, at);
         }
 
         //  把"菜单里第 idx 项"翻成 action 字符串（不依赖当前 selected，菜单着色用）
@@ -9926,9 +10434,7 @@ namespace Fluxion
 
         void ShowLibMenu(Control anchor)
         {
-            var m = MenuFactory.New();
-            m.Renderer = new ThemedMenuRenderer();
-            m.ShowImageMargin = false;
+            ThemedMenu m = MenuFactory.New();
             m.Items.Add("扫描游戏", null, delegate { RunScan(true); });
             m.Items.Add("添加扫描目录…", null, delegate { DoAddScanRoot(); });
             if (!Program.ShareBuild)
@@ -9936,15 +10442,19 @@ namespace Fluxion
             m.Items.Add(new ToolStripSeparator());
             m.Items.Add("添加游戏…", null, delegate { DoAddGame(); });
             m.Items.Add(new ToolStripSeparator());
-            //  低频开关放菜单：顶栏那一行要留给"我现在是什么状态"（统计），不是给开关
-            string hid = (chkShowHidden != null && chkShowHidden.Checked) ? "✓ 显示已隐藏" : "显示已隐藏";
-            m.Items.Add(hid, null, delegate
+            var miHid = new ToolStripMenuItem("显示已隐藏");
+            miHid.Checked = (chkShowHidden != null && chkShowHidden.Checked);
+            miHid.Click += delegate
             {
                 if (chkShowHidden != null) chkShowHidden.Checked = !chkShowHidden.Checked;
-            });
+            };
+            m.Items.Add(miHid);
             m.Items.Add(new ToolStripSeparator());
             m.Items.Add("收起侧栏（Ctrl+B）", null, delegate { SetSideCollapsed(true); });
-            m.Show(anchor, new Point(0, anchor.Height));
+            m.PrepareLayout();
+            int ax = anchor == null ? 0 : Math.Max(0, anchor.Width - Theme.S(42));
+            int ay = anchor == null ? 0 : (anchor.Height + Theme.S(30)) / 2 + Theme.S(4);
+            m.Show(anchor, new Point(ax, ay));
         }
 
         // ---- 底部状态栏 ----
@@ -9955,24 +10465,17 @@ namespace Fluxion
             foot.Margin = Padding.Empty;
             foot.BackColor = Theme.Bg;
             Buffered(foot);
-            foot.Paint += delegate(object s, PaintEventArgs e)
-            {
-                // 顶边同样用淡出线，跟标题头的分隔线保持同一种过渡
-                Color lc = Theme.Line;
-                using (var br = new LinearGradientBrush(new Rectangle(0, 0, Math.Max(1, foot.Width), 1),
-                           Color.FromArgb(0, lc), lc, 0f))
-                {
-                    var cb = new ColorBlend(3);
-                    cb.Colors = new Color[] { Color.FromArgb(0, lc), lc, Color.FromArgb(0, lc) };
-                    cb.Positions = new float[] { 0f, 0.18f, 1f };
-                    br.InterpolationColors = cb;
-                    e.Graphics.FillRectangle(br, 0, 0, foot.Width, 1);
-                }
-            };
+
+            var topRule = new Panel();
+            topRule.Dock = DockStyle.Top;
+            topRule.Height = 1;
+            topRule.Margin = Padding.Empty;
+            topRule.BackColor = Theme.Line;
+            topRule.Paint += delegate(object s, PaintEventArgs e) { e.Graphics.Clear(Theme.Line); };
 
             lblFoot = new TxtLbl();
             lblFoot.Dock = DockStyle.Fill;
-            lblFoot.Font = Theme.F(9f);
+            lblFoot.Font = Theme.F(8.8f);
             lblFoot.ForeColor = Theme.TextDim;
             lblFoot.BackColor = Theme.Bg;
             lblFoot.TextAlign = ContentAlignment.MiddleLeft;
@@ -9981,18 +10484,16 @@ namespace Fluxion
             var dotPanel = new Panel();
             dotFoot = dotPanel;
             dotPanel.Dock = DockStyle.Left;
-            dotPanel.Width = Theme.S(28);
+            dotPanel.Width = Theme.S(34);
             dotPanel.BackColor = Theme.Bg;
             Buffered(dotPanel);
             dotPanel.Paint += delegate(object s, PaintEventArgs e)
             {
+                e.Graphics.Clear(Theme.Bg);
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                int dotR = Theme.S(5);
-                int dotX = Theme.S(16);
+                int dotR = Theme.S(6);
+                int dotX = Theme.S(22);
                 int dotY = (dotPanel.Height - dotR) / 2;
-                //  ★ 第 142 轮：去掉外围那圈 46 alpha 的"光晕"。
-                //  浅色底上它是一团淡绿雾，和 Cursor / 呼吸灯那种效果撞脸 —— 廉价感的一半来自这里。
-                //  状态灯只需要一件事：告诉我"是好的还是坏的"。一个实心圆点就够。
                 using (var bDot = new SolidBrush(footDot))
                     e.Graphics.FillEllipse(bDot, dotX, dotY, dotR, dotR);
             };
@@ -10008,29 +10509,40 @@ namespace Fluxion
 
             var clockBox = new Panel();
             clockBox.Dock = DockStyle.Right;
-            clockBox.Width = Theme.S(90);
+            clockBox.Width = Theme.S(84);
             clockBox.BackColor = Theme.Bg;
-            clockBox.Padding = new Padding(0, Theme.S(4), Theme.S(12), Theme.S(4));
+            clockBox.Padding = new Padding(0, Theme.S(4), Theme.S(16), Theme.S(4));
             Buffered(clockBox);
+            clockBox.Paint += delegate(object s, PaintEventArgs e)
+            {
+                e.Graphics.Clear(Theme.Bg);
+                using (var p = new Pen(Theme.Line, 1f))
+                {
+                    int dh = Theme.S(12);
+                    int dy = (clockBox.Height - dh) / 2;
+                    e.Graphics.DrawLine(p, 0, dy, 0, dy + dh);
+                }
+            };
 
             lblClock = new TxtLbl();
             lblClock.Dock = DockStyle.Fill;
-            lblClock.Font = Theme.Num(9f);
-            //  时钟是**被动信息**：不用强调色、也不铺一块比底色深一档的方块。
-            //  以前是 Cyan 字 + Field 底 —— 一个青绿色的矩形贴在右下角，看着像"能点的按钮"，
-            //  而同屏的蓝色本该只表示"可点击"（2026-10-23 与状态灯语义一起收口）。
+            lblClock.Font = Theme.Num(8.8f);
             lblClock.ForeColor = Theme.TextDim;
             lblClock.BackColor = Theme.Bg;
-            lblClock.TextAlign = ContentAlignment.MiddleCenter;
+            lblClock.TextAlign = ContentAlignment.MiddleRight;
             lblClock.Text = DateTime.Now.ToString("HH:mm:ss");
             clockBox.Controls.Add(lblClock);
 
-            foot.Controls.Add(clockBox);
+            var quickBox = new Panel();
+            quickBox.Dock = DockStyle.Right;
+            quickBox.Width = Theme.S(94);
+            quickBox.BackColor = Theme.Bg;
+            quickBox.Padding = new Padding(Theme.S(6), Theme.S(4), Theme.S(10), Theme.S(4));
+            Buffered(quickBox);
 
             var btnQuick = new FlatBtn();
-            btnQuick.Text = "▶ 快速启动";
-            btnQuick.Width = Theme.S(84);
-            btnQuick.Dock = DockStyle.Right;
+            btnQuick.Text = "快速启动";
+            btnQuick.Dock = DockStyle.Fill;
             btnQuick.Font = Theme.F(8.5f);
             btnQuick.Corner = Theme.Bg;
             btnQuick.Margin = Padding.Empty;
@@ -10059,10 +10571,12 @@ namespace Fluxion
                 }
                 Switch(P_FG);
             };
-            foot.Controls.Add(btnQuick);
+            quickBox.Controls.Add(btnQuick);
 
             foot.Controls.Add(statusBox);
-            statusBox.BringToFront();
+            foot.Controls.Add(quickBox);
+            foot.Controls.Add(clockBox);
+            foot.Controls.Add(topRule);
             return foot;
         }
 
@@ -10094,12 +10608,9 @@ namespace Fluxion
                 //  设置 / 说明 / 实时监控都是「一列标签 + 值」的表单，窗口一宽，卡片跟着宽、
                 //  控件却没宽 —— 中间空出 400px，像表单没写完。
                 //  库页不设：封面墙要列数，限宽反而浪费。
-                //  ★ 2026-10-29 对齐「自考工作台」的主区列宽（实测 main max-w-[1120px] 居中）：
-                //  除长文页外全部放开到 1120 —— 窄窗口下交给窗口，超宽屏封顶居中。
-                //  行内控件本来就是"标签左、值右对齐"（第 142 轮），列宽放大只是把留白还给中间。
-                //  说明页保持 680：那是长文页，一行 9.5pt 中文拉到 1120 ≈ 88 字，超出阅读宽度。
+                //  除游戏库墙（MaxSecW=0 按全宽自动分列）外，其余所有页面统一 1120 栏宽上限居中，
+                //  保证仪表盘 / 优化 / 监控 / 说明 / 设置之间切页时卡片左右基准线完全一致、不跳动。
                 if (i == P_FG) pages[i].MaxSecW = 0;
-                else if (i == P_HELP) pages[i].MaxSecW = Theme.S(680);
                 else pages[i].MaxSecW = Theme.S(1120);
                 content.Controls.Add(pages[i]);
             }
@@ -10118,9 +10629,9 @@ namespace Fluxion
         {
             if (keyData == (Keys.Control | Keys.B)) { SetSideCollapsed(!sideCollapsed); return true; }
 
-            //  ★ 封面墙的键盘走位：只在「库视图 + 焦点不在输入框」时接管，
-            //  否则会把搜索框里的左右键（移动光标）也吃掉。
-            if (page == P_FG && libViewOn && !FocusInTextField()
+            //  ★ 封面墙的键盘走位：只在「库视图 + 焦点不在交互控件 + 无弹出下拉」时接管，
+            //  否则会把搜索框/下拉框/工具条按钮的按键（甚至 Enter 误启动游戏）截走。
+            if (page == P_FG && libViewOn && !FocusInInteractiveControl() && !RoundCombo.IsPopupOpen
                 && libShown != null && libShown.Count > 0)
             {
                 if (keyData == Keys.Left)  { LibMoveFocus(-1, 0); return true; }
@@ -10131,7 +10642,7 @@ namespace Fluxion
             }
 
             //  Esc 两条路：详情页 → 回列表；库视图里 → 取消选中（收起底部状态栏）
-            if (keyData == Keys.Escape && page == P_FG && !FocusInTextField())
+            if (keyData == Keys.Escape && page == P_FG && !FocusInTextField() && !RoundCombo.IsPopupOpen)
             {
                 if (!libViewOn) ShowLibView(true);
                 else if (selected != null) SelectGame(null, false);
@@ -10190,7 +10701,7 @@ namespace Fluxion
                 //  更新检查是后台静默跑的（第 160 轮）：结果只进日志，进设置页这一刻才回填到卡上
                 if (lblUpd != null && !lblUpd.IsDisposed)
                 {
-                    string last = Cfg != null && Cfg.UpdateCheckAt.Length > 0 ? Cfg.UpdateCheckAt : "还没检查过";
+                    string last = Cfg != null && Cfg.UpdateCheckAt.Length > 0 ? Cfg.UpdateCheckAt : "尚未检查";
                     SetBody(lblUpd, "当前版本 " + Program.AppVersion + " · 上次检查：" + last);
                 }
             }
@@ -10230,11 +10741,11 @@ namespace Fluxion
 
             lblLinkAct = sLink.Body(LinkIdleText);
 
-            var b1 = new FlatBtn(); b1.Text = "游戏库"; b1.Kind = BtnKind.Primary; b1.Width = Theme.S(80);
+            var b1 = new FlatBtn(); b1.Text = "游戏库"; b1.Kind = BtnKind.Primary; b1.Width = Theme.S(84);
             b1.Click += delegate { Switch(P_FG); };
-            var b2 = new FlatBtn(); b2.Text = "刷新联动"; b2.Width = Theme.S(80);
+            var b2 = new FlatBtn(); b2.Text = "刷新联动"; b2.Width = Theme.S(84);
             b2.Click += delegate { UpdateLink(); Log("已刷新联动状态"); };
-            var b3 = new FlatBtn(); b3.Text = "联动设置"; b3.Width = Theme.S(80);
+            var b3 = new FlatBtn(); b3.Text = "联动设置"; b3.Width = Theme.S(84);
             b3.Click += delegate { Switch(P_SET); };
             sLink.Buttons(b1, b2, b3);
 
@@ -10249,15 +10760,15 @@ namespace Fluxion
 
             gaugeHealth = new RadialGauge();
             gaugeHealth.Location = new Point(0, Theme.S(12));
-            gaugeHealth.Size = new Size(Theme.S(74), Theme.S(74));
+            gaugeHealth.Size = new Size(Theme.S(76), Theme.S(76));
             healthBox.Controls.Add(gaugeHealth);
 
-            int rightX = Theme.S(82);
+            int rightX = Theme.S(88);
             int initRw = Math.Max(Theme.S(180), Theme.S(350) - rightX);
 
             lblHealth = new TxtLbl();
             lblHealth.Location = new Point(rightX, Theme.S(4));
-            lblHealth.Font = Theme.FB(10.5f);
+            lblHealth.Font = Theme.FM(10.5f);
             lblHealth.ForeColor = Theme.TextSafe(Theme.Ok);
             lblHealth.Text = "优化健康度探测中…";
             lblHealth.AutoSize = false;
@@ -10268,16 +10779,16 @@ namespace Fluxion
             pnlBtns.Location = new Point(rightX, Theme.S(32));
             pnlBtns.Size = new Size(initRw, Theme.S(36));
             pnlBtns.FlowDirection = FlowDirection.LeftToRight;
-            pnlBtns.WrapContents = false; // 严禁折行，保持单行整齐排列
+            pnlBtns.WrapContents = false;
             pnlBtns.Margin = Padding.Empty;
             pnlBtns.Padding = Padding.Empty;
             pnlBtns.BackColor = Theme.Panel;
 
             var q1 = new FlatBtn(); q1.Text = "一键优化"; q1.Kind = BtnKind.Primary;
-            q1.Margin = new Padding(0, 0, Theme.S(4), 0);
+            q1.Margin = new Padding(0, 0, Theme.S(6), 0);
             q1.Click += delegate { DoOptimize(); };
             var q2 = new FlatBtn(); q2.Text = "系统体检";
-            q2.Margin = new Padding(0, 0, Theme.S(4), 0);
+            q2.Margin = new Padding(0, 0, Theme.S(6), 0);
             q2.Click += delegate { RefreshGridAsync(); Log("已刷新优化项状态（体检结果见「性能优化」页）"); Switch(P_OPT); };
             var q3 = new FlatBtn(); q3.Text = "恢复备份";
             q3.Margin = Padding.Empty;
@@ -10288,7 +10799,7 @@ namespace Fluxion
             healthBox.Controls.Add(pnlBtns);
 
             lblDashSub = new MetaLine();
-            lblDashSub.Location = new Point(rightX, Theme.S(72));
+            lblDashSub.Location = new Point(rightX, Theme.S(74));
             lblDashSub.Size = new Size(initRw, Theme.S(22));
             healthBox.Controls.Add(lblDashSub);
 
@@ -10298,31 +10809,27 @@ namespace Fluxion
 
             Action updateBento2 = delegate
             {
-                int rw = Math.Max(Theme.S(150), healthBox.Width - rightX - Theme.S(6));
+                int rw = Math.Max(Theme.S(150), healthBox.Width - rightX - Theme.S(4));
                 lblHealth.Width = rw;
                 pnlBtns.Width = rw;
                 lblDashSub.Width = rw;
-                int gap = Theme.S(4);
-                // 弹性布局：确保按钮宽度不超界，杜绝出现“恢”半字裁切
-                if (rw >= Theme.S(236))
+                int gap = Theme.S(6);
+                if (rw >= Theme.S(254))
                 {
-                    // 宽屏模式：完整三按钮
                     q3.Visible = true;
-                    q1.Text = "一键优化"; q1.Width = Theme.S(78);
-                    q2.Text = "系统体检"; q2.Width = Theme.S(78);
-                    q3.Text = "恢复备份"; q3.Width = Theme.S(78);
+                    q1.Text = "一键优化"; q1.Width = Theme.S(80);
+                    q2.Text = "系统体检"; q2.Width = Theme.S(80);
+                    q3.Text = "恢复备份"; q3.Width = Theme.S(80);
                 }
-                else if (rw >= Theme.S(175))
+                else if (rw >= Theme.S(184))
                 {
-                    // 自适应紧凑模式：三按钮精简文案（72 + 4 + 48 + 4 + 48 = 176px）完美容纳
                     q3.Visible = true;
-                    q1.Text = "一键优化"; q1.Width = Theme.S(72);
+                    q1.Text = "一键优化"; q1.Width = Theme.S(76);
                     q2.Text = "体检";     q2.Width = Theme.S(48);
                     q3.Text = "备份";     q3.Width = Theme.S(48);
                 }
                 else
                 {
-                    // 窄屏双按钮模式：只保留核心操作，隐藏次要按钮
                     q3.Visible = false;
                     int btnW = Math.Max(Theme.S(48), (rw - gap) / 2);
                     q1.Text = "一键优化"; q1.Width = btnW;
@@ -10333,25 +10840,25 @@ namespace Fluxion
             healthBox.Resize += delegate { updateBento2(); };
             updateBento2();
 
-            sHealth.Block(healthBox, Theme.S(108));
+            sHealth.Block(healthBox, Theme.S(106));
             p.Add(sHealth);
 
             // ================= Bento 3 (左下): 核心硬件遥测 (KPI 4 瓦片) =================
             var sLoad = new Sec("实时负载");
-            barCpu = new Bar(); barCpu.Caption = "CPU"; barCpu.BarColor = Theme.Accent;
-            barMem = new Bar(); barMem.Caption = "内存"; barMem.BarColor = Theme.Accent;
-            barGpu = new Bar(); barGpu.Caption = "GPU"; barGpu.BarColor = Theme.Ok;
-            barTemp = new Bar(); barTemp.Caption = "GPU 温度"; barTemp.BarColor = Theme.Warn;
+            barCpu = new Bar(); barCpu.Caption = "CPU"; barCpu.RightText = "—"; barCpu.BarColor = Theme.Accent;
+            barMem = new Bar(); barMem.Caption = "内存"; barMem.RightText = "—"; barMem.BarColor = Theme.Accent;
+            barGpu = new Bar(); barGpu.Caption = "GPU"; barGpu.RightText = "—"; barGpu.BarColor = Theme.Ok;
+            barTemp = new Bar(); barTemp.Caption = "GPU 温度"; barTemp.RightText = "—"; barTemp.BarColor = Theme.Warn;
             barCpu.Grid = barMem.Grid = barGpu.Grid = barTemp.Grid = true;
-            sLoad.Block2(barCpu, barMem, Theme.S(72));
-            sLoad.Block2(barGpu, barTemp, Theme.S(72));
+            sLoad.Block2(barCpu, barMem, Theme.S(70));
+            sLoad.Block2(barGpu, barTemp, Theme.S(70));
             p.AddLeft(sLoad);
 
             // ================= Bento 4 (右下): 帧生成 (DLSSG) 运行看板 =================
             var sFg = new Sec("帧生成（DLSSG）");
             lblFgRuntime = sFg.Body("—");
             lblFgLast = sFg.Body("");
-            var btnGo = new FlatBtn(); btnGo.Text = "管理帧生成 →"; btnGo.Kind = BtnKind.Primary; btnGo.Width = Theme.S(124);
+            var btnGo = new FlatBtn(); btnGo.Text = "管理帧生成"; btnGo.Kind = BtnKind.Primary; btnGo.Width = Theme.S(112);
             btnGo.Click += delegate { Switch(P_FG); };
             sFg.Buttons(btnGo);
             p.Add(sFg);
@@ -10382,20 +10889,17 @@ namespace Fluxion
             {
                 if (MessageBox.Show("将把电源计划重置为出厂默认，并把所有优化项恢复为 Windows 默认值（不是恢复备份）。\n\n确定继续吗？",
                     "恢复系统默认", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-                Log(">>> 开始恢复系统默认设置…");
+                Log("开始恢复系统默认设置…");
                 btnDefaults.Enabled = false;
                 var gw = new BackgroundWorker();
                 gw.DoWork += delegate { Program.RestoreSystemDefaults(); };
                 gw.RunWorkerCompleted += delegate
                 {
                     btnDefaults.Enabled = true; RefreshGridAsync();
-                    Log(">>> 恢复系统默认完成");
+                    Log("已恢复系统默认设置");
                 };
                 gw.RunWorkerAsync();
             };
-            // 2026-10-21 新增：一键优化会写注册表 / 改服务 / 动 BCD，「恢复备份」只认得我们自己
-            //   备份的那几项 —— 落在备份覆盖不到的地方时，系统还原点是唯一退路。
-            //   自动打点（勾了实验档时）见 DoOptimize；这个按钮是手动入口。
             var btnRestorePt = new FlatBtn(); btnRestorePt.Text = "创建还原点"; btnRestorePt.Width = Theme.S(96);
             btnRestorePt.Click += delegate
             {
@@ -10407,11 +10911,10 @@ namespace Fluxion
                 {
                     btnRestorePt.Enabled = true; btnRestorePt.Text = "创建还原点";
                     string why = e.Error != null ? e.Error.Message : (e.Result as string);
-                    if (string.IsNullOrEmpty(why)) { Log(">>> 系统还原点创建完成"); return; }
+                    if (string.IsNullOrEmpty(why)) { Log("已创建系统还原点"); return; }
                     Log("⚠ 未创建还原点：" + why);
-                    // 手动点的按钮，失败必须让人看见 —— 优化仍然能做，只是少了这层保险
-                    MessageBox.Show(this, "没能创建还原点：\n\n" + why
-                        + "\n\n优化本身不受影响，只是少了这层保险。", "创建还原点",
+                    MessageBox.Show(this, "未能创建系统还原点：\n\n" + why
+                        + "\n\n仍可继续使用内置配置备份还原。", "创建还原点",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 };
                 gw0.RunWorkerAsync();
@@ -10419,55 +10922,68 @@ namespace Fluxion
             var btnRefresh = new FlatBtn(); btnRefresh.Text = "刷新"; btnRefresh.Width = Theme.S(76);
             btnRefresh.Click += delegate { RefreshGridAsync(); UpdateLink(); Log("已刷新状态"); };
             s1.Buttons(btnOptimize, btnCustom, btnRestore, btnDefaults, btnRestorePt, btnRefresh);
-            s1.Body("💡 使用建议：若平时需要使用安卓模拟器、WSL2 或 Docker，一键优化时保持推荐配置（排除底部的「实验档」）即可，兼顾低延迟与环境兼容。\n所有修改在执行前均会自动快照备份到数据目录的 backup\\，可随时还原。");
+            s1.Body("默认配置已排除实验项，不影响 WSL2、Docker 与模拟器；执行前自动备份至 backup\\，可随时还原。");
             p.Add(s1);
 
-            var s2 = new Sec("优化项明细（当前系统实际设置）");
-            // 状态列 86（不是 70）：胶囊里要放「已生效」这种 3 个汉字 + 圆点，
-            // 70px 下胶囊的可用文字区只剩 ~37px，正好卡在省略号边缘（v3.6.1 离屏渲染实测）。
-            //  高度 250 → 300：行高从 20 抬到 28 之后，同样的高度只剩 9 行可见，
-            //  加一档把可见行数拉回 10 行以上（页面本来就能滚，不占额外版面）。
-            //  列宽（2026-10-25 第 147 轮实测）：探针量出「优化项」列宽 196 / 需要 216 → 名字被截
-            //  （「处理器最大状态(睿频上限)」断在省略号上），而「状态」列 177 却只用 136。
-            //  把状态列的富余让给优化项 —— 名字是行的标识，断了就认不出是哪一项；
-            //  当前值/期望值里有解释性长句（需要 500+px），本就放不下，靠 AttachCellTips 看全文。
-            //  ⚠ 状态列 118 有富余是**故意留的**：Resize 按"当前列宽比例"缩放（第 142 轮的设计，
-            //    要保留用户拖过的相对比例），精确控宽度做不到；优化项是硬要求，宁可状态列宽点。
+            var s2 = new Sec("优化项明细");
             lvOpt = NewList(new string[] { "优化项", "状态", "当前值", "期望值" }, new int[] { 240, 118, 200, 0 }, Theme.S(300));
-            lvOpt.Resize += delegate { FillLastColumn(lvOpt, Theme.S(160)); };
-            // v3.6.0：体检表不再只是"看"。带 ⚙ 的行双击即可改这一项的具体取值
-            //（着色器缓存 12 档、DLSS 预设字母、量子长度、前后台帧率上限…）。
+            ((TableListView)lvOpt).AutoFitMinRows = 8;
             lvOpt.DoubleClick += delegate { OpenKnobForRow(); };
-            var btnKnobSel = new FlatBtn(); btnKnobSel.Text = "调整选中项"; btnKnobSel.Width = Theme.S(100);
+            lvOpt.KeyDown += delegate(object sk, KeyEventArgs ek)
+            {
+                if (ek.KeyCode == Keys.Enter) { ek.Handled = true; ek.SuppressKeyPress = true; OpenKnobForRow(); }
+            };
+            btnKnobSel = new FlatBtn(); btnKnobSel.Text = "调整选中项"; btnKnobSel.Width = Theme.S(100);
+            btnKnobSel.Enabled = false;
             btnKnobSel.Click += delegate { OpenKnobForRow(); };
+            lvOpt.SelectedIndexChanged += delegate
+            {
+                if (btnKnobSel != null)
+                    btnKnobSel.Enabled = lvOpt.SelectedItems.Count > 0 && !string.IsNullOrEmpty(lvOpt.SelectedItems[0].Tag as string);
+            };
             var btnKnobAll = new FlatBtn(); btnKnobAll.Text = "取值细调…"; btnKnobAll.Width = Theme.S(100);
             btnKnobAll.Click += delegate { ShowKnobDialog(null); };
+
+            optChips = new FilterChips();
+            optChips.BackColor = Theme.Panel;
+            optChips.SetData(
+                new string[] { "全部", "未生效", "可调项", "已生效", "待确认" },
+                new string[] { "all", "issue", "knob", "ok", "info" },
+                new int[] { 0, 0, 0, 0, 0 });
+            optChips.SelectedId = string.IsNullOrEmpty(optFilterId) ? "all" : optFilterId;
+            optChips.Changed += delegate
+            {
+                optFilterId = optChips.SelectedId;
+                ApplyOptFilter();
+            };
+
+            AttachOptContextMenu();
+
             s2.Buttons(btnKnobSel, btnKnobAll);
-            //  高度交给内容自己定（见 FillList 末尾）：让表**永远不需要内层滚动** ——
-            //  ListView 的竖条画在非客户区，是一条压不下去的系统灰带（藏它会和控件重排
-            //  互相触发、直接把探针跑挂，见记忆 五十二轮）。表长到装下全部行之后，
-            //  那条灰带根本不会出现，滚动交给页面自己那条细条。
+            s2.Block(optChips, Theme.S(34));
             s2.Block(BoxOf(lvOpt), 0);
-            s2.Body("已生效=一致，未生效=被重置，灰色=不适用。\n"
-                    + "带 ⚙ 的行可调：选中后按「调整选中项」；列宽乱了在表头右键恢复。");
+            s2.Body("点击上方胶囊可快速筛选「未生效」或「可调项」；双击（或右键）标有「可调」的行可调整档位。");
             p.Add(s2);
 
             var s3 = new Sec("漂移检测");
-            lblDrift = s3.Body("刷新后自动检测：系统大版本更新常会静默重置优化项。");
+            lblDrift = s3.Body("自动检测被系统或驱动更新重置的优化项。");
             p.Add(s3);
 
-            // ---- 显示器设备（v3.9.0）----
-            // 用户 2026-09-20 诉求：「我不是说要有启用和禁用的功能吗」——
-            //   指的就是设备管理器「监视器」节点下那个「启用设备 / 禁用设备」。
-            //   日常要启用；进游戏时按「设置 → 场景与联动」里选定的那一台自动停用，退出游戏自动启用。
-            // 放这一页的理由：语义与"改了什么 / 怎么还原"一致，用户发现"屏被禁用了"也会先来这里找。
-            var s4 = new Sec("显示器设备（设备管理器里的「监视器」）");
+            var s4 = new Sec("显示器设备");
             lvMon = NewList(new string[] { "显示器", "输出", "状态", "型号 ID" }, new int[] { 200, 100, 160, 0 }, Theme.S(150));
-            lvMon.Resize += delegate { FillLastColumn(lvMon, Theme.S(110)); };
+            ((TableListView)lvMon).AutoFitMinRows = 3;
             btnMonOn = new FlatBtn(); btnMonOn.Text = "启用选中"; btnMonOn.Width = Theme.S(88);
+            btnMonOn.Enabled = false;
             btnMonOn.Click += delegate { MonSetSel(true); };
             btnMonOff = new FlatBtn(); btnMonOff.Text = "禁用选中"; btnMonOff.Kind = BtnKind.Danger; btnMonOff.Width = Theme.S(88);
+            btnMonOff.Enabled = false;
             btnMonOff.Click += delegate { MonSetSel(false); };
+            lvMon.SelectedIndexChanged += delegate
+            {
+                bool hasSel = lvMon.SelectedItems.Count > 0;
+                if (btnMonOn != null) btnMonOn.Enabled = hasSel;
+                if (btnMonOff != null) btnMonOff.Enabled = hasSel;
+            };
             btnMonAll = new FlatBtn(); btnMonAll.Text = "全部启用"; btnMonAll.Width = Theme.S(88);
             btnMonAll.Click += delegate
             {
@@ -10478,8 +10994,8 @@ namespace Fluxion
             var btnMonRef = new FlatBtn(); btnMonRef.Text = "刷新"; btnMonRef.Width = Theme.S(76);
             btnMonRef.Click += delegate { FillMonList(); Log("已刷新显示器设备列表"); };
             s4.Buttons(btnMonOn, btnMonOff, btnMonAll, btnMonRef);
-            s4.Block(BoxOf(lvMon), 0);          // 高度由 FitListToRows 跟着行数定
-            s4.Body("「禁用」= 设备管理器禁用，重启后仍禁；只剩一块屏时拒绝。误操作点「全部启用」。");
+            s4.Block(BoxOf(lvMon), 0);
+            s4.Body("对应设备管理器「监视器」启停（重启后保持）；单屏默认受保护，可点「全部启用」一键恢复。");
             p.Add(s4);
             FillMonList();
         }
@@ -10506,34 +11022,32 @@ namespace Fluxion
             }
             catch { }
             finally { lvMon.EndUpdate(); }
-            //  同 lvOpt：行数变了就把表高调到刚好装下，别让原生竖条冒出来（见 FitListToRows）
+            bool hasSel = lvMon.SelectedItems.Count > 0;
+            if (btnMonOn != null) btnMonOn.Enabled = hasSel;
+            if (btnMonOff != null) btnMonOff.Enabled = hasSel;
             FitListToRows(lvMon, 3);
         }
 
         void MonSetSel(bool on)
         {
             if (lvMon == null || lvMon.IsDisposed) return;
-            if (lvMon.SelectedItems.Count == 0) { Log("请先在列表里选一台显示器"); return; }
+            if (lvMon.SelectedItems.Count == 0) { Log("请先在列表中选择一台显示器"); return; }
             var d = lvMon.SelectedItems[0].Tag as MonDev;
             if (d == null) return;
             if (!on)
             {
                 int onDesk = 0;
                 try { foreach (MonDev x in MonMgr.All()) if (x.OnDesktop) onDesk++; } catch { }
-                // 只剩一块屏时默认拒绝（停掉就没画面了）。但用户已经在设置页开过「允许禁用唯一在用屏」
-                //   （单屏拉伸就要禁这一台）⇒ 不再拦，交给他自己的确认对话框。
                 if (d.OnDesktop && onDesk <= 1 && !Cfg.ResLinkSoloOff)
                 {
-                    MessageBox.Show(this, "现在桌面上只有「" + d.Panel + "」这一块屏在输出画面。\n\n"
-                        + "停用它等于把画面来源掐掉 —— 会黑屏，而且没有第二块屏可以把它开回来。已拒绝。\n\n"
-                        + "（单屏拉伸需要禁掉它的话，先在设置页勾上「允许禁用唯一在用屏」。）",
+                    MessageBox.Show(this, "「" + d.Panel + "」是当前唯一活动显示器，默认禁止停用以防黑屏。\n\n"
+                        + "如需用于单屏拉伸，请先在「设置 → 分辨率与多屏联动」中勾选「允许禁用唯一在用屏」。",
                         "禁用显示器", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
-                string extra = d.Primary ? "\n\n⚠ 它是**当前主屏**：停用后桌面会转移到另一台屏上。" : "";
-                if (MessageBox.Show(this, "确定停用「" + d.Panel + "」吗？\n\n"
-                    + "效果 = 设备管理器里右键「禁用设备」（状态会变成「已禁用」）。" + extra
-                    + "\n\n随时可以在本页点「全部启用」恢复。", "禁用显示器",
+                string extra = d.Primary ? "\n\n⚠ 该设备为当前主屏，停用后桌面将移至副屏。" : "";
+                if (MessageBox.Show(this, "确定在设备管理器中停用「" + d.Panel + "」吗？" + extra
+                    + "\n\n可随时点击「全部启用」恢复。", "禁用显示器",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
             }
             bool ok = MonMgr.SetEnabled(d, on);
@@ -10676,63 +11190,45 @@ namespace Fluxion
                 lblGiArgs = sGi.Body("");
                 lblGiArgs.Font = Theme.F(9.5f);
                 lblGiArgs.ForeColor = Theme.TextDim;
+
                 btnLaunchCfg = new FlatBtn();
                 btnLaunchCfg.Text = "启动参数与环境变量…";
                 btnLaunchCfg.Width = Theme.S(150);
                 btnLaunchCfg.Click += delegate { ShowLaunchConfigDialog(); };
-                sGi.Buttons(btnLaunchCfg);
-            }
-            //  自定义封面的**显眼入口**（2026-10-23）：功能一直在，但只在卡片右键菜单里，
-            //  用户直接问"能不能添加自定义封面" —— 说明藏得太深。选中游戏后这里就能看到：
-            //  选一张本地图片，或按 Ctrl+V 直接把剪贴板里的截图贴成封面。
-            if (!Program.ShareBuild)
-            {
+
                 btnWebCover = new FlatBtn();
-                btnWebCover.Text = "🌐 联网搜封面";
-                btnWebCover.Width = Theme.S(116);
+                btnWebCover.Text = "联网搜封面";
+                btnWebCover.Width = Theme.S(104);
                 btnWebCover.Click += delegate { DoWebCover(); };
 
                 btnSetCover = new FlatBtn();
-                btnSetCover.Text = "📁 本地选图…";
-                btnSetCover.Width = Theme.S(106);
+                btnSetCover.Text = "本地选图…";
+                btnSetCover.Width = Theme.S(96);
                 btnSetCover.Click += delegate { DoSetCover(); };
 
                 btnPasteCover = new FlatBtn();
-                btnPasteCover.Text = "📋 粘贴图片";
-                btnPasteCover.Width = Theme.S(100);
+                btnPasteCover.Text = "粘贴图片";
+                btnPasteCover.Width = Theme.S(92);
                 btnPasteCover.Click += delegate { DoPasteCover(); };
 
                 btnClearCover = new FlatBtn();
-                btnClearCover.Text = "🗑 移除封面";
-                btnClearCover.Width = Theme.S(96);
+                btnClearCover.Text = "移除封面";
+                btnClearCover.Width = Theme.S(92);
                 btnClearCover.Click += delegate { DoClearCover(); };
 
-                sGi.Buttons(btnWebCover, btnSetCover, btnPasteCover, btnClearCover);
+                sGi.Buttons(btnLaunchCfg, btnWebCover, btnSetCover, btnPasteCover, btnClearCover);
             }
             AddDetail(p, sGi, 0);
 
-            // ---------- 推荐依据（诊断页签）----------
-            //  以前这段是概览上的 150 字正文 —— 用户原话「废话还是多」。
-            //  它仍然有用（为什么不是别的方案、刷新率甜点、前置条件），但不能占着第一屏：
-            //  挪到「诊断」页签顶上，想深究的人点一下就在。
-            var sWhy = new Sec("为什么是这套");
+            var sWhy = new Sec("适配方案依据");
             lblWhy = sWhy.Body("检查中…");
             lblRecNote = sWhy.Body("");
             lblRecNote.Font = Theme.F(9.5f);
             lblRecNote.ForeColor = Theme.TextDim;
             AddDetail(p, sWhy, 2);
 
-            // ---------- 运行时状态与操作（一张卡 · 诊断页签）----------
-            //  以前是两张卡：「运行时状态」（下载 / 清理）和「帧生成操作」（开启 / 关闭 / 换入口 / 诊断…）。
-            //  合并成一张，并且整张挪进「诊断」—— 概览页只需要"装 / 卸"两个动作。
-            //  删掉「目标游戏」下拉：左栏游戏列表一直可见，hero 也写着当前游戏名，第三处重复没意义。
             var s2 = new Sec("运行时状态与操作");
-            //  4 行（2026-11-01）：前 3 行是"状态"，第 2 行是普通人看得懂的解释 ——
-            //  用户原话"参数说明太极客化了，很多游戏玩家并不了解"。每项按「结论 + 人话注解」成对出现，
-            //  注解用括号、与结论同色系，不额外加字号层级。
-            lblRt = s2.BodyFixed("检查中…", 3);
-            //  DLSS 运行库版本（只读体检，2026-10-20）：DLSS Swapper 那类工具的核心价值就是
-            //  "让我看见每个游戏的库版本" —— 补丁覆盖回来时界面上完全看不出来。这里额外跟包内版本比一版。
+            lblRt = s2.Body("检查中…");
             lblDlssLib = s2.Body("");
             lblDlssLib.Font = Theme.F(9.5f);
             lblDlssLib.ForeColor = Theme.TextDim;
@@ -10740,7 +11236,9 @@ namespace Fluxion
             btnDownload.Click += delegate { DoDownload(); };
             var btnResidue = new FlatBtn(); btnResidue.Text = "清理残留"; btnResidue.Width = Theme.S(96);
             btnResidue.Click += delegate { DoCleanResidue(); };
-            s2.Buttons(btnDownload, btnResidue);
+            var btnDlssSwap = new FlatBtn(); btnDlssSwap.Text = "管理 DLSS 运行库…"; btnDlssSwap.Width = Theme.S(142);
+            btnDlssSwap.Click += delegate { ShowDlssRuntimeDialog(); };
+            s2.Buttons(btnDownload, btnResidue, btnDlssSwap);
             var btnOn = new FlatBtn(); btnOn.Text = "开启选中"; btnOn.Kind = BtnKind.Success; btnOn.Width = Theme.S(96);
             btnOn.Click += delegate { DoFgInstall(); };
             var btnOff = new FlatBtn(); btnOff.Text = "关闭选中"; btnOff.Kind = BtnKind.Danger; btnOff.Width = Theme.S(96);
@@ -10751,8 +11249,6 @@ namespace Fluxion
             btnDiag.Click += delegate { DoFgDiagnose(); };
             btnIgnored = new FlatBtn(); btnIgnored.Text = "忽略清单"; btnIgnored.Width = Theme.S(96);
             btnIgnored.Click += delegate { ShowIgnoredDialog(); };
-            //  「停放遗留项」不走部署路径 —— 它是一个独立的只读巡检动作：
-            //   看见「两代代理并存」之后，要么忍着、要么只停掉多出来的那一代，不该被逼着点一次部署才能处理（P0-3）。
             var btnParkStray = new FlatBtn(); btnParkStray.Text = "停放遗留项"; btnParkStray.Width = Theme.S(112);
             btnParkStray.Click += delegate { DoParkStrays(); };
             s2.Buttons(btnOn, btnOff, btnSwitch, btnDiag, btnIgnored, btnParkStray);
@@ -10760,19 +11256,9 @@ namespace Fluxion
             lblPatrol = s2.BodyFixed("入口巡检：检查中…", 1);
             AddDetail(p, s2, 2);
 
-            // ---------- 方案区块（5 套只显示一套）----------
-            //  选择器已在上方「此游戏的适配方案」，这里只负责把选中的那一套铺出来。
-            //  「自动」按当前游戏的推荐结果显示，选具体项则只看那一套。
-
-            //  方案 A 原来单独一块（状态 + 两个按钮），现在状态与动作都在上面的面板里，
-            //  再留一块就是同一件事说两遍 —— 整块删掉（OptiNote 的说明也已并进面板的提示行）。
-            s030Sec = new Sec("DLSS MFG " + Dlssg030.Ver + " · 真 DLSS 多帧生成（代理模式）");
+            s030Sec = new Sec("DLSS MFG " + Dlssg030.Ver + "（代理模式）");
             var s030 = s030Sec;
             lbl030 = s030.BodyFixed("检查中…", 1);
-            //  这一行"它是什么"删了：区块标题已经写着 DLSS MFG · 真 DLSS 多帧生成，
-            //  倍率在「帧生成参数」里也能看到 —— 操作区只留状态与控件。
-            // 通用游戏（3A 单机）用的入口名：作者 alternatives\README.md 的 6 选 1。
-            //  默认 version.dll；少数游戏不加载它时，换成 winmm / dbghelp / dinput8 / dxgi / d3d12。
             cbEntry = new RoundCombo();
             cbEntry.Items.AddRange(Dlssg030.GenericEntries);
             int ei = 0;
@@ -10787,27 +11273,19 @@ namespace Fluxion
                 Log("通用入口已设为 " + Cfg.DlssgGenericEntry + "（部署时用）");
                 RefreshFgSummary();
             };
-            // 入口折叠成一行（标签 + 下拉）：以前"说明行 + 整行铺满"占两行，只为说"不加载就换一个"。
-            //  ⚠ 不能再让下拉整行铺满 —— Row 的标签列起手，宽度给固定值即可（老注释里的"被盖住只剩尾巴"
-            //  是标签列被长标题挤占造成的，这里标签只有「DLL 入口」四个字，不复现）。
-            s030.Row("DLL 入口", cbEntry, Theme.S(220));
+            s030.Row("DLL 入口", cbEntry, Theme.S(280));
             var btn030Pre = new FlatBtn(); btn030Pre.Text = "前置条件检查"; btn030Pre.Width = Theme.S(116);
             btn030Pre.Click += delegate { Do030Precheck(); };
-            btnAsi = new FlatBtn(); btnAsi.Text = "ASI 入口（异环这类）"; btnAsi.Width = Theme.S(140);
+            btnAsi = new FlatBtn(); btnAsi.Text = "ASI 入口"; btnAsi.Width = Theme.S(104);
             btnAsi.Click += delegate { DoAsiDeploy(); };
-            var btn030Check = new FlatBtn(); btn030Check.Text = "检查是否生效（读日志）"; btn030Check.Width = Theme.S(176);
+            var btn030Check = new FlatBtn(); btn030Check.Text = "生效检查"; btn030Check.Width = Theme.S(104);
             btn030Check.Click += delegate { DoFgLogCheck(); };
-            // 两行：一行放不下会被 FlowLayoutPanel 直接裁掉（它不换行）
-            s030.Buttons(btn030Pre);
-            s030.Buttons(btnAsi, btn030Check);
+            s030.Buttons(btn030Pre, btnAsi, btn030Check);
             AddDetail(p, s030, 1);
 
-            // ---------- 0.4.x：作者换了发布结构（代理缩到 0.8 MB + dlssg_sm86\ 资源目录） ----------
-            //  这一块与 0.3.x 并列：两者的资源包、判据、部署清单都不是一回事，
-            //  合并只会让用户看不出"游戏里跑的到底是哪一代"。
-            s040Sec = new Sec("DLSS MFG " + Dlssg040.Ver + " · 新版内核包（0.4.x，与上一代互斥）");
+            s040Sec = new Sec("DLSS MFG " + Dlssg040.Ver + "（0.4.x 内核包）");
             var s040 = s040Sec;
-            lbl040 = s040.BodyFixed("检查中…", 4);
+            lbl040 = s040.Body("检查中…");
             cbEntry040 = new RoundCombo();
             cbEntry040.Items.AddRange(Dlssg040.Entries);
             int ei4 = 0;
@@ -10822,11 +11300,9 @@ namespace Fluxion
                 Log("0.4.x 的部署入口已设为 " + Cfg.DlssgEntry040);
                 RefreshFgSummary();
             };
-            s040.Row("DLL 入口", cbEntry040, Theme.S(220));
+            s040.Row("DLL 入口", cbEntry040, Theme.S(280));
 
-            // 0.4.x 的四个常用参数：出厂值 = 2 / Auto / DLSS / Off（与作者 ini 一致）。
-            //  只改对应那一行，其余键原样 —— 用户不必去手改 6.8 KB 的 INI。
-            s040.Body("参数（重启游戏生效）：");
+            s040.Body("内核参数（重启游戏生效）");
             cbOpt040 = new RoundCombo();
             cbOpt040.DropDownStyle = ComboBoxStyle.DropDownList;
             cbOpt040.Items.AddRange(new object[] {
@@ -10834,7 +11310,7 @@ namespace Fluxion
                 "2 · 默认（加有损图像内核）", "3 · 最快（全部有损）" });
             cbOpt040.SelectedIndex = Math.Max(0, Math.Min(3, Cfg.DlssgOptimized040));
             cbOpt040.SelectedIndexChanged += delegate { Save040Tuning(); };
-            s040.Row("一致性档位 Optimized", cbOpt040, Theme.S(220));
+            s040.Row("一致性档位 Optimized", cbOpt040, Theme.S(280));
 
             cbPreset040 = new RoundCombo();
             cbPreset040.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -10843,21 +11319,21 @@ namespace Fluxion
                 "C · FG Lite（每生成帧快 29~34%）" });
             cbPreset040.SelectedIndex = PresetIndex(Cfg.DlssgPreset040);
             cbPreset040.SelectedIndexChanged += delegate { Save040Tuning(); };
-            s040.Row("渲染预设 Preset", cbPreset040, Theme.S(220));
+            s040.Row("渲染预设 Preset", cbPreset040, Theme.S(280));
 
             cbEngine040 = new RoundCombo();
             cbEngine040.DropDownStyle = ComboBoxStyle.DropDownList;
             cbEngine040.Items.AddRange(new object[] { "DLSS · 官方模型（默认）", "XeSS · Intel 模型（支持 2X~4X，1440p 更快）" });
             cbEngine040.SelectedIndex = string.Equals(Cfg.DlssgEngine040, "XeSS", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
             cbEngine040.SelectedIndexChanged += delegate { Save040Tuning(); };
-            s040.Row("插帧引擎 Engine", cbEngine040, Theme.S(220));
+            s040.Row("插帧引擎 Engine", cbEngine040, Theme.S(280));
 
             cbSr040 = new RoundCombo();
             cbSr040.DropDownStyle = ComboBoxStyle.DropDownList;
             cbSr040.Items.AddRange(new object[] { "Off · 不介入超分（默认）", "M-INT8 · 走 INT8 超分内核（仅 20/30 系）" });
             cbSr040.SelectedIndex = Cfg.DlssgSr040 ? 1 : 0;
             cbSr040.SelectedIndexChanged += delegate { Save040Tuning(); };
-            s040.Row("超分 INT8 SuperResolution", cbSr040, Theme.S(220));
+            s040.Row("超分 INT8 SuperResolution", cbSr040, Theme.S(280));
 
             btnUpRelease = new FlatBtn(); btnUpRelease.Text = "从 GitHub 取新版"; btnUpRelease.Width = Theme.S(140);
             btnUpRelease.Click += delegate { DoUpstreamFetch(); };
@@ -10868,19 +11344,13 @@ namespace Fluxion
             s040.Buttons(btnUpRelease, btn040Src, btn040Purge);
             var btn040Apply = new FlatBtn(); btn040Apply.Text = "应用参数到已装游戏"; btn040Apply.Width = Theme.S(160);
             btn040Apply.Click += delegate { Do040Tuning(); };
-            var btn040Check = new FlatBtn(); btn040Check.Text = "检查是否生效（读日志）"; btn040Check.Width = Theme.S(176);
+            var btn040Check = new FlatBtn(); btn040Check.Text = "生效检查"; btn040Check.Width = Theme.S(104);
             btn040Check.Click += delegate { DoFgLogCheck(); };
             var btnNetDisk = new FlatBtn(); btnNetDisk.Text = "网盘下载源"; btnNetDisk.Width = Theme.S(150);
             btnNetDisk.Click += delegate { DoNetDiskSources(); };
-            //  「导入资源包…」（2026-11-01）：拖拽这条路对**管理员窗口**走不通 —— Windows 的 UIPI
-            //  会把普通权限资源管理器发来的拖放**静默丢弃**（实测两次都没进程序，日志里连"拖入"都没有）。
-            //  所以给一条不依赖拖拽的路：文件选择对话框（程序自己弹的，没有 UIPI 问题）。
             var btnPackImport = new FlatBtn(); btnPackImport.Text = "导入资源包…"; btnPackImport.Width = Theme.S(120);
             btnPackImport.Click += delegate
             {
-                //  2026-11-01 推倒自造列表：直接用产品现成的文件夹浏览器（改数据目录/扫描/导出四处
-                //  都在用、本机实测可用），浏览到包所在的文件夹 → 里面的 zip 自动列出：
-                //  只有 1 个直接导；多个弹小列表挑；0 个明确说"没有 zip"。
                 string folder = ModernFolderPicker.PickFolder(this.Handle,
                     "选择插件包所在的文件夹（里面的 zip 会被列出）",
                     lastPackDir.Length > 0 ? lastPackDir : "");
@@ -10892,9 +11362,6 @@ namespace Fluxion
                 zips.Sort(delegate(string a, string b) { return File.GetLastWriteTime(b).CompareTo(File.GetLastWriteTime(a)); });
                 if (zips.Count == 0)
                 {
-                    //  没有 zip ≠ 导不了：用户选的可能是**解压后的散装包目录**（extracted\ 那种，
-                    //  version.dll + dlssg_sm86\ 平铺）—— 识别器本来就吃这种目录。
-                    //  直接交给识别器：认得出就正常导入，认不出会明确说"不在导入范围"。
                     Log("  文件夹里没有 zip，按散装包目录识别：" + folder);
                     StartPackImport(new List<string> { folder });
                     return;
@@ -10905,13 +11372,10 @@ namespace Fluxion
             s040.Buttons(btn040Apply, btn040Check, btnPackImport, btnNetDisk);
             AddDetail(p, s040, 1);
 
-            // ---------- 方案 B · MFG Bridge（第三方，单文件 nvngx.dll）----------
-            //  功能面上比 0.4.0 更全（Home 键覆盖倍率、三引擎可切、自带 NR 与光流开关），
-            //  但仓库**不含源码、只发二进制** —— 所以定位是"知情后可选"，不是默认推荐。
-            sNvSec = new Sec("方案 B · MFG Bridge（第三方单文件 · 可选）");
+            sNvSec = new Sec("方案 B · DLSS MFG Bridge");
             var sNv = sNvSec;
             lblNv = sNv.BodyFixed("检查中…", 2);
-            sNv.Body("第三方单文件 nvngx.dll；⚠ 发布件无数字签名，与其它方案互斥。");
+            sNv.Body("单文件桥接组件（无数字签名，与其它方案互斥）。");
             cbEntryNv = new RoundCombo();
             cbEntryNv.Items.AddRange(MfgBridge.Entries);
             int eiN = 0;
@@ -10926,34 +11390,23 @@ namespace Fluxion
                 Log("方案 B 的部署入口已设为 " + Cfg.DlssgEntryNvbr);
                 RefreshFgSummary();
             };
-            sNv.Row("DLL 入口", cbEntryNv, Theme.S(220));
+            sNv.Row("DLL 入口", cbEntryNv, Theme.S(280));
             btnNvFetch = new FlatBtn(); btnNvFetch.Text = "从 GitHub 取新版"; btnNvFetch.Width = Theme.S(140);
             btnNvFetch.Click += delegate { DoNvFetch(); };
             sNv.Buttons(btnNvFetch);
             AddDetail(p, sNv, 1);
 
-            // ---------- Smooth Motion · 驱动级插帧（覆盖 DX11 / Vulkan）----------
-            //  这是唯一能覆盖"游戏本身没有 DLSS"的那类（DX11 老游戏、独立游戏）的路子：
-            //  不往游戏目录放任何文件，只写 NVIDIA 驱动配置里的 per-game 开关。
-            sSmSec = new Sec("Smooth Motion · 驱动级插帧（DX11 / DX12 / Vulkan）");
+            sSmSec = new Sec("Smooth Motion · 驱动级插帧");
             var sSm = sSmSec;
             lblSm = sSm.BodyFixed("检查中…", 2);
-            sSm.Body("不要求游戏支持 DLSS —— 20/30 系靠它才能给 DX11 老游戏补帧。");
+            sSm.Body("适用于 DX11 / DX12 / Vulkan，无需游戏内置 DLSS 支持。");
             AddDetail(p, sSm, 1);
 
-            //  顺序：选方案 → 方案区块 → 伪装 → 状态与操作 → 参数。
-            //  伪装卡原来夹在方案之前，滚一屏先看到"改显卡名"，却看不到"该装哪套"。
-            // ---------- ② 显卡名伪装（内置：以前要导出 .reg 再双击导入） ----------
-            var sSpoof = new Sec("显卡名伪装（网游的帧生成选项靠它出现）");
+            sSpoofSec = new Sec("显卡名伪装");
+            var sSpoof = sSpoofSec;
             lblSpoof = sSpoof.BodyFixed("检查中…", 2);
-            // ⚠ 2026-09-16 实测现象（别把「重启显卡设备」当成等效手段）：
-            //   21:26:03 写入伪装 → 21:27:06 重启显卡设备 → 21:27:44 启动绝区零 →
-            //   21:28:10 游戏日志读到的仍是 "NVIDIA GeForce RTX 3060 Ti"。
-            //   而更早那次「导入 .reg + 重启电脑」之后，游戏日志确实读到了 "RTX 5090"（03:46 / 10:50 两条）。
-            //   结论：以「重启电脑」为准；「重启显卡设备」只算辅助（部件重新枚举可能把值写回去）。
-            //  这条结论已写进状态行（见 RefreshFgSummary 的 lblSpoof），不再单占一行说明。
-            btnSpoofOn = new FlatBtn(); btnSpoofOn.Text = "开启伪装（改为 RTX 5090）";
-            btnSpoofOn.Kind = BtnKind.Success; btnSpoofOn.Width = Theme.S(186);
+            btnSpoofOn = new FlatBtn(); btnSpoofOn.Text = "伪装为 RTX 5090";
+            btnSpoofOn.Kind = BtnKind.Success; btnSpoofOn.Width = Theme.S(156);
             btnSpoofOn.Click += delegate { DoSpoof(true); };
             btnSpoofOff = new FlatBtn(); btnSpoofOff.Text = "还原真实显卡名"; btnSpoofOff.Width = Theme.S(136);
             btnSpoofOff.Click += delegate { DoSpoof(false); };
@@ -10968,20 +11421,9 @@ namespace Fluxion
             cbRouter = new RoundCombo(); cbRouter.Items.AddRange(new object[] { "SM86", "SM75" });
             cbKernel = new RoundCombo(); cbKernel.Items.AddRange(new object[] { "PTX", "Auto", "Cubin" });
             cbBilinear = new RoundCombo(); cbBilinear.Items.AddRange(new object[] { "0 · 精确", "1 · 近似" });
-            // 上限由运行库决定，不是由游戏决定：
-            //  310.9 运行库（本工具的 0.3.5 包，代理 version.dll 30,021,920 B = 28.63 MB）= 5 → 6X
-            //  310.1 / 0.2.x 运行库 = 3 → 4X（再往上选也不会生效）
-            //  作者 README 原话：「310.9 运行库新增 6X（MaxGeneratedFrames 上限由 3 提到 5）」；
-            //  出厂 ini 注释：「5 = up to 6X, 3 = up to 4X … 6X on the 310.9 build, 4X on the 310.1 build」
-            //  v2.10.2 之前这里只写到 3（4X），把 6X 挡在了 UI 外面。
             cbMaxFrames = new RoundCombo();
             cbMaxFrames.Items.AddRange(new object[] { "1 · 2X", "2 · 3X", "3 · 4X", "4 · 5X", "5 · 6X" });
             cbLogLevel = new RoundCombo(); cbLogLevel.Items.AddRange(new object[] { "0 · 关闭", "1 · 错误", "2 · 诊断", "3 · 详细" });
-            // NR 的上游文档（wilsjo2/OptiScaler-DLSSNR-PreSR-Multipass）明写其设计约束
-            //  "是用设备挂死换来的"；2026-09-16 实测与 4X 帧生成同开 → 鸣潮两次 GPUCrash。
-            //  关于驱动：上游的 ≥616.56 只对 RTX 50 是硬门槛（模型随应用提供，旧驱动照样能跑），
-            //  真正要避开的是 ≥616.64（NR 每次 evaluate 都在 NVIDIA 自家 NGX 运行时 fault）。
-            //  → 这次崩溃与驱动版本无关，升级驱动解决不了；所以默认「关闭」列在前面。
             cbNr = new RoundCombo(); cbNr.Items.AddRange(new object[] { "关闭（推荐）", "开启" });
             cbRouter.SelectedIndex = Cfg.DlssgRouter == "SM75" ? 1 : 0;
             cbKernel.SelectedIndex = Cfg.DlssgKernel == "Auto" ? 1 : (Cfg.DlssgKernel == "Cubin" ? 2 : 0);
@@ -10989,8 +11431,6 @@ namespace Fluxion
             cbMaxFrames.SelectedIndex = Math.Max(0, Math.Min(4, Cfg.DlssgMaxFrames - 1));
             cbLogLevel.SelectedIndex = Math.Max(0, Math.Min(3, Cfg.DlssgLogLevel));
             cbNr.SelectedIndex = Cfg.DlssgNrEnabled ? 1 : 0;
-            //  NR 的位置（2026-10-20）：OptiScaler.ini 的 [DlssNr] RunBeforeSR。
-            //  键名与默认值都取自包内那份 ini 的注释，不是我猜的。
             cbNrPos = new RoundCombo();
             cbNrPos.Items.AddRange(new object[] { "超分之后（默认）", "超分之前 · Pre-SR" });
             cbNrPos.SelectedIndex = Cfg.DlssgNrPreSR ? 1 : 0;
@@ -10999,7 +11439,7 @@ namespace Fluxion
             s3.Row("光流精度", cbBilinear, Theme.S(140));
             s3.Pair("神经渲染 NR", cbNr, Theme.S(140), "NR 位置", cbNrPos, Theme.S(190));
             cbFgAutoEntry = new RoundCheck();
-            Theme.StyleCheck(cbFgAutoEntry, "自动选择入口（推荐：已知游戏用专用入口，激活率更高）");
+            Theme.StyleCheck(cbFgAutoEntry, "为已知游戏自动匹配专用入口（推荐）");
             cbFgAutoEntry.Checked = Cfg.DlssgAutoEntry;
             cbFgAutoEntry.CheckedChanged += delegate
             {
@@ -11007,9 +11447,8 @@ namespace Fluxion
                 SaveCfgBool("dlssg", "autoEntrypoint", cbFgAutoEntry.Checked);
             };
             s3.Pair(null, cbFgAutoEntry, 0, null, null, 0);
-            // v2.1.0：反作弊游戏自动改走 d3d12 入口（常规入口会被按文件名拦掉）
             cbFgD3d12 = new RoundCheck();
-            Theme.StyleCheck(cbFgD3d12, "反作弊游戏自动改用 d3d12 入口（绝区零 / 鸣潮 等；常规入口会被拦）");
+            Theme.StyleCheck(cbFgD3d12, "反作弊游戏自动改用 d3d12.dll 入口");
             cbFgD3d12.Checked = Cfg.DlssgAntiCheatD3d12;
             cbFgD3d12.CheckedChanged += delegate
             {
@@ -11017,11 +11456,7 @@ namespace Fluxion
                 SaveCfgBool("dlssg", "antiCheatD3d12", cbFgD3d12.Checked);
             };
             s3.Pair(null, cbFgD3d12, 0, null, null, 0);
-            //  推荐依据（刷新率甜点 / NR 警告 / 前置条件）已经搬到「诊断」页签的「为什么是这套」，
-            //  参数页只留"改哪个值"本身 —— 一页只讲一件事。
-            //  一行讲完两件事：上限要新运行库、实际倍率游戏说了算。资源包版本号不用再复读
-            //  ——「运行时状态」区块就是它的权威来源，这里再拼一遍 PackCaption 只会把行撑爆。
-            s3.BodyFixed("※ 5X/6X 要 310.9 运行库；上限只是天花板，实际倍率由游戏菜单决定（多数只给 4X）。", 1);
+            s3.Body("注：5X/6X 需 310.9+ 运行库，实际可用倍率取决于游戏内设置。");
             btnFgApply = new FlatBtn(); btnFgApply.Text = "应用参数"; btnFgApply.Kind = BtnKind.Primary; btnFgApply.Width = Theme.S(100);
             btnFgApply.Click += delegate { DoApplyFgCfg(); };
             s3.Buttons(btnFgApply);
@@ -11074,7 +11509,7 @@ namespace Fluxion
             lblLibStat.TextAlign = ContentAlignment.MiddleLeft;
             //  Label 的 MiddleLeft 与自己绘制的控件在 28px 里落基线差 1px，用 1px 上内边距补平
             lblLibStat.Padding = new Padding(0, Theme.S(1), 0, 0);
-            lblLibStat.Text = "尚未扫描 —— 点左栏标题旁的「···」";
+            lblLibStat.Text = "尚未扫描游戏库";
 
             //  分类胶囊取代了原来那个"12 款 · 2 款可接入"的统计文字。
             //  数量本身挪进胶囊里（"全部 12"），少一行文字、多一个能点的入口。
@@ -11090,28 +11525,11 @@ namespace Fluxion
             //    （其余五页的主区标题第 151 轮已清，库页当时是独立构建漏了）。
             //    这一行只留**实时统计**（"12 款" / "5 / 12 款" / "已选 鸣潮 · 12 款"），
             //    右对齐到工具条的搜索框/排序正上方，凑成一条右缘线。
-            var titleBar = new Panel();
-            titleBar.BackColor = Theme.Bg;
-            lblLibStat.BackColor = Theme.Bg;
-            lblLibStat.Font = Theme.F(10.5f);
-            lblLibStat.TextAlign = ContentAlignment.MiddleRight;
-            titleBar.Controls.Add(lblLibStat);
-            titleBar.Resize += delegate
-            {
-                lblLibStat.SetBounds(Math.Max(Theme.S(200), titleBar.Width - Theme.S(300)), 0,
-                                     Theme.S(300) - Theme.S(8), Theme.S(26));
-            };
-            //  ★ 第 142 轮：大标题和工具条**并进同一个分区**。
-            //  原来它们是两块，Pg 给的分区间距一视同仁 —— 于是「标题↔工具条」和
-            //  「工具条↔内容」的视觉间距是 37 和 33，差 4px：读不成"标题带工具条"这一组，
-            //  整页从顶到底都是同一个呼吸频率，看着就"平"。
-            //  同一组内的间距交给 Sec.Space（4），组与组之间仍是 SecGap —— 分组靠间距差表达。
             var s0 = new Sec("");
-            s0.Block(titleBar, Theme.S(26));
-            s0.Space(Theme.S(4));                        // 标题与工具条贴成一组
             var btnFetchAll = new FlatBtn();
-            btnFetchAll.Text = "⚡ 补全封面";
-            btnFetchAll.Width = Theme.S(88);
+            btnFetchAll.Text = "补全封面";
+            btnFetchAll.Width = Theme.S(86);
+            btnFetchAll.Corner = Theme.Bg;
             btnFetchAll.Click += delegate { DoFetchAllCovers(); };
             s0.Bar2(chips, lstSearch, cbSort, btnFetchAll);
             AddLib(p, s0);
@@ -11149,7 +11567,7 @@ namespace Fluxion
             actBar.Details += delegate(DlssgGame g) { SelectGame(g, true); };
             actBar.PickScheme += delegate(DlssgGame g)
             {
-                ShowSchemeMenuAt(g, actBar, new Point(Theme.S(150), Theme.S(10)));
+                ShowSchemeMenuAt(g, actBar, new Point(Theme.S(18), -Theme.S(4)));
             };
             content.Controls.Add(actBar);
         }
@@ -11226,6 +11644,42 @@ namespace Fluxion
             if (want >= libShown.Count) want = libShown.Count - 1;
             if (want == cur) return;
             SelectGame(libShown[want], false);
+            // BUG-G7: 键盘走位后自动滚动页面使新焦点卡片进入可视视口
+            if (libGrid != null && pages != null && P_FG < pages.Length && pages[P_FG] != null)
+            {
+                try
+                {
+                    Pg pg = pages[P_FG];
+                    CoverTile tile = null;
+                    foreach (Control c in libGrid.Controls)
+                    {
+                        CoverTile ct = c as CoverTile;
+                        if (ct != null && ct.Game == libShown[want]) { tile = ct; break; }
+                    }
+                    int topInPg;
+                    int itemH;
+                    if (tile != null && tile.IsHandleCreated && pg.IsHandleCreated)
+                    {
+                        topInPg = pg.PointToClient(tile.PointToScreen(Point.Empty)).Y;
+                        itemH = tile.Height;
+                    }
+                    else
+                    {
+                        int cellY = libGrid.Padding.Top + (want / cols) * libGrid.CellH;
+                        topInPg = pg.PointToClient(libGrid.PointToScreen(new Point(0, cellY))).Y;
+                        itemH = libGrid.CellH;
+                    }
+                    int pad = Theme.S(12);
+                    int availH = pg.ClientSize.Height;
+                    if (actBar != null && actBar.Visible && actBar.Parent == pg)
+                        availH = Math.Max(Theme.S(80), availH - actBar.Height);
+                    if (topInPg < pad)
+                        pg.SetScrollY(pg.ScrollY + topInPg - pad);
+                    else if (topInPg + itemH > availH - pad)
+                        pg.SetScrollY(pg.ScrollY + (topInPg + itemH - availH + pad));
+                }
+                catch { }
+            }
         }
 
         void ShowLibView(bool on)
@@ -11250,33 +11704,29 @@ namespace Fluxion
             }
         }
 
-        // ---------------------- 页 6：说明（长文都挪到这一页） ----------------------
+        // ---------------------- 页 6：说明 ----------------------
         void BuildPageHelp()
         {
             var p = pages[P_HELP];
 
             if (Program.ShareBuild)
             {
-                // 分享版说明页：只讲三件事，句子尽量短（用户要求：别高深、别字多）
-                var sShare = new Sec("这个软件能做什么");
-                sShare.Body("· RTX 20/30 系也能开「帧生成」"
-                + "\n· 自动找游戏，一键启动（可带 DX12 参数）"
-                + "\n· 启动前告诉你是 DX11 还是 DX12"
-                + "\n· 有没有生效，看「运行诊断」");
+                var sShare = new Sec("功能概览");
+                sShare.Body("· 为 RTX 20/30 系开启 DLSS 帧生成"
+                    + "\n· 自动扫描本地游戏库，支持一键附加 DX12 启动参数"
+                    + "\n· 通过「运行诊断」核验帧生成实际生效倍率");
                 p.Add(sShare);
 
-                var sPlug = new Sec("插件怎么放 / 怎么更新");
-                sPlug.Body("① 新版压缩包拖进窗口即可（自动识别版本并归位）"
-                + "\n② 手动放：便携版与 Fluxion.exe 同目录，安装版在 C:\\ProgramData\\Fluxion"
-                + "\n③ 出新版就覆盖同名文件：dlssg\\source\\ 通用 · dlssg030-pack\\ 0.3.x · xess-pack\\zzz\\ 绝区零"
-                + "\n④ 换完回「概览」点「安装并应用」，要确认生效再点「运行诊断」");
+                var sPlug = new Sec("组件导入与更新");
+                sPlug.Body("① 将新版压缩包拖入窗口即可自动识别归位"
+                    + "\n② 数据目录：便携版位于程序同目录，安装版位于 C:\\ProgramData\\Fluxion"
+                    + "\n③ 更新组件后回到游戏「概览」点击「安装并应用」");
                 p.Add(sPlug);
 
-                var sRisk = new Sec("风险提示");
-                sRisk.Body("· 给带反作弊的游戏（绝区零 / 鸣潮）注入第三方 DLL 可能封号，风险自负\n"
-                + "· 「显卡名伪装」会改掉整机看到的显卡型号（可一键还原）\n"
-                + "· 帧生成要先在 Windows 开「硬件加速 GPU 调度」，否则不生效\n"
-                + "· 竞技射击（CS2 / Valorant / 三角洲）不建议开");
+                var sRisk = new Sec("注意事项");
+                sRisk.Body("· 含反作弊保护的游戏注入第三方 DLL 存在封号风险，请自行评估"
+                    + "\n· 开启帧生成前需在系统显示设置中启用「硬件加速 GPU 调度」"
+                    + "\n· 竞技射击类游戏不建议开启帧生成");
                 p.Add(sRisk);
             }
 
@@ -11285,110 +11735,55 @@ namespace Fluxion
                 var s1 = new Sec("帧生成方案：技术栈与来源");
                 s1.Body(Dlssg.HardwareFgNote());
                 p.Add(s1);
-            }
 
-            if (!Program.ShareBuild)
-            {
-                var s2 = new Sec("怎么用 / 怎么确认生效");
-                s2.Body("① 左侧点游戏 → 「概览」里确认方案 → 点「安装并应用」→ 退出游戏再进"
-                      + "\n② 游戏里出现「DLSS 帧生成」= 成功；只有 FSR = 入口没被调用，换入口重试"
-                      + "\n③ 回工具点「运行诊断」，日志里有 evaluate 才算真的在补帧");
+                var s2 = new Sec("快速上手");
+                s2.Body("① 在游戏库选择游戏 →「概览」确认适配方案 → 点击「安装并应用」后重启游戏"
+                    + "\n② 游戏设置出现「DLSS 帧生成」即加载成功；若仅显示 FSR 可切换入口重试"
+                    + "\n③ 运行一局后点击「运行诊断」，日志出现 evaluate 记录即确认实际补帧");
                 p.Add(s2);
-            }
 
-            if (!Program.ShareBuild)
-            {
-                //  手动资源（2026-11-01）：网盘里那两个"不是帧生成插件、需要自己动手放"的包。
-                //  数据目录里各放一份原样文件，说明页讲清"在哪、干嘛、怎么用"。
-                //  刻意不做自动部署：RE 框架必须与游戏版本匹配，超分模型替换也要用户自己确认。
-                var sManual = new Sec("手动资源（不是插件，按需自己拿）");
-                sManual.Body("· DLSS 超分模型 4 / 4.5 —— 游戏画面发糊、有拖影时用"
-                    + "\n  在 " + Path.Combine(Program.DataDir, @"manual-pack\dlss4-4.5\nvngx_dlss.dll")
-                    + "\n  用法：复制到游戏 exe 同目录覆盖同名文件（先备份原文件）"
-                    + "\n· RE 框架 —— 只给卡普空的游戏（生化、鬼武者、龙之信条2、怪猎）"
-                    + "\n  在 " + Path.Combine(Program.DataDir, @"manual-pack\re-framework\dinput8.dll")
-                    + "\n  用法：复制到游戏 exe 同目录（它按 dinput8.dll 这个名字加载）"
-                    + "\n⚠ 两个都要和游戏版本匹配，工具不代装；放错了游戏起不来，删掉那两份文件即可恢复");
+                var sManual = new Sec("附加手动组件");
+                sManual.Body("以下组件需确认与游戏版本匹配后手动复制至游戏主程序目录（覆盖前请备份原文件）："
+                    + "\n· DLSS 4 / 4.5 超分模型：" + Path.Combine(Program.DataDir, @"manual-pack\dlss4-4.5\nvngx_dlss.dll")
+                    + "\n· REFramework（卡普空引擎专用）：" + Path.Combine(Program.DataDir, @"manual-pack\re-framework\dinput8.dll"));
                 p.Add(sManual);
-            }
 
-            if (!Program.ShareBuild)
-            {
-                var s3 = new Sec("使用须知（实测结论）");
-                s3.Body("· 先开 HAGS（设置 → 系统 → 显示 → 图形 → 硬件加速 GPU 调度）"
-                        + "\n· 基础帧 <40 会变糊、延迟升高"
-                        + "\n· 竞技射击不建议开"
-                        + "\n· 倍率不吃显存（只随输出分辨率变）"
-                        + "\n· 游戏更新会覆盖代理，更新后重新开启"
-                        + "\n· 生效判据：诊断日志里出现 jsonl"
-                        + "\n· 反作弊游戏用 d3d12 入口，常规入口会按文件名拦掉（报错 11008），封号自负"
-                        + "\n· 被反作弊改名隔离的文件，用「清理残留」回收");
+                var s3 = new Sec("使用须知");
+                s3.Body("· 前置要求：开启 Windows「硬件加速 GPU 调度（HAGS）」，建议基础帧率 ≥ 40 FPS"
+                    + "\n· 竞技射击游戏不建议开启帧生成；游戏版本更新后若代理被覆盖需重新应用"
+                    + "\n· 反作弊兼容：绝区零 / 鸣潮会拦截常规入口名（报错 11008），工具默认改用 d3d12.dll；注入风险仍需自行承担");
                 p.Add(s3);
-            }
 
-            if (!Program.ShareBuild)
-            {
-                var s4 = new Sec("反作弊与入口选择");
-                s4.Body("绝区零（HoYoKProtect）/ 鸣潮（腾讯 ACE）按文件名拦 version.dll、winmm.dll（报错 11008），"
-                      + "所以自动改用 d3d12.dll（DX12 必加载，拦不掉）。\n只解决「装得进去」，封号风险仍是你的。");
-                p.Add(s4);
-            }
+                var sPlan = new Sec("帧生成方案说明");
+                sPlan.Body("方案 A · OptiScaler（跨平台 / 特定网游）"
+                    + "\n· 绝区零：d3d12.dll 入口（DLSSG→XeFG）；3.0+ DX12 已内置 FSR 帧生成，可直接使用"
+                    + "\n· 鸣潮：dxgi.dll 入口，支持原生 DLSSG 与神经渲染（F10 呼出面板）"
+                    + "\n· 与其它方案互斥，切换时自动改名停放，保留原有配置");
+                sPlan.Body("DLSSG for SM86 · 0.3.x（通用代理模式）"
+                    + "\n· 拦截 nvngx_dlssg.dll 实现原生 DLSS 多帧生成（2X–6X），驱动要求 ≥ 591.86"
+                    + "\n· 单机游戏即装即用；部分网游需配合显卡名伪装显示帧生成开关");
+                p.Add(sPlan);
 
-            // ---------- 方案详解（从「帧生成」页搬过来的长文案，放这里不挡视线）----------
-            if (!Program.ShareBuild)
-            {
-                var sPlan = new Sec("帧生成方案详解（怎么选 / 前置条件 / 6X 边界）");
-                sPlan.Body("【方案 A · OptiScaler】绝区零 / 鸣潮专用"
-                         + "\n· 绝区零：d3d12.dll 入口 + 伪装 RTX 5090，帧生成走 DLSSG→XeFG"
-                         + "\n· 鸣潮：dxgi.dll 入口，原生 DLSSG + DLSS 5 NR"
-                         + "\n· 游戏内 F10 呼出面板；官方启动器报文件缺失就直接双击游戏 exe"
-                         + "\n· 与 0.3.x 互斥（抢同一入口），切换只改名停放，不删文件"
-                         + "\n· 例外：绝区零 3.0+ DX12 自带 FSR 帧生成，有就直接用，不必注入");
-                sPlan.Body("【0.3.x · DLSSG for SM86】任意游戏可用"
-                         + "\n· 代理内嵌原厂 DLSS-G，只拦 nvngx_dlssg.dll，跑真 DLSS 帧生成（2X-6X）"
-                         + "\n· 入口：绝区零 d3d12 / 鸣潮 dxgi / 通用 version（不加载就换 winmm / dbghelp / dinput8 / dxgi / d3d12）"
-                         + "\n· 适用：游戏自己请求 DLSS 帧生成即可；单机开箱即用，网游常需先伪装 RTX 5090"
-                         + "\n· 版本 " + Dlssg030.Ver + "：0.3.5 修重建特性后的花屏/崩溃，0.3.4 修超分误吃架构改写"
-                         + "\n· 可升级路径：0.3.2 或 0.3.5+，跳过 0.3.3 / 0.3.4"
-                         + "\n· 前置：驱动 ≥591.86；要 DLSS 5 NR 就停在 616.56；6X 需游戏侧 Streamline 支持"
-                         + "\n· 6X：MaxGeneratedFrames=5；旧版代理只认 1..3，工具会夹到 3 并提示升级");
-                var sPlan4 = new Sec("【0.4.x · DLSSG for SM86】新包结构版（2026-10-18 加）");
-                sPlan4.Body("【0.4.x】新包结构"
-                         + "\n· 部署三样：入口 DLL + dlssg_sm86.ini + 整个 dlssg_sm86\\ 目录（代理只 0.8 MB，只拷 DLL 无效）"
-                         + "\n· 出厂开关：超分 INT8（30/20 系）、FG Lite（3070 每帧快 29~34%）、XeSS 插帧（支持 2X~4X）"
-                         + "\n· INI 重排为 [DLSSG] / [XeSSFG]，旧键逐条告警，工具留 .bak 再重写"
-                         + "\n· 从 0.3.x 升级先删干净；6X 仍要自己写 MaxGeneratedFrames=5"
-                         + "\n· 版本以界面显示为准（体积判据这一代失效）");
+                var sPlan4 = new Sec("DLSSG for SM86 · 0.4.x 新结构");
+                sPlan4.Body("· 部署包含入口 DLL、dlssg_sm86.ini 与 dlssg_sm86\\ 内核目录三部分"
+                    + "\n· 支持 FG Lite 加速预设、XeSS 插帧引擎切换及 20/30 系 INT8 超分"
+                    + "\n· 升级自 0.3.x 时自动停放旧版组件并备份旧 INI");
                 p.Add(sPlan4);
 
-                var sPlan5 = new Sec("【下载源】从 GitHub 直接取新版（2026-10-18 加）");
-                sPlan5.Body("「从 GitHub 取新版」做了什么"
-                         + "\n· 列最近 5 个 release（tag + 大小）"
-                         + "\n· 0.3.5 及更早只有源码，会标注出来"
-                         + "\n· 下载走「拖包进窗口」同一套识别与签名核验"
-                         + "\n· 归位后问是否重抄到已装游戏"
-                         + "\n· 匿名限流 60 次/小时；国内建议在设置页开代理"
-                         + "\n· 仓库地址可在「下载源」按钮里改");
+                var sPlan5 = new Sec("在线获取与更新组件包");
+                sPlan5.Body("·「从 GitHub 取新版」自动拉取最近 5 个发布版并执行签名核验与归位"
+                    + "\n· 归位后可一键同步更新至已安装该方案的游戏；网络受限时可在「设置」页启用代理");
                 p.Add(sPlan5);
-                p.Add(sPlan);
-            }
 
-            // 分享版没有封面（列表是信息行），这一节直接不出现
-            if (!Program.ShareBuild)
-            {
-                var s5 = new Sec("封面库");
-                s5.Body("顺序：covers.json → Steam 本地缓存 → Steam 官方竖版 → 生成卡。"
-                      + "\n自放：图片命名「卡片标题.png / .jpg」放进：" + CoverArt.CoversDir
-                      + "\n联网补齐：库视图点「获取封面」，只走 Steam 域名与设置页代理。");
+                var s5 = new Sec("游戏封面");
+                s5.Body("匹配优先级：covers.json 自定义 → Steam 本地缓存 → Steam 官方封面 → 自动生成磁贴。"
+                    + "\n支持将同名图片（标题.png / .jpg）放入 " + CoverArt.CoversDir + "，或在游戏详情页手动指定。");
                 p.Add(s5);
             }
 
-            var s6 = new Sec("数据与隐私");
-            s6.Body("只写本机 " + Program.DataDir
-                  + "\n  · games.json —— 忽略清单 / 手动添加"
-                  + "\n  · library.json —— 收藏 / 私密 / 隐藏 / 改名 / appid"
-                  + (Program.ShareBuild ? "" : "\n  · covers\\ —— 封面缓存")
-                  + "\n「私密」只在「私密」分类出现；「隐藏」要勾「显示已隐藏」。");
+            var s6 = new Sec("本地数据存储");
+            s6.Body("所有配置与状态均保存在本地 " + Program.DataDir + "："
+                + "\n· config.json（全局配置） · games.json（忽略与手动条目） · library.json（收藏/私密/启动参数）");
             p.Add(s6);
         }
 
@@ -11397,7 +11792,7 @@ namespace Fluxion
         {
             var p = pages[P_MON];
 
-            var s1 = new Sec("实时曲线（最近 90 个采样）");
+            var s1 = new Sec("硬件负载与温度");
             var tlp = new TableLayoutPanel();
             Buffered(tlp);
             tlp.ColumnCount = 5; tlp.RowCount = 1;
@@ -11426,33 +11821,39 @@ namespace Fluxion
             s1.Block(tlp, Theme.S(120));
             p.Add(s1);
 
-            var s2 = new Sec("运行日志（与数据目录 logs\\ 同步）");
+            var s2 = new Sec("运行日志");
             logSec = s2;                        // 高度自适应要用（见 ResizeLogBox）
-            //  自绘日志视图（见 LogView）：替换掉"有文本却不显示"的 RichTextBox，
-            //  顺带去掉它那条原生竖滚动条。行数上限 500，内存不随运行时长增长。
             log = new LogView();
             log.BackColor = Theme.Subtle;
             log.TextColor = Theme.Text;
+            log.Font = Theme.Mono(9f);
             log.MaxLines = 500;
             var logBox = new Panel();
             this.logBox = logBox;               // 高度自适应要用
-            logBox.BackColor = Theme.Subtle;
+            logBox.BackColor = Theme.Panel;
             logBox.BorderStyle = BorderStyle.None;
-            logBox.Padding = new Padding(Theme.S(8), Theme.S(6), Theme.S(8), Theme.S(6));
+            logBox.Padding = new Padding(Theme.S(12), Theme.S(10), Theme.S(12), Theme.S(10));
+            Buffered(logBox);
+            logBox.Paint += delegate(object s3, PaintEventArgs e3)
+            {
+                var g3 = e3.Graphics;
+                g3.Clear(Theme.Panel);
+                g3.SmoothingMode = SmoothingMode.AntiAlias;
+                var rr = new Rectangle(0, 0, Math.Max(1, logBox.Width - 1), Math.Max(1, logBox.Height - 1));
+                Theme.FillRound(g3, rr, Theme.RField, Theme.Subtle);
+                Theme.EdgeRound(g3, rr, Theme.RField, Theme.Line, 1f);
+            };
             log.Dock = DockStyle.Fill;
             logBox.Controls.Add(log);
             log.Text = "";
             logLines = 0;
-            //  空态：一块 200px 高、只有左上角一行小灰字的空白，读起来就是"这里坏掉了"。
-            //  改成居中一句提示；有没有内容按**控件里真的有字**判断，不靠 logVirgin ——
-            //  换主题重建时 logVirgin 已经是 false，但新控件是空的。
             lblLogEmpty = new TxtLbl();
             lblLogEmpty.Dock = DockStyle.Fill;
             lblLogEmpty.BackColor = Theme.Subtle;
             lblLogEmpty.ForeColor = Theme.TextDim;
             lblLogEmpty.Font = Theme.F(9.5f);
             lblLogEmpty.TextAlign = ContentAlignment.MiddleCenter;
-            lblLogEmpty.Text = "还没有日志 —— 启动一次游戏，这里会实时滚动";
+            lblLogEmpty.Text = "暂无运行日志";
             logBox.Controls.Add(lblLogEmpty);
             lblLogEmpty.BringToFront();
             //  换主题会重建控件树：log 是新的空控件，而 lastLogLen 还停在上次读到的位置，
@@ -11479,34 +11880,28 @@ namespace Fluxion
 
             var s0 = new Sec("界面主题");
             cbTheme = new RoundCombo();
-            cbTheme.Items.AddRange(new object[] { "浅色", "深色 · 曜石黑 + 电竞极光绿（Obsidian Cyber）" });
+            cbTheme.Items.AddRange(new object[] { "浅色 · 宣纸石白", "深色 · 曜石石墨" });
             cbTheme.SelectedIndex = (Cfg != null && Cfg.UiTheme == "dark") ? 1 : 0;
             cbTheme.SelectedIndexChanged += delegate {
                 BeginInvoke(new Action(delegate {
                     DoSwitchTheme(cbTheme.SelectedIndex == 1);
                 }));
             };
-            s0.Row("界面主题", cbTheme, Theme.S(260));
-            s0.Body("切换后立即生效，不用重启。");
+            s0.Row("界面主题", cbTheme, Theme.S(280));
 
-            // 界面动效三档。说明文案里的系统状态是**现算的** —— 否则用户看到"什么都没变"
-            // 只会以为是我们没做，而不是系统把动画关了。依据见 docs/motion-and-ui-research.md。
             cbMotion = new RoundCombo();
             cbMotion.Items.AddRange(new object[] { "跟随系统", "始终开启", "关闭" });
             cbMotion.SelectedIndex = Motion.Mode == "on" ? 1 : (Motion.Mode == "off" ? 2 : 0);
             cbMotion.SelectedIndexChanged += delegate { DoSwitchMotion(cbMotion.SelectedIndex); };
-            s0.Row("界面动效", cbMotion, Theme.S(260));
+            s0.Row("界面动效", cbMotion, Theme.S(280));
             s0.Body(Motion.OsAllows
-                ? "系统动画已开启 · 「跟随系统」即启用全部过渡（单段最长 300ms）。"
-                : "⚠ 系统动画已关闭 · 「跟随系统」= 无过渡。想看效果就选「始终开启」。");
+                ? "当前系统动画已开启，「跟随系统」将启用界面过渡动效。"
+                : "当前系统动画已关闭；如需启用过渡动效，请选择「始终开启」。");
             p.Add(s0);
 
-            //  ---- 更新（第 160 轮）----
-            //  0926 竞品定案推荐顺序第 2，一直挂着"没有版本源"——仓库本身就在 GitHub，
-            //  Releases API 就是版本源（复用 Upstream 的代理/直连两路通道）。
             var sUpd = new Sec("更新");
             lblUpd = sUpd.Body("当前版本 " + Program.AppVersion
-                + (Cfg != null && Cfg.UpdateCheckAt.Length > 0 ? " · 上次检查：" + Cfg.UpdateCheckAt : " · 还没检查过"));
+                + (Cfg != null && Cfg.UpdateCheckAt.Length > 0 ? " · 上次检查：" + Cfg.UpdateCheckAt : " · 尚未检查"));
             btnUpdCheck = new FlatBtn(); btnUpdCheck.Text = "检查更新"; btnUpdCheck.Width = Theme.S(96);
             btnUpdCheck.Click += delegate { BeginUpdateCheck(true); };
             btnUpdOpen = new FlatBtn(); btnUpdOpen.Text = "打开发布页"; btnUpdOpen.Width = Theme.S(110);
@@ -11519,7 +11914,7 @@ namespace Fluxion
             };
             sUpd.Buttons(btnUpdCheck, btnUpdOpen);
             chkUpdAuto = new RoundCheck();
-            Theme.StyleCheck(chkUpdAuto, "启动时自动检查（静默，间隔 24 小时，有新版才提示）");
+            Theme.StyleCheck(chkUpdAuto, "启动时自动检查更新（每 24 小时静默检测一次）");
             chkUpdAuto.Checked = Cfg == null || Cfg.UpdateCheck;
             chkUpdAuto.CheckedChanged += delegate
             {
@@ -11528,7 +11923,7 @@ namespace Fluxion
                 if (!w) Log("⚠ 开关没能写进配置（config.json 不可写）—— 本次运行内生效");
             };
             sUpd.Pair(null, chkUpdAuto, 0, null, null, 0);
-            sUpd.Body("只查 GitHub Releases 的最新 tag，不上传任何本机信息；检查不顺畅时可在下方「下载源」里开代理。");
+            sUpd.Body("仅查询 GitHub Releases 最新版本号，不上传本机信息。");
             p.Add(sUpd);
 
             if (!Program.ShareBuild)
@@ -11543,11 +11938,10 @@ namespace Fluxion
                     Program.SetSceneOffice(office);
                     SyncProfileEnabled();
                     Log(office ? "已切换办公场景：游戏联动整体停用（临时优化自动还原）" : "已切换游戏场景：档位体系恢复");
-                    // 游戏开着时切到办公：立刻收尾本轮联动（还原远控/电源），不再等游戏退出
                     if (office && linkActive) LinkGameExit();
                     UpdateLink();
                 };
-                s1.Row("场景总开关", cbScene, Theme.S(110));
+                s1.Row("场景总开关", cbScene, Theme.S(280));
 
                 cbProfileGame = new RoundCombo();
                 var shown = new List<string>();
@@ -11574,12 +11968,10 @@ namespace Fluxion
                     else { Program.SetProfileOverride(game, cat); Log("档位[" + game + "]手动指定为 " + catNames[idx]); }
                     UpdateLink();
                 };
-                //  两列行（这是设置页唯一一行双列表单）：宽度按列补满，右边不要留一段空档。
-                //  原来 180 / 130 —— 第一列只到表格 1/3 处，第二个标签孤零零飘在中间，像被截断了。
                 s1.Pair("游戏", cbProfileGame, Theme.S(290), "档位", cbProfile, Theme.S(250));
 
                 cbManual = new RoundCheck();
-                Theme.StyleCheck(cbManual, "手动指定档位（关闭 = 全部按列表自动判定）");
+                Theme.StyleCheck(cbManual, "手动指定单游戏档位");
                 cbManual.Checked = Program.ManualMode;
                 cbManual.CheckedChanged += delegate
                 {
@@ -11591,21 +11983,20 @@ namespace Fluxion
                 s1.Pair(null, cbManual, 0, null, null, 0);
 
                 cbAware = new RoundCheck();
-                Theme.StyleCheck(cbAware, "游戏联动（只对竞技网游生效：CS2 / 无畏契约 / 三角洲；二游与 3A 不动你的远控）");
+                Theme.StyleCheck(cbAware, "启用游戏进程联动（自动切换电源、定时器与加速策略）");
                 cbAware.Checked = Cfg.AwareEnable;
                 cbAware.CheckedChanged += delegate
                 {
                     Cfg.AwareEnable = cbAware.Checked;
                     SaveCfgBool("gameAware", "enable", cbAware.Checked);
                     Log("游戏联动已" + (cbAware.Checked ? "开启" : "关闭"));
-                    // 游戏开着时关掉联动：立刻收尾本轮联动（还原远控/电源）
                     if (!cbAware.Checked && linkActive) LinkGameExit();
                     UpdateLink();
                 };
                 s1.Pair(null, cbAware, 0, null, null, 0);
 
                 var cbAwareOnlyFps = new RoundCheck();
-                Theme.StyleCheck(cbAwareOnlyFps, "远控只对「竞技」档暂停（二游 / 3A / 网游 不动你的远控）");
+                Theme.StyleCheck(cbAwareOnlyFps, "仅在运行「FPS竞技」档游戏时自动暂停远程控制软件");
                 cbAwareOnlyFps.Checked = Cfg.AwareOnlyFps;
                 cbAwareOnlyFps.CheckedChanged += delegate
                 {
@@ -11617,7 +12008,7 @@ namespace Fluxion
                 s1.Pair(null, cbAwareOnlyFps, 0, null, null, 0);
 
                 cbAutoStart = new RoundCheck();
-                Theme.StyleCheck(cbAutoStart, "开机自启（计划任务，以管理员权限运行）");
+                Theme.StyleCheck(cbAutoStart, "开机自动启动（管理员计划任务，最小化驻留托盘）");
                 cbAutoStart.Checked = Program.IsAutoStart();
                 cbAutoStart.CheckedChanged += delegate
                 {
@@ -11631,22 +12022,13 @@ namespace Fluxion
                 };
                 s1.Pair(null, cbAutoStart, 0, null, null, 0);
 
-                s1.Body("办公 = 不触发联动；游戏 = 按档位联动（fps / mmo / aaa / gacha）。只有 fps 档会暂停远控。");
+                s1.Body("「办公」场景下暂停一切自动联动；「游戏」场景按档位自动调度系统资源。");
+                p.Add(s1);
 
-                // ---- 游戏分辨率档位（v3.8.0）----
-                // 为什么要有它：CS2 / 无畏契约的分辨率原来是**写死在代码里的一条**，用户换显示器
-                //   （换尺寸 / 换分辨率 / 换刷新率）之后没有第二个选项，只能去手改 config.json。
-                //   这里列的是"这两个游戏的玩家实际会选的分辨率"（职业选手统计数据，见 Core.cs 档位表注释），
-                //   并按本机主屏**实际支持的模式**标注可用性 —— 换屏后一眼能看出哪一档得先建自定义分辨率。
-                // ---- 分辨率修改方式（2026-10-06）----
-                // 用户要求：除了选哪一档，还要能选「自动修改还是手动修改」。
-                // 自动修改 = 原行为：从库点「启动」先预应用、进程检测兜底，退出自动还原。
-                // 手动修改 = 程序完全不碰显示状态（不切档位、不禁屏），档位只作记录，分辨率自己改；
-                //   游戏进行中已生效的那轮联动不受影响，退出时照常还原（LinkGameExit 看的是 linkActive，不是这个开关）。
-                //   远控/电源/加速包等其它联动也与之无关，不受影响。
+                var sRes = new Sec("分辨率与多屏联动");
                 cbResMode = new RoundCombo();
                 cbResMode.Items.AddRange(new object[] { "自动修改", "手动修改" });
-                cbResMode.SelectedIndex = Cfg.ResLinkEnable ? 0 : 1;   // 先回显再挂事件，构造期不触发
+                cbResMode.SelectedIndex = Cfg.ResLinkEnable ? 0 : 1;
                 cbResMode.SelectedIndexChanged += delegate
                 {
                     if (resComboSyncing) return;
@@ -11655,41 +12037,32 @@ namespace Fluxion
                     SaveCfgBool("displayLink", "enable", auto);
                     Log("[分辨率联动] 修改方式 → " + (auto
                         ? "自动修改：进游戏自动切档位/禁屏，退出自动还原"
-                        : "手动修改：程序不再动显示状态，档位只作记录，分辨率自己在游戏内/系统设置里改"
-                          + "（当前这局如已联动，退出时仍会自动还原）"));
+                        : "手动修改：程序不再动显示状态，档位只作记录"));
                     RefreshResInfo("");
                 };
-                s1.Row("分辨率修改", cbResMode, Theme.S(110));
+                sRes.Row("分辨率修改", cbResMode, Theme.S(280));
 
-                ResLink.InvalidateModes();   // 每次构建设置页都重读主屏模式（换屏后重建即生效）
+                ResLink.InvalidateModes();
                 cbResCs = new RoundCombo();
                 cbResCs.Items.AddRange(ResComboItems(ResKeyCs));
                 cbResCs.SelectedIndexChanged += delegate { OnResPresetPicked(ResKeyCs, cbResCs); };
-                s1.Row("CS2 分辨率", cbResCs, Theme.S(214));
+                sRes.Row("CS2 分辨率", cbResCs, Theme.S(280));
 
                 cbResVal = new RoundCombo();
                 cbResVal.Items.AddRange(ResComboItems(ResKeyVal));
                 cbResVal.SelectedIndexChanged += delegate { OnResPresetPicked(ResKeyVal, cbResVal); };
-                s1.Row("无畏契约分辨率", cbResVal, Theme.S(214));
+                sRes.Row("无畏契约分辨率", cbResVal, Theme.S(280));
 
-                // ---- 进游戏时禁用的显示器（v3.9.0）----
-                // 用户 2026-09-20：「启动游戏时再禁用，只禁用 p27 这一台就行」。
-                // 注意这是**设备管理器**（PnP）层面的停用，和上面写的"分离副屏"不是一回事：
-                //   分离只是把屏从桌面摘掉（设备管理器里仍显示"正常运行"，重启即回原生），
-                //   停用才是他截图里看到的那条"已禁用"。退出游戏会自动启用回来。
                 cbOffCs = new RoundCombo();
                 cbOffCs.Items.AddRange(OffMonItems(ResKeyCs));
                 cbOffCs.SelectedIndexChanged += delegate { OnResOffMonPicked(ResKeyCs, cbOffCs); };
-                s1.Row("CS2 游戏时禁用", cbOffCs, Theme.S(240));   // 240：值文字 10f 后"不禁用（所有显示器保持启用）"在 214 下出省略号
+                sRes.Row("CS2 游戏时禁用", cbOffCs, Theme.S(280));
 
                 cbOffVal = new RoundCombo();
                 cbOffVal.Items.AddRange(OffMonItems(ResKeyVal));
                 cbOffVal.SelectedIndexChanged += delegate { OnResOffMonPicked(ResKeyVal, cbOffVal); };
-                s1.Row("无畏契约游戏时禁用", cbOffVal, Theme.S(240));
+                sRes.Row("无畏契约游戏时禁用", cbOffVal, Theme.S(280));
 
-                // ---- 单屏也禁用（v3.9.2）----
-                // 默认那条守卫是"桌面上只剩一台屏就别禁，会黑屏"。但单屏玩家要真拉伸，禁的正是这一台 ——
-                //   不禁它，游戏照样读到 EDID 里的原生 16:9，Fill 也不会真拉伸。所以把选择权交回给用户。
                 var cbSoloOff = new RoundCheck();
                 Theme.StyleCheck(cbSoloOff, "允许禁用唯一在用屏（单屏拉伸需要）");
                 cbSoloOff.Checked = Cfg.ResLinkSoloOff;
@@ -11699,10 +12072,10 @@ namespace Fluxion
                     SaveCfgBool("displayLink", "soloOff", cbSoloOff.Checked);
                     Log("[分辨率联动] 单屏禁用："
                         + (cbSoloOff.Checked
-                            ? "已允许 —— 桌面上只剩一台屏时也会按规则禁用它（这正是单屏拉伸要的；可能黑屏一下，退出游戏自动启用回来）"
-                            : "已关闭 —— 只剩一台在用屏时跳过禁用，避免黑屏"));
+                            ? "已允许 —— 退出游戏后自动启用还原"
+                            : "已关闭 —— 单屏时默认跳过禁用以防黑屏"));
                 };
-                s1.Pair(null, cbSoloOff, 0, null, null, 0);
+                sRes.Pair(null, cbSoloOff, 0, null, null, 0);
 
                 btnResBase = new FlatBtn();
                 btnResBase.Text = "还原目标 = 当前主屏";
@@ -11713,27 +12086,18 @@ namespace Fluxion
                     Log("[分辨率联动] " + msg);
                     RefreshResInfo(msg);
                 };
-                s1.Buttons(btnResBase);
+                sRes.Buttons(btnResBase);
 
-                lblResInfo = s1.Body("");
-                ResSyncCombos();              // 下拉回显（必须在事件绑定之后，靠 syncing 抑制触发）
+                lblResInfo = sRes.Body("");
+                ResSyncCombos();
                 RefreshResInfo("");
 
-                p.Add(s1);
+                p.Add(sRes);
             }
 
-            // ---- 窗口与托盘 ----
-            // 为什么独立成区：这属于「程序自身行为」，不是「系统优化项」。
-            // v3.2.1 之前它被塞在性能优化页的「自定义项」对话框里（第 17 项，与
-            // 「电源计划」「Defender 排除」并列），结果用户在设置页根本找不到入口。
             var s1b = new Sec("窗口与托盘");
             cbClose = new RoundCombo();
-            // 注意：行布局里控件实测可用宽约 228px，长句会被裁成「…（后台继续运...」。
-            //      所以下拉项只放短标签，完整含义写在下面的说明里。
-            // 三项文案必须与 CloseComboText() 的输出**逐字一致** ——
-            //  两处各写一套就会出现「日志说 A、界面显示 B」（探针 close_probe 专门盯这条）。
-            //  也别加「（推荐）」这类后缀：默认值就是询问，而用户已经改成别的之后，
-            //  标在别的项上反而会让人以为自己设错了。
+            // 三项文案必须与 CloseComboText() 的输出逐字一致（close_probe 契约）
             cbClose.Items.AddRange(new object[] {
                 "每次询问",
                 "直接最小化到托盘",
@@ -11743,10 +12107,6 @@ namespace Fluxion
             {
                 int i = cbClose.SelectedIndex;
                 if (i < 0) return;
-                // 三态 ↔ 两个配置字段（ui.closeAsk / ui.closeToTray）：
-                //   0 询问     → closeAsk=true；closeToTray 保持原值（作为弹框里的默认选中项）
-                //   1 直接托盘 → closeAsk=false, closeToTray=true
-                //   2 直接退出 → closeAsk=false, closeToTray=false
                 Cfg.CloseAsk = (i == 0);
                 if (i == 1) Cfg.CloseToTray = true;
                 if (i == 2) Cfg.CloseToTray = false;
@@ -11754,18 +12114,18 @@ namespace Fluxion
                 SaveCfgBool("ui", "closeToTray", Cfg.CloseToTray);
                 Log("关闭窗口行为：" + CloseComboText(Cfg.CloseAsk, Cfg.CloseToTray));
             };
-            s1b.Row("关闭窗口时", cbClose, Theme.S(300));
-            s1b.Body("点 X 的行为；托盘「退出」永远直接退出，不受这里影响。");
+            s1b.Row("关闭窗口时", cbClose, Theme.S(280));
+            s1b.Body("设置点击右上角关闭按钮时的默认行为；托盘菜单「退出」始终直接结束程序。");
             p.Add(s1b);
 
             var s2 = new Sec(Program.ShareBuild ? "下载源" : "下载源与联网封面");
             if (Program.ShareBuild)
-                s2.Body("下载代理设置：帧生成运行时 / 插件包从这里下载时走它（直连失败会自动回退到代理）。失败原因写进下方日志。");
+                s2.Body("用于组件包与运行时下载（直连失败时自动回退代理）。");
             else
-            s2.Body("封面：Steam CDN → 按名搜 appid → Bing 兜底，逐级回退。挑错了右键「设置封面…」。");
-            var inpProxy = new RoundField(Theme.S(240), "");   // 原生 TextBox 方角白框与整套圆角控件打架
+                s2.Body("用于组件下载与联网补齐 Steam 官方封面；可在游戏详情页手动更换封面。");
+            var inpProxy = new RoundField(Theme.S(280), "");
             inpProxy.Box.Text = Cfg.DlssgProxy;
-            s2.Row("代理地址", inpProxy, Theme.S(240));
+            s2.Row("代理地址", inpProxy, Theme.S(280));
             var cbUseProxy = new RoundCheck();
             Theme.StyleCheck(cbUseProxy, "使用代理下载");
             cbUseProxy.Checked = Cfg.DlssgUseProxy;
@@ -11773,13 +12133,13 @@ namespace Fluxion
             if (!Program.ShareBuild)
             {
                 var cbCovers = new RoundCheck();
-                Theme.StyleCheck(cbCovers, "联网获取游戏封面（Steam 官方优先，找不到时联网搜图兜底）");
+                Theme.StyleCheck(cbCovers, "允许联网补齐缺失的 Steam 官方封面");
                 cbCovers.Checked = Cfg.DlssgOnlineCovers;
                 cbCovers.CheckedChanged += delegate
                 {
                     Cfg.DlssgOnlineCovers = cbCovers.Checked;
                     SaveCfgBool("dlssg", "onlineCovers", cbCovers.Checked);
-                    Log("联网封面已" + (cbCovers.Checked ? "开启（游戏库点「获取封面」生效）" : "关闭（只用本地图标与颜色卡）"));
+                    Log("联网封面已" + (cbCovers.Checked ? "开启" : "关闭"));
                 };
                 s2.Pair(null, cbCovers, 0, null, null, 0);
             }
@@ -11795,36 +12155,38 @@ namespace Fluxion
             s2.Buttons(btnSaveNet);
             p.Add(s2);
 
-            var sd = new Sec(Program.ShareBuild ? "数据目录（配置 / 日志 / 备份）" : "数据目录（配置 / 封面 / 日志 / 备份）");
-            sd.Body("当前：" + Program.DataDir + "\n迁移 = 复制 → 校验 → 删源；建议先退出游戏。");
+            var sd = new Sec("数据与配置存储");
+            sd.Body("当前位置：" + Program.DataDir + "（卸载程序不会删除此目录）");
             var btnMoveDir = new FlatBtn(); btnMoveDir.Text = "更改数据目录…"; btnMoveDir.Kind = BtnKind.Primary;
-            btnMoveDir.Width = Theme.S(148);
+            btnMoveDir.Width = Theme.S(140);
             btnMoveDir.Click += delegate { DoChangeDataDir(); };
-            var btnOpenDir = new FlatBtn(); btnOpenDir.Text = "打开"; btnOpenDir.Width = Theme.S(72);
+            var btnOpenDir = new FlatBtn(); btnOpenDir.Text = "打开目录"; btnOpenDir.Width = Theme.S(88);
             btnOpenDir.Click += delegate
             {
                 try { Process.Start("explorer.exe", "\"" + Program.DataDir + "\""); }
                 catch (Exception ex) { Log("打开目录失败: " + ex.Message); }
             };
-            var btnExport = new FlatBtn(); btnExport.Text = "导出配置…"; btnExport.Width = Theme.S(104);
+            var btnLogs = new FlatBtn(); btnLogs.Text = "打开日志"; btnLogs.Width = Theme.S(88);
+            btnLogs.Click += delegate
+            {
+                try { Process.Start("explorer.exe", "\"" + Path.Combine(Program.DataDir, "logs") + "\""); }
+                catch (Exception ex) { Log("打开目录失败: " + ex.Message); }
+            };
+            var btnExport = new FlatBtn(); btnExport.Text = "导出配置…"; btnExport.Width = Theme.S(100);
             btnExport.Click += delegate { DoExportConfig(); };
-            var btnImport = new FlatBtn(); btnImport.Text = "导入配置…"; btnImport.Width = Theme.S(104);
+            var btnImport = new FlatBtn(); btnImport.Text = "导入配置…"; btnImport.Width = Theme.S(100);
             btnImport.Click += delegate { DoImportConfig(); };
-            sd.Buttons(btnMoveDir, btnOpenDir, btnExport, btnImport);
+            sd.Buttons(btnMoveDir, btnOpenDir, btnLogs, btnExport, btnImport);
             p.Add(sd);
 
-            // 备份 / 隔离区的占用（P0-1）。这些东西每次部署、换包、卸载都在长，
-            //  原来全工程没有一个入口看得见 —— 1.48 GB 躺在 C 盘上没人知道能不能删。
             var sj = new Sec("备份与回收");
             lblJunk = sj.BodyFixed("备份占用：统计中…", 2);
-            sj.Body("回收 = 送回收站（可还原）；每组最新一份永远保留。逐项清理点「备份明细」。");
-            //  时长做成可选项而不是写死 30 天：默认的 30 天挡的是"刚换完包就一键清空"这种手滑，
-            //  但换包 / 卸载留下的备份常常几天内就想甩掉 —— 给档位，不偷偷放宽默认值。
+            sj.Body("清理项将移至系统回收站，且每组始终保留最新一份备份。");
             cbJunkAge = new RoundCombo();
             cbJunkAge.Items.AddRange(new object[] { "30 天前（推荐）", "14 天前", "7 天前", "不限时长" });
             cbJunkAge.DropDownStyle = ComboBoxStyle.DropDownList;
             cbJunkAge.SelectedIndex = 0;
-            sj.Row("回收范围", cbJunkAge, Theme.S(272));   // 回填后是「30 天前（推荐）· 0 项 / 0.0 MB」，210 会被截断
+            sj.Row("回收范围", cbJunkAge, Theme.S(280));
             var btnJunkList = new FlatBtn(); btnJunkList.Text = "备份明细"; btnJunkList.Width = Theme.S(96);
             btnJunkList.Click += delegate { ShowJunkDialog(); };
             var btnJunkClean = new FlatBtn(); btnJunkClean.Text = "回收老备份";
@@ -11832,25 +12194,7 @@ namespace Fluxion
             btnJunkClean.Click += delegate { DoJunkClean(JunkDays()); };
             sj.Buttons(btnJunkList, btnJunkClean);
             p.Add(sj);
-            SetJunkLabel();   // 建页时不扫盘（同步扫会让页面卡一下），挂好标签后再统计
-
-            var s3 = new Sec("安全与还原");
-            s3.Body("数据目录：" + Program.DataDir + "（卸载不删）\n"
-                  + "写入前都有备份；代理只往游戏目录放 1~2 个文件，删掉即还原。");
-            var btnOpen = new FlatBtn(); btnOpen.Text = "打开数据目录"; btnOpen.Width = Theme.S(112);
-            btnOpen.Click += delegate
-            {
-                try { Process.Start("explorer.exe", "\"" + Program.DataDir + "\""); }
-                catch (Exception ex) { Log("打开目录失败: " + ex.Message); }
-            };
-            var btnLogs = new FlatBtn(); btnLogs.Text = "打开发日志"; btnLogs.Width = Theme.S(96);
-            btnLogs.Click += delegate
-            {
-                try { Process.Start("explorer.exe", "\"" + Path.Combine(Program.DataDir, "logs") + "\""); }
-                catch (Exception ex) { Log("打开目录失败: " + ex.Message); }
-            };
-            s3.Buttons(btnOpen, btnLogs);
-            p.Add(s3);
+            SetJunkLabel();
         }
 
         // ---------------------- 小工具 ----------------------
@@ -11879,7 +12223,7 @@ namespace Fluxion
                 }
                 int idx = info.Item.SubItems.IndexOf(info.SubItem);   // ListViewSubItem 没有 Index
                 if (idx < 0 || idx >= lv.Columns.Count) { hover.Stop(); Theme.Tip.HideNow(); cur = null; return; }
-                int avail = lv.Columns[idx].Width - Theme.S(14);
+                int avail = lv.Columns[idx].Width - Theme.S(16);
                 int need = TextRenderer.MeasureText(info.SubItem.Text, Theme.F(9.5f),
                     new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding).Width;
                 if (need <= avail) { hover.Stop(); Theme.Tip.HideNow(); cur = null; return; }
@@ -11903,7 +12247,7 @@ namespace Fluxion
 
         ListView NewList(string[] cols, int[] widths, int height)
         {
-            var lv = new ListView();
+            var lv = new TableListView();
             lv.View = View.Details;
             lv.HeaderStyle = ColumnHeaderStyle.Nonclickable;
             lv.FullRowSelect = true;
@@ -11924,6 +12268,13 @@ namespace Fluxion
             rowPad.ImageSize = new Size(1, Theme.S(28));
             rowPad.ColorDepth = ColorDepth.Depth32Bit;
             lv.SmallImageList = rowPad;
+            // BUG-G1: 表被销毁时清理索引与一次性资源，防止 tableBoxes 堆积空引用、rowPad/cmW 泄漏
+            var rowPadRef = rowPad;
+            lv.Disposed += delegate
+            {
+                tableBoxes.Remove(lv);
+                try { rowPadRef.Dispose(); } catch { }
+            };
             Buffered(lv);
 
             // 记住"建表默认列宽"，供右键「恢复默认列宽」复原（用户 2026-09-20：拖乱了没退路）
@@ -11936,70 +12287,52 @@ namespace Fluxion
             }
             Theme.RememberWidths(lv, defW);
 
-            //  ★ 第 142 轮：列宽跟着容器宽度按**比例**走。
-            //  列宽是建表时写死的，卡片一窄（MaxSecW 限宽、窗口缩小）最后一列就被挤到可视区外，
-            //  或反过来留下一条空白 —— 表现为「期望值」列被省略成"双通道 + 标称频率（…"。
-            //  按**当前**列宽等比缩放（不是按默认值重算），用户自己拖过的相对比例因此保留。
-            //  ⚠ 只有总和与客户区差超过 8px 才动：改完两者就相等，下一次 Resize 会立刻返回，
-            //    不会和用户拖动列宽打架。
-            bool fitting = false;
             lv.Resize += delegate
             {
-                if (fitting || lv.IsDisposed || lv.Columns.Count == 0) return;
-                int avail2 = lv.ClientSize.Width;
-                if (avail2 <= Theme.S(120)) return;
-                //  有竖向滚动条时客户区已经扣掉了，不用自己再减
-                int cur = 0;
-                foreach (ColumnHeader ch in lv.Columns) cur += ch.Width;
-                if (Math.Abs(cur - avail2) <= Theme.S(8)) return;
-                if (cur <= 0) return;
-                fitting = true;
-                try
-                {
-                    int acc = 0, n = lv.Columns.Count;
-                    for (int i = 0; i < n; i++)
-                    {
-                        int ow = lv.Columns[i].Width;
-                        int w = (i == n - 1) ? avail2 - acc
-                                              : (int)((long)avail2 * ow / cur);
-                        if (w < Theme.S(56)) w = Theme.S(56);
-                        if (i == n - 1) w = Math.Max(Theme.S(56), avail2 - acc);
-                        lv.Columns[i].Width = w;
-                        acc += w;
-                    }
-                }
-                catch { }
-                finally { fitting = false; }
+                if (lv.Parent is TableBox) lv.Parent.Invalidate();
             };
 
-            // 列宽复原入口（v3.9.0）：原生 ListView 本来就支持拖列宽、也支持双击分隔线按内容自适应，
-            //   但**拖乱之后没有任何退路** —— 尤其是把某列拖到只剩十几像素时，靠自己拖回来很别扭。
-            // 为什么**只**给「恢复默认列宽」、不再给"全部按内容自适应"：
-            //   实测本表三列内容宽合计 833 > 客户区 773（「当前值」单列就要 514）——「按内容撑开」
-            //   必然冒出横向滚动条，而横条会把客户区高度压掉一行，用户视角就是"表格少了一行"。
-            //   用户自己也说了「这个栏还能自动调节」—— 逐列自适应（双击分隔线）本来就在，不重复提供。
+            int hotRow = -1;
+            Action<int> invRow = delegate(int idx)
+            {
+                if (idx < 0 || idx >= lv.Items.Count) return;
+                try { lv.Invalidate(lv.GetItemRect(idx)); } catch { lv.Invalidate(); }
+            };
+            lv.MouseMove += delegate(object sm, MouseEventArgs em)
+            {
+                ListViewHitTestInfo hi = lv.HitTest(em.Location);
+                int nr = hi.Item != null ? hi.Item.Index : -1;
+                if (nr != hotRow)
+                {
+                    int oldR = hotRow;
+                    hotRow = nr;
+                    invRow(oldR);
+                    invRow(hotRow);
+                }
+            };
+            lv.MouseLeave += delegate
+            {
+                if (hotRow != -1)
+                {
+                    int oldR = hotRow;
+                    hotRow = -1;
+                    invRow(oldR);
+                }
+            };
+
             var cmW = MenuFactory.New();
             var lvRef = lv;
             var miResetW = new ToolStripMenuItem("恢复默认列宽");
             miResetW.Click += delegate { Theme.ResetListWidths(lvRef); };
             cmW.Items.Add(miResetW);
             lv.ContextMenuStrip = cmW;
+            var cmWRef = cmW;
+            lv.Disposed += delegate { try { cmWRef.Dispose(); } catch { } };
 
             lv.DrawColumnHeader += delegate(object s, DrawListViewColumnHeaderEventArgs e)
             {
-                //  ⚠ 实测（2026-10-20）：本项目的 ListView **从不触发**这个事件（打了日志、一次都没进），
-                //    所以表头一直是系统那条浅灰带（#F0F0F0 + #A0A0A0 下边线）。
-                //    试过：去掉 SetWindowTheme(hh,…) 也没用 ⇒ 不是主题压掉了自绘，是 WinForms 这条路径
-                //    在本控件上不通。要改表头外观只能自己画（HeaderStyle=None + 首行假表头）。
                 var g = e.Graphics;
-
-                // 表头不再铺那条钛灰带（2026-10-20）：一条灰带横在圆角白卡里，
-                // 是整张页面上最"原生控件贴上来"的一块。改成与卡片同底 + 一条 1px 下划线，
-                // 表格读起来就是"写在卡片里的一张表"，而不是"嵌了一个控件"。
-                // （仍要填一次：不填会留下上一次绘制的残影，滚动时尤其明显。）
                 g.FillRectangle(Theme.Solid(Theme.Panel), e.Bounds);
-
-                // 底部分隔线
                 g.DrawLine(Theme.Hair(Theme.Line), e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
 
                 TextFormatFlags flags = TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix;
@@ -12007,39 +12340,19 @@ namespace Fluxion
                 else if (e.Header.TextAlign == HorizontalAlignment.Center) flags |= TextFormatFlags.HorizontalCenter;
                 else flags |= TextFormatFlags.Left;
 
-                Rectangle tr = new Rectangle(e.Bounds.Left + Theme.S(10), e.Bounds.Top, Math.Max(0, e.Bounds.Width - Theme.S(20)), e.Bounds.Height);
+                Rectangle tr = new Rectangle(e.Bounds.Left + Theme.S(8), e.Bounds.Top, Math.Max(0, e.Bounds.Width - Theme.S(16)), e.Bounds.Height);
                 Theme.DrawTxt(g, e.Header.Text, Theme.FM(8.5f), tr, Theme.TextDim, flags);
             };
 
             lv.DrawItem += delegate(object s, DrawListViewItemEventArgs e)
             {
-                // 整行铺底只在这里做一次。以前把底色铺在 DrawSubItem 里、一格一格铺，
-                // 问题有两个：格子与格子之间会留 1px 接缝，最右列右侧的空档也没人画 ——
-                // 那些缝里露出的就是 ListView 的 BackColor（浅色 = 纯白），看起来"有的色块更白、更割裂"。
-                // DrawSubItem 拿到的 Bounds 是**单元格**的，DrawItem 拿到的才是整行。
-                //
-                // 底色用**同一个颜色**，不再用斑马纹：
-                //   浅色主题的交替色是 #FFFFFF / #F8FAFC，只差 3% —— 这点差异在屏幕上看不出
-                //   "这是交替条纹"，只看得出"这些行颜色不一样"，再叠上滚动时的重绘，
-                //   就是用户 2026-09-19 反馈的"滑动时有的色块变得更白、更割裂"。
-                //   行的区分改由底部一条极浅的分隔线交代（LineSoft = #F1F5F9 / #1A2434）。
-                //   ⚠ Theme.GridAlt（斑马纹色）因此不再被引用，别当成漏改。
                 var g = e.Graphics;
-                // 选中判据用**行自己的状态**（e.Item.Selected），不要用 e.State/e.ItemState。
-                // 实测（tools\ui_snapshot.py light lst 1）：控件里没有任何一行被选中
-                // （SelectedIndices=0、每项 Selected=False），可绘制回调里的 Selected 位却是**行行都有**
-                // ——按那个位画，整个列表会被涂成"选中态"的 Hover 底色 + 每行一条绿色强调条，
-                // 看起来就是"这些行怎么跟别的不一样"。（用户 2026-09-19 截图里的白块/绿条即由此而来。）
-                // 画刷/画笔全走缓存：滚动时这里是每行必经之路，任何临时 GDI+ 对象都会放大成掉帧。
                 bool isSel = e.Item != null && e.Item.Selected;
-                //  ★ 铺满**客户区整宽**，不是只铺 e.Bounds（2026-10-20）：列宽合计永远比客户区
-                //    窄几像素（留余量防横向滚动条），那一小条空区由 ListView 自己按主题色刷 ——
-                //    在白卡里就是一条压在右边的灰带（用户截图「像拼接的一块」）。
+                bool isHot = !isSel && e.ItemIndex == hotRow;
                 var rowBg = new Rectangle(0, e.Bounds.Top, Math.Max(e.Bounds.Width, lv.ClientSize.Width), e.Bounds.Height);
-                g.FillRectangle(Theme.Solid(isSel ? Theme.Hover : Theme.Panel), rowBg);
+                g.FillRectangle(Theme.Solid(isSel ? Theme.Selected : (isHot ? Theme.Hover : Theme.Panel)), rowBg);
                 if (isSel)
                 {
-                    // 选中行左边缘的微光指示条（整行只画一次，所以不放 DrawSubItem 里）
                     g.FillRectangle(Theme.Solid(Theme.Accent), e.Bounds.Left, e.Bounds.Top + Theme.S(2),
                         Theme.S(3), Math.Max(0, e.Bounds.Height - Theme.S(4)));
                 }
@@ -12051,62 +12364,70 @@ namespace Fluxion
 
             lv.DrawSubItem += delegate(object s, DrawListViewSubItemEventArgs e)
             {
-                Theme.NoteCell(lv, e.ItemIndex, e.ColumnIndex);   // 逐格自检：这一格"画过了"
+                Theme.NoteCell(lv, e.ItemIndex, e.ColumnIndex);
                 var g = e.Graphics;
-                // 普通文字格走 TextRenderer（GDI），Graphics 的 SmoothingMode/TextRenderingHint
-                // 对它完全无效，白设还拖着 AntiAlias 状态 —— 只有胶囊几何要用，挪进分支里。
-
-                // 选中判据与 DrawItem 保持一致：用行自己的状态，不用 e.ItemState
-                // （后者在部分绘制路径下会把"选中"位给到每一行，文字就会整列变强调绿）。
                 bool isSel = e.Item != null && e.Item.Selected;
-                // 行背景（选中高亮 / 分隔线）已由 DrawItem 整行铺好，这里只画内容。
 
                 string txt = e.SubItem != null ? e.SubItem.Text : "";
                 if (string.IsNullOrEmpty(txt)) return;
 
-                // 状态胶囊标签（已生效 / 未生效 / 可实测… / 需处理）
-                // 判据优先用 FillList 打的状态格标记，文字白名单只作兜底 —— 以前只认
-                // "已生效/未生效/需处理"三个词，于是 🟡 那一档（可实测 / 已跳过 / 可关闭 …）
-                // 掉进 else 被当普通文字画，颜色跟着丢。
                 if (IsBadgeCell(e.SubItem, txt))
                 {
-                    //  状态格改成「小圆点 + 文字」，**不再画实心胶囊**（2026-10-20）。
-                    //  一屏二十行全是绿底胶囊 —— 那是"仪表盘模板"的观感，也是"廉价"最直接的来源：
-                    //  二十个填充块把一张表变成了二十张贴纸。去掉底色与描边之后，同一列仍然
-                    //  一眼能扫出状态（点带色、字在前），但视觉重量只剩原来的五分之一。
-                    //  ⚠ 文字颜色：正常态用正文色（8.5pt 的 #10B981 在白底上对比度不够，读起来发虚），
-                    //  只有异常态（未生效 / 需处理）才把文字也染成状态色 —— 安静是默认，出问题才响。
                     g.SmoothingMode = SmoothingMode.AntiAlias;
                     Color c = (e.SubItem != null && e.SubItem.ForeColor != Color.Empty) ? e.SubItem.ForeColor : Theme.Text;
-                    Color txtC = (c == Theme.Ok) ? Theme.Text : Theme.TextSafe(c);
+                    bool isAlert = (c == Theme.Warn || c == Theme.Err);
+                    Color txtC = (c == Theme.Ok) ? Theme.Text : (c == Theme.TextDim ? Theme.TextDim : Theme.TextSafe(c));
+                    Font fBadge = Theme.FM(8.8f);
                     int dotR = Theme.S(6);
-                    int bx = e.Bounds.Left + Theme.S(6);
+                    int dx = e.Bounds.Left + Theme.S(8);
                     int dotY = e.Bounds.Top + (e.Bounds.Height - dotR) / 2;
-
-                    // 微型发光圆点指示灯：外圈微光扩散 + 内芯实心 + 核心微高亮
-                    int haloSz = dotR + Theme.S(4);
-                    using (var hb = new SolidBrush(Color.FromArgb(Theme.Dark ? 45 : 30, c)))
-                        g.FillEllipse(hb, bx - Theme.S(2), dotY - Theme.S(2), haloSz, haloSz);
-                    g.FillEllipse(Theme.Solid(c), bx, dotY, dotR, dotR);
-                    using (var cb = new SolidBrush(Color.FromArgb(190, 255, 255, 255)))
-                        g.FillEllipse(cb, bx + Theme.S(1), dotY + Theme.S(1), Theme.S(2), Theme.S(2));
-
-                    int tx = bx + dotR + Theme.S(6);
+                    int tx = dx + dotR + Theme.S(6);
+                    if (isAlert && !isSel)
+                    {
+                        Color softBg = (c == Theme.Err) ? Theme.ErrSoft : Theme.WarnSoft;
+                        int tw = TextRenderer.MeasureText(txt, fBadge, new Size(400, 60),
+                            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width;
+                        int pillX = e.Bounds.Left + Theme.S(2);
+                        int pillW = Math.Min(Math.Max(Theme.S(36), e.Bounds.Width - Theme.S(6)), (tx - pillX) + tw + Theme.S(8));
+                        int pillH = Theme.S(20);
+                        var pillR = new Rectangle(pillX, e.Bounds.Top + (e.Bounds.Height - pillH) / 2, pillW, pillH);
+                        Theme.FillRound(g, pillR, Theme.S(5), softBg);
+                    }
+                    g.FillEllipse(Theme.Solid(c), dx, dotY, dotR, dotR);
                     Rectangle tr = new Rectangle(tx, e.Bounds.Top, Math.Max(0, e.Bounds.Right - Theme.S(6) - tx), e.Bounds.Height);
-                    Theme.DrawTxt(g, txt, Theme.FM(9f), tr, txtC,
+                    Theme.DrawTxt(g, txt, fBadge, tr, txtC,
                         TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
                     g.SmoothingMode = SmoothingMode.Default;
                 }
                 else
                 {
-                    // 普通单元格文字排版
                     Color tc = isSel ? Theme.AccentText : (e.SubItem != null && e.SubItem.ForeColor != lv.ForeColor && e.SubItem.ForeColor != Color.Empty ? e.SubItem.ForeColor : Theme.Text);
-                    //  左内缩 10 → 4（2026-10-20 像素审计）：表头是**原生控件**画的（自绘事件在本项目
-                    //  从不触发，见上），它的左侧内缩只有 ~6px；单元格若按 10px 排，表头文字就比
-                    //  单元格文字左 8px —— 整张表每一列都歪。4px + 字形左侧留白正好贴上表头。
-                    Rectangle tr = new Rectangle(e.Bounds.Left + Theme.S(4), e.Bounds.Top, Math.Max(0, e.Bounds.Width - Theme.S(10)), e.Bounds.Height);
-                    Theme.DrawTxt(g, txt, Theme.F(9.5f), tr, tc,
-                        TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                    if (e.ColumnIndex == 0 && txt.EndsWith("  ⚙", StringComparison.Ordinal))
+                    {
+                        string clean = txt.Substring(0, txt.Length - 3);
+                        int tagW = Theme.S(30), tagH = Theme.S(17);
+                        int maxTextW = Math.Max(0, e.Bounds.Width - Theme.S(16) - tagW - Theme.S(6));
+                        int nameW = Math.Min(maxTextW, TextRenderer.MeasureText(clean, Theme.F(9.5f)).Width + Theme.S(2));
+                        var trName = new Rectangle(e.Bounds.Left + Theme.S(8), e.Bounds.Top, nameW, e.Bounds.Height);
+                        Theme.DrawTxt(g, clean, Theme.F(9.5f), trName, tc,
+                            TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                        var tagR = new Rectangle(trName.Right + Theme.S(5), e.Bounds.Top + (e.Bounds.Height - tagH) / 2, tagW, tagH);
+                        if (tagR.Right <= e.Bounds.Right - Theme.S(2))
+                        {
+                            g.SmoothingMode = SmoothingMode.AntiAlias;
+                            Theme.FillRound(g, tagR, Theme.S(4), isSel ? Theme.Panel : Theme.Subtle);
+                            Theme.EdgeRound(g, tagR, Theme.S(4), Theme.Line, 1f);
+                            Theme.DrawTxt(g, "可调", Theme.F(7.8f), tagR, Theme.TextDim,
+                                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                            g.SmoothingMode = SmoothingMode.Default;
+                        }
+                    }
+                    else
+                    {
+                        Rectangle tr = new Rectangle(e.Bounds.Left + Theme.S(8), e.Bounds.Top, Math.Max(0, e.Bounds.Width - Theme.S(16)), e.Bounds.Height);
+                        Theme.DrawTxt(g, txt, Theme.F(9.5f), tr, tc,
+                            TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                    }
                 }
             };
 
@@ -12124,18 +12445,25 @@ namespace Fluxion
                 }
                 catch { }
             };
-            lv.Resize += refitLater;
-            lv.VisibleChanged += delegate { if (lv.Visible) refitLater(lv, EventArgs.Empty); };
-            //  包进自绘表头的容器：表头返回我们自己画（原生表头改不动，见 TableBox 注释）
-            AttachCellTips(lv);
-            //  滚轮转发：整表展开后 ListView 自己没有滚动范围，而它是**原生控件** ——
-            //  会吃掉 WM_MOUSEWHEEL 又不往上传（和 FlatScroll 那条注释是同一个坑），
-            //  结果就是"鼠标停在表格上滚半天，页面一动不动"。这里显式交给所属页面。
-            lv.MouseWheel += delegate(object sw, MouseEventArgs ew)
+            lv.HandleCreated += delegate
             {
-                Pg pgw = PgOf(lv);
-                if (pgw != null) pgw.ScrollByWheel(ew.Delta);
+                try { Theme.ScrollThemeTree(lv); } catch { }
+                refitLater(lv, EventArgs.Empty);
+                if (lv.AutoFitMinRows > 0) FitListToRows(lv, lv.AutoFitMinRows);
             };
+            if (lv.IsHandleCreated) { try { Theme.ScrollThemeTree(lv); } catch { } }
+            lv.Resize += refitLater;
+            lv.VisibleChanged += delegate
+            {
+                if (lv.Visible)
+                {
+                    refitLater(lv, EventArgs.Empty);
+                    if (lv.AutoFitMinRows > 0) FitListToRows(lv, lv.AutoFitMinRows);
+                }
+            };
+            //  包进自绘表头的容器：表头返回我们自己画（原生表头改不动，见 TableBox 注释）
+            //  滚轮路由由 TableListView.WndProc 统一处理（整表展开独占滚 Pg，弹窗表触界链式滚 Pg）
+            AttachCellTips(lv);
             var box = new TableBox(lv);
             tableBoxes[lv] = box;
             box.Width = Theme.S(600);
@@ -12273,24 +12601,13 @@ namespace Fluxion
             string primDev = ResLink.PrimaryDevice() ?? "主显示器";
             DispGuard.Mode? curMode = DispGuard.Current(primDev);
             string curModeStr = curMode.HasValue ? curMode.Value.W + "×" + curMode.Value.H + "@" + curMode.Value.Hz + "Hz" : "探测中";
-            string monHeader = "• 本机主屏物理硬件：" + primDev.Replace("\\\\.\\", "") + "（当前运行：" + curModeStr + "，最大支持 " + mw + "×" + mh + "）";
-            string cur = monHeader + "\n当前设置：CS2 " + ResDescr(ResKeyCs) + "　无畏契约 " + ResDescr(ResKeyVal)
-                       + "　还原目标 " + Cfg.BaseW + "×" + Cfg.BaseH + "@" + Cfg.BaseHz + "Hz"
-                       + "　修改方式 " + (Cfg.ResLinkEnable ? "自动" : "手动");
-            string off = "游戏时禁用显示器：CS2 " + OffMonDescr(ResKeyCs) + "　无畏契约 " + OffMonDescr(ResKeyVal);
-            string legend = "可用性按本机主屏（" + (mw > 0 ? "最大 " + mw + "×" + mh : "探测不到，一律按可用处理")
-                          + "）：✓ 直接可切 · △ 本机没有这一档，需先在显卡驱动里建自定义分辨率 · ✕ 超出屏幕。"
-                          + "\n「分辨率修改」**默认手动**（2026-10-18 起关闭自动）：自动 = 进游戏按档位切（含禁屏）、退出还原；"
-                          + "手动 = 程序完全不碰显示状态，档位与禁屏只作记录，分辨率自己在游戏内 / 系统显示设置里改。"
-                          + "\n刷新率自动跟随你当前主屏，换 240Hz 屏不用改这里。"
-                          + "\n「游戏时禁用」走的是**设备管理器**那一层（右键「禁用设备」的等价操作）：进游戏时停用、退出游戏自动启用。"
-                          + "它和「分离副屏」不是一回事 —— 分离只是把屏从桌面摘掉，设备管理器里仍显示正常运行。"
-                          + "\n从本程序点「启动」时会在**游戏启动之前**先应用（这是无畏契约「真拉伸」的必要条件："
-                          + "它在启动那一刻读到显示器原生宽高比就把画面锁回 16:9）；从 WeGame / 官方启动器自己进游戏时，"
-                          + "只能等检测到游戏进程后再应用，那一次真拉伸要重启一次游戏才吃得到。"
-                          + "\n⚠ 停用**主屏**会让桌面转移到另一台屏上；桌面上只剩一块屏时默认拒绝停用（否则可能黑屏）。"
-                          + "单屏玩家如果就是想要真拉伸，勾上面「允许禁用唯一在用屏」即可 —— 那正是单屏拉伸要禁的那一台。"
-                          + "任何时候都可以在「性能优化」页底部把显示器一键全部启用回来。";
+            string monHeader = "主显示器：" + primDev.Replace("\\\\.\\", "") + "（当前 " + curModeStr
+                             + (mw > 0 ? "，最高 " + mw + "×" + mh : "") + "）";
+            string cur = monHeader + "\n联动规则：CS2 " + ResDescr(ResKeyCs) + " · 无畏契约 " + ResDescr(ResKeyVal)
+                       + " · 还原目标 " + Cfg.BaseW + "×" + Cfg.BaseH + "@" + Cfg.BaseHz + "Hz（" + (Cfg.ResLinkEnable ? "自动修改" : "手动修改") + "）";
+            string off = "进游戏停用显示器：CS2 " + OffMonDescr(ResKeyCs) + " · 无畏契约 " + OffMonDescr(ResKeyVal);
+            string legend = "图例：✓ 直接可用 · △ 需在显卡驱动创建自定义分辨率 · ✕ 超出主屏上限\n"
+                          + "注：自动模式下从游戏库点击「启动」将在游戏运行前预切分辨率与设备启停，退出后自动还原。";
             SetBody(lblResInfo, (extra != null && extra.Length > 0 ? extra + "\n" : "") + cur + "\n" + off + "\n" + legend);
         }
 
@@ -12487,8 +12804,8 @@ namespace Fluxion
             foreach (var k in Program.Knobs()) knobMap[k.Key] = k;
 
             var dlg = new Form();
-            Fx.FadeOnClose(dlg);   // 关闭淡出 200ms（关动画/系统关特效时零行为）
-            dlg.Text = "一键优化（选择要执行的项）";
+            Fx.FadeOnClose(dlg);
+            dlg.Text = "一键优化";
             dlg.StartPosition = FormStartPosition.CenterParent;
             dlg.FormBorderStyle = FormBorderStyle.Sizable;
             dlg.MaximizeBox = false; dlg.MinimizeBox = false;
@@ -12504,7 +12821,6 @@ namespace Fluxion
             var pg = new Pg();
             pg.Dock = DockStyle.Fill;
 
-            // 按档位稳定排序（不稳的话同档内的执行顺序会变，日志对不上）
             var shown = new List<OptStep>(steps);
             var order = new Dictionary<OptStep, int>();
             for (int i = 0; i < steps.Count; i++) order[steps[i]] = i;
@@ -12514,13 +12830,12 @@ namespace Fluxion
                 return d != 0 ? d : order[a].CompareTo(order[b]);
             });
 
-            // 顶部使用建议与快捷预设
-            var sTip = new Sec("💡 优化推荐与预设选择");
-            var lbTip = sTip.Body("使用建议：若平时需要使用「安卓模拟器」、「WSL2」、「Docker」或「Windows 沙盒」，保持默认推荐配置（排除底部的 2 项「实验档」，不关闭虚拟化）即可，兼顾极致低输入延迟与开发/模拟器兼容性。");
-            lbTip.ForeColor = Theme.TextSafe(Theme.Ok);
+            var sTip = new Sec("预设选择");
+            var lbTip = sTip.Body("日常使用 WSL2、Docker 或模拟器时建议保持「推荐配置」，自动排除下方实验项。");
+            lbTip.ForeColor = Theme.TextDim;
 
-            var btnRec = new FlatBtn(); btnRec.Text = "推荐配置（日常/开发/模拟器兼顾）"; btnRec.Kind = BtnKind.Primary; btnRec.Width = Theme.S(230);
-            var btnAll = new FlatBtn(); btnAll.Text = "全选（极致电竞）"; btnAll.Width = Theme.S(130);
+            var btnRec = new FlatBtn(); btnRec.Text = "推荐配置"; btnRec.Kind = BtnKind.Primary; btnRec.Width = Theme.S(110);
+            var btnAll = new FlatBtn(); btnAll.Text = "全选（含实验项）"; btnAll.Width = Theme.S(140);
             btnRec.Click += delegate
             {
                 foreach (var pair in localMap) pair.Value.Checked = (pair.Key.Level != RiskLevel.Experimental);
@@ -12543,20 +12858,16 @@ namespace Fluxion
                     lastLevel = s.Level;
                 }
                 var rc = new RoundCheck();
-                rc.Text = s.Name;
-                rc.Checked = (s.Level != RiskLevel.Experimental); // 默认排除实验档，兼顾日常/模拟器/开发安全
-                rc.Height = Theme.S(22);
+                Theme.StyleCheck(rc, s.Name);
+                rc.Checked = (s.Level != RiskLevel.Experimental);
+                rc.Height = Theme.S(24);
                 sec.Row("", rc, Theme.S(560));
                 if (!string.IsNullOrEmpty(s.Impact))
                 {
                     var lb = sec.Body(s.Impact);
-                    // 实验档的代价用错误色标出来：绿色主题下这一行必须一眼能认出来
                     if (s.Level == RiskLevel.Experimental) lb.ForeColor = Theme.TextSafe(Theme.Err);
                 }
 
-                // ---- 档位（2026-10-21）----
-                // 有可选档位的步骤，就地给下拉框 —— 用户不必"勾上 → 记下名字 → 再去取值细调里找"。
-                // 这里改的是 config（保存时落盘 + 落系统），和「取值细调」同一套键，两处改一处生效。
                 if (s.Knobs != null && s.Knobs.Length > 0)
                 {
                     foreach (var key in s.Knobs)
@@ -12571,8 +12882,6 @@ namespace Fluxion
                         if (kn.Index >= 0) cb.SelectedIndex = kn.Index;
                         else
                         {
-                            // 当前值不在档位表里（别处写过工具不提供的值）：必须预选最后那条
-                            // "不在档位表中"，否则用户只是打开对话框再点开始，就会被静默改成第 0 档。
                             cb.Items.Add("（当前值 " + kn.Value + "，不在档位表中 —— 不动它）");
                             cb.SelectedIndex = kn.Labels.Length;
                         }
@@ -12582,7 +12891,7 @@ namespace Fluxion
                         string label = string.IsNullOrEmpty(kn.Short) ? kn.Title : kn.Short;
                         if (kn.Restart) label += "（重启生效）";
                         sec.Row(label, cb, Theme.S(380));
-                        if (dead) sec.Body("本机不是混合架构 CPU（没有 P/E 核），这一档没有对应设置 —— 保持默认即可。");
+                        if (dead) sec.Body("当前 CPU 非混合架构，此项不适用。");
                         knobViews.Add(cb);
                     }
                 }
@@ -12591,9 +12900,8 @@ namespace Fluxion
             }
 
             var sFoot = new Sec("安全保障说明");
-            sFoot.Body("· 默认推荐配置已自动排除关闭虚拟化与服务的「实验档」，兼顾极致游戏帧率与日常开发/模拟器兼容性。\n"
-                     + "· 所有系统修改在执行前均会自动快照备份，随时可在主界面点击「恢复备份」一键还原。\n"
-                     + "· 若手动勾选了「实验档」，系统将在执行前自动创建 Windows 系统还原点作为双重保障。");
+            sFoot.Body("· 执行前自动备份原始设置，可随时通过「恢复备份」还原。\n"
+                     + "· 勾选实验档时将额外创建 Windows 系统还原点。");
             pg.Add(sFoot);
 
             dlg.Controls.Add(pg);
@@ -12601,11 +12909,17 @@ namespace Fluxion
 
             var bar = new FlowLayoutPanel();
             bar.Dock = DockStyle.Bottom;
-            bar.Height = Theme.S(52);
+            bar.Height = Theme.S(54);
             bar.FlowDirection = FlowDirection.RightToLeft;
             bar.WrapContents = false;
             bar.BackColor = Theme.Panel;
-            bar.Padding = new Padding(0, Theme.S(11), Theme.S(16), 0);
+            bar.Padding = new Padding(0, Theme.S(11), Theme.S(18), 0);
+            Buffered(bar);
+            bar.Paint += delegate(object s2, PaintEventArgs e2)
+            {
+                using (var p2 = new Pen(Theme.Line, 1f))
+                    e2.Graphics.DrawLine(p2, 0, 0, bar.Width, 0);
+            };
             var btnGo = new FlatBtn(); btnGo.Text = "开始优化"; btnGo.Kind = BtnKind.Primary; btnGo.Width = Theme.S(104);
             var btnCancel = new FlatBtn(); btnCancel.Text = "取消"; btnCancel.Width = Theme.S(84);
             btnGo.DialogResult = DialogResult.OK;
@@ -12620,7 +12934,11 @@ namespace Fluxion
             // ⚠ 必须补这一手：Show 之前 Pg 还没被 Dock 算过尺寸，ClientSize 是 0 —— 上面那次
             //   Reflow 只能用兜底宽度排一版，实际显示时会缩回压缩态（探针实测：所有分区 Top=0、
             //   高度一律 72px，内容全叠在左上角）。Shown 之后宽度才是真的，得再排一次。
-            dlg.Shown += delegate { try { pg.Reflow(); } catch { } };
+            dlg.Shown += delegate
+            {
+                try { pg.Reflow(); } catch { }
+                try { Theme.ScrollThemeTree(dlg); } catch { }
+            };
             return dlg;
         }
 
@@ -12662,11 +12980,9 @@ namespace Fluxion
                 }
                 Cfg = Config.Load(Program.ConfigPath);
                 Program.ReloadCfg(Cfg);
-                Log(">>> 档位已保存：" + changed.Count + " 项，应用到系统 " + kinds.Count + " 组");
+                Log("档位已保存：" + changed.Count + " 项，应用到系统 " + kinds.Count + " 组");
             }
 
-            // ---- ② 再按勾选执行 ----
-            // 按原始顺序取勾选结果（展示顺序是按风险排过的，执行顺序不能跟着变）
             var chosen = new List<OptStep>();
             foreach (var s in steps)
             {
@@ -12675,19 +12991,16 @@ namespace Fluxion
             }
             if (chosen.Count == 0)
             {
-                MessageBox.Show(this, "一项都没勾，什么也不会执行。", "一键优化",
+                MessageBox.Show(this, "未勾选任何项目，不会执行操作。", "一键优化",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            Log(">>> 开始一键优化…（已选 " + chosen.Count + "/" + steps.Count + " 步）");
+            Log("开始一键优化（已选 " + chosen.Count + "/" + steps.Count + " 项）…");
             btnOptimize.Enabled = false; btnOptimize.Text = "优化中…";
             var gw = new BackgroundWorker();
             gw.DoWork += delegate
             {
-                // 只在勾了「实验」档时才打还原点：稳妥 / 谨慎档靠「恢复备份」就够，
-                // 没必要为了关个动画留一个还原点（每个点都占系统盘空间，还慢 10~40 秒）。
-                // 打点失败**不拦路** —— 它是保险，不是门槛；但必须把原因写进日志。
                 bool hasExperimental = chosen.Exists(delegate(OptStep s) { return s.Level == RiskLevel.Experimental; });
                 if (Cfg.RestorePointBeforeOpt && hasExperimental)
                 {
@@ -12703,7 +13016,7 @@ namespace Fluxion
             {
                 btnOptimize.Enabled = true; btnOptimize.Text = "一键优化";
                 RefreshGridAsync();
-                Log(">>> 一键优化完成");
+                Log("一键优化完成");
             };
             gw.RunWorkerAsync();
             Switch(P_OPT);
@@ -12713,14 +13026,7 @@ namespace Fluxion
         {
             if (MessageBox.Show("确定要恢复最近一次优化前的全部设置吗？", "恢复备份",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
-            Log(">>> 开始恢复备份…");
-            // ❗ 2026-09-20（1.0.2 用户反馈"该页面时不时卡死、整窗点不动只能关掉重开"）：
-            //   这里原先直接在 UI 线程调 Program.DoRestore(Log) —— 而它要逐条还原整份备份：
-            //   几十上百次注册表写入 + `powercfg /setactive` + `bcdedit` + Defender 排除 + 服务启用，
-            //   每次 RunCmd 都要起子进程并 WaitForExit(5000)，**合计几秒到几十秒**。
-            //   这段时间主线程被钉死：窗口不重绘（看起来"什么都不显示"）、点哪儿都没反应
-            //   （用户只能关掉重开 —— 而且中途掐掉会让系统停在"还原到一半"的危险状态）。
-            //   同页的「一键优化」「恢复默认」早就走了 BackgroundWorker，只有它漏了，现在补齐。
+            Log("开始恢复备份…");
             if (btnRestore != null) { btnRestore.Enabled = false; btnRestore.Text = "恢复中…"; }
             var gw = new BackgroundWorker();
             gw.DoWork += delegate(object s, DoWorkEventArgs e) { e.Result = Program.DoRestore(Log); };
@@ -12728,8 +13034,8 @@ namespace Fluxion
             {
                 if (btnRestore != null) { btnRestore.Enabled = true; btnRestore.Text = "恢复备份"; }
                 RefreshGridAsync();
-                if (e.Error != null) { Log(">>> 恢复失败：" + e.Error.Message); return; }
-                Log(">>> 恢复完成（还原 " + (e.Result == null ? 0 : (int)e.Result) + " 项），状态已刷新");
+                if (e.Error != null) { Log("恢复失败：" + e.Error.Message); return; }
+                Log("已恢复备份（还原 " + (e.Result == null ? 0 : (int)e.Result) + " 项），状态已刷新");
             };
             gw.RunWorkerAsync();
         }
@@ -12759,9 +13065,14 @@ namespace Fluxion
         //   当场记一条带耗时的日志 —— 下次再"卡"，日志里就有现场，不用再猜。
         void RefreshGridAsync()
         {
-            ShowGridPlaceholder("正在读取系统设置…");
-            // 连点「刷新」不再叠好几个后台任务（以前每点一次排一个，越点越慢、越点越多）
-            if (System.Threading.Interlocked.CompareExchange(ref gridBusyFlag, 1, 0) != 0) return;
+            if (System.Threading.Interlocked.CompareExchange(ref gridBusyFlag, 1, 0) != 0)
+            {
+                if (lvOpt != null && !lvOpt.IsDisposed && lvOpt.Items.Count == 0)
+                    ShowGridPlaceholder("正在读取系统设置…");
+                return;
+            }
+            if (lvOpt != null && !lvOpt.IsDisposed && lvOpt.Items.Count == 0)
+                ShowGridPlaceholder("正在读取系统设置…");
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var gw = new BackgroundWorker();
             //  ★ 第 143 轮：把"排队"和"执行"拆开计时。
@@ -12839,24 +13150,14 @@ namespace Fluxion
                 it.ForeColor = Theme.TextDim;
                 lvOpt.Items.Add(it);
                 lvOpt.EndUpdate();
+                if (btnKnobSel != null) btnKnobSel.Enabled = false;
+                FitTableHeight();
             }
             catch { }
         }
 
-        //  让明细表长到装下全部行（2026-10-20）。
-        //  为什么要这样：ListView 的竖向滚动条画在**非客户区**，是一条约 17px 的系统灰带，
-        //  嵌在白卡中间就是"拼上去的一块"。想过藏掉它换自绘 —— 实测 `ShowScrollBar` 会和
-        //  控件的重排互相触发，直接把探针跑挂（记忆 五十二轮有完整证据），此路封死。
-        //  于是反过来做：**让表不需要滚动**。表有多长就多高，滚动交给页面自己那条细滚动条。
-        //  代价是这张卡会随体检项数量变长（本机 52 项 ≈ 1480px），换来的是整页没有一条
-        //  原生灰带 —— 用户要的正是这个。
         void FitTableHeight() { FitListToRows(lvOpt, 8); }
 
-        //  让表格长到装下全部行（lvOpt / lvMon 共用）。
-        //  为什么必须这样：ListView 的竖条画在**非客户区**，是系统灰带；只要内容溢出它就会出现。
-        //  高度差一行就够触发 —— 所以这里向控件要真实行高，不写死。
-        //  向上找所在页：表可能在不同页上（lvOpt / lvMon），改完高度要让**所在页**重排，
-        //  不能写死 pages[P_OPT]。
         static Pg PgOf(Control c)
         {
             for (Control p = c; p != null; p = p.Parent)
@@ -12867,46 +13168,80 @@ namespace Fluxion
             return null;
         }
 
-        static void FitListToRows(ListView lvOpt, int minRows)
+        internal static Pg PgOfControl(Control c) { return PgOf(c); }
+
+        static Sec SecOf(Control c)
         {
-            if (lvOpt == null || lvOpt.IsDisposed) return;
+            for (Control p = c; p != null; p = p.Parent)
+            {
+                Sec s = p as Sec;
+                if (s != null) return s;
+            }
+            return null;
+        }
+
+        static void SyncListLayout(ListView lv, int h)
+        {
+            if (lv == null || lv.IsDisposed) return;
+            TableBox bx = BoxOf(lv);
+            Sec sec = SecOf(lv);
+            Pg pg = PgOf(lv);
+            bool changed = false;
+            if (lv.Height != h) { lv.Height = h; changed = true; }
+            if (bx != null && bx.Height != bx.HeadH + h) { bx.Fit(); changed = true; }
+            else if (bx != null && changed) bx.Fit();
+            bool secClipped = (sec != null && bx != null && sec.Height < bx.Top + bx.Height + Theme.S(8));
+            if (changed || secClipped)
+            {
+                if (sec != null) sec.Resync();
+                else if (pg != null) { pg.InvalidateLayout(); pg.Reflow(); }
+            }
+        }
+
+        static void FitListToRows(ListView lv, int minRows)
+        {
+            if (lv == null || lv.IsDisposed) return;
+            TableListView tlv = lv as TableListView;
+            if (tlv != null && minRows > 0) tlv.AutoFitMinRows = minRows;
             try
             {
-                int rows = Math.Max(1, lvOpt.Items.Count);
-                //  ★ 表头高 / 行高**向控件本身要**，不写死 S(25)/S(28)：
-                //    原生表头是独立窗口，125%/150% 缩放下它的高度不等于 Theme.S(25)，
-                //    差几像素就会让内容溢出 → 原生滚动条又冒出来，白改一场。
-                //  表头已由 TableBox 自绘，ListView 本身**没有** header 了 → 表头高按 0 算；
-                //  行高仍然向控件要真实值（原生表头/行高在不同 DPI 下跟 Theme.S 不完全等值）。
-                int hdr = 0, rowH = Theme.S(28);
-                try
+                int rows = Math.Max(1, lv.Items.Count);
+                int hdr = 0;
+                int rowH = Theme.S(28) + 2;
+                if (lv.IsHandleCreated && lv.Items.Count > 0)
                 {
-                    Rectangle r0 = lvOpt.GetItemRect(0);
-                    if (r0.Top > 4) hdr = r0.Top;
-                    if (r0.Height > 4) rowH = r0.Height;
-                }
-                catch { }
-                int h = hdr + rows * rowH + Theme.S(4);       // +4：收边 + 一点余量，宁可多不可少
-                //  至少留 minRows 行的框：载入中/空表时不能塌成一条
-                h = Math.Max(h, hdr + Math.Max(1, minRows) * rowH);
-                if (lvOpt.Height != h)
-                {
-                    lvOpt.Height = h;
-                    TableBox bx = BoxOf(lvOpt); if (bx != null) bx.Fit();
-                    Pg pg0 = PgOf(lvOpt); if (pg0 != null) pg0.Reflow();
-                    //  延迟一帧再落一次：这一轮布局里还有别的东西（占位行/自适应列宽）会改动它
                     try
                     {
-                        lvOpt.BeginInvoke((Action)(delegate
+                        Rectangle r0 = lv.GetItemRect(0);
+                        if (r0.Top > 4) hdr = r0.Top;
+                        if (r0.Height > 4) rowH = r0.Height;
+                    }
+                    catch { }
+                }
+                int h = hdr + rows * rowH + Theme.S(12);
+                h = Math.Max(h, hdr + Math.Max(1, minRows) * rowH + Theme.S(12));
+                SyncListLayout(lv, h);
+                if (lv.IsHandleCreated)
+                {
+                    try
+                    {
+                        lv.BeginInvoke((Action)(delegate
                         {
                             try
                             {
-                                if (lvOpt != null && !lvOpt.IsDisposed)
+                                if (lv == null || lv.IsDisposed || !lv.IsHandleCreated) return;
+                                int hdr2 = 0;
+                                int rowH2 = rowH;
+                                if (lv.Items.Count > 0)
                                 {
-                                    lvOpt.Height = h;
-                                    TableBox bx1 = BoxOf(lvOpt); if (bx1 != null) bx1.Fit();
-                                    Pg pg1 = PgOf(lvOpt); if (pg1 != null) pg1.Reflow();
+                                    Rectangle r1 = lv.GetItemRect(0);
+                                    if (r1.Top > 4) hdr2 = r1.Top;
+                                    if (r1.Height > 4) rowH2 = r1.Height;
                                 }
+                                int rows2 = Math.Max(1, lv.Items.Count);
+                                int h2 = Math.Max(hdr2 + rows2 * rowH2 + Theme.S(12),
+                                                  hdr2 + Math.Max(1, minRows) * rowH2 + Theme.S(12));
+                                SyncListLayout(lv, h2);
                             }
                             catch { }
                         }));
@@ -12917,29 +13252,66 @@ namespace Fluxion
             catch { }
         }
 
-        void FillList(List<StatusItem> items)
+        static bool MatchesOptFilter(StatusItem it, string fid)
         {
-            if (lvOpt == null) return;
-            if (lvOpt.InvokeRequired) { lvOpt.Invoke((Action)(delegate { FillList(items); })); return; }
-            lastStatus = items;
+            if (it == null) return false;
+            if (string.IsNullOrEmpty(fid) || fid == "all") return true;
+            int kind = Program.BadgeKind(it.Status);
+            if (fid == "issue") return kind == Program.BadgeWarn || kind == Program.BadgeBad;
+            if (fid == "knob") return !string.IsNullOrEmpty(it.Key);
+            if (fid == "ok") return kind == Program.BadgeOk;
+            if (fid == "info") return kind == Program.BadgeInfo;
+            return true;
+        }
+
+        void UpdateOptChips(List<StatusItem> items)
+        {
+            if (optChips == null || optChips.IsDisposed || items == null) return;
+            int issue = 0, knob = 0, ok = 0, info = 0;
+            for (int i = 0; i < items.Count; i++)
+            {
+                StatusItem it = items[i];
+                int kind = Program.BadgeKind(it.Status);
+                if (kind == Program.BadgeWarn || kind == Program.BadgeBad) issue++;
+                else if (kind == Program.BadgeOk) ok++;
+                else if (kind == Program.BadgeInfo) info++;
+                if (!string.IsNullOrEmpty(it.Key)) knob++;
+            }
+            string keep = string.IsNullOrEmpty(optFilterId) ? "all" : optFilterId;
+            if ((keep == "issue" && issue == 0) || (keep == "knob" && knob == 0)
+                || (keep == "ok" && ok == 0) || (keep == "info" && info == 0))
+            {
+                keep = "all";
+                optFilterId = "all";
+            }
+            optChips.SetData(
+                new string[] { "全部", "未生效", "可调项", "已生效", "待确认" },
+                new string[] { "all", "issue", "knob", "ok", "info" },
+                new int[] { items.Count, issue, knob, ok, info });
+            optChips.SelectedId = keep;
+        }
+
+        void ApplyOptFilter()
+        {
+            if (lvOpt == null || lvOpt.IsDisposed) return;
+            List<StatusItem> src = lastStatus;
+            if (src == null) return;
+            string fid = (optChips != null && !string.IsNullOrEmpty(optChips.SelectedId)) ? optChips.SelectedId : "all";
             lvOpt.BeginUpdate();
             try
             {
                 lvOpt.Items.Clear();
-                foreach (var it in items)
+                for (int i = 0; i < src.Count; i++)
                 {
+                    StatusItem it = src[i];
+                    if (!MatchesOptFilter(it, fid)) continue;
                     string cur = it.Current == null ? "" : it.Current.Trim();
                     string exp = it.Expected == null ? "" : it.Expected.Trim();
-                    // 状态分级统一走 Program.BadgeKind/BadgeText（四个档次：已生效 / 未生效 / 待确认 🟡 / 需处理）。
-                    // 以前这里只有 ✅ 与 ⚠️ 两支，其余一律算"需处理"并涂红 —— 于是「🟡 已跳过」
-                    // 「🟡 可实测」这类**本来就不是缺陷**的行也顶着红点报错（2026-09-19 用户截图）。
                     int kind = Program.BadgeKind(it.Status);
                     string st = Program.BadgeText(it.Status);
                     Color c = kind == Program.BadgeOk ? Theme.Ok
                             : kind == Program.BadgeWarn ? Theme.Warn
                             : kind == Program.BadgeInfo ? Theme.TextDim : Theme.Err;
-                    // ⚙ = 该项有可调档位（对应 Program.Knobs()）。用后缀而不是加一列：
-                    // 列的可用宽度本来就紧，"能改"这件事只需要一个可识别的记号 + 双击。
                     var lvi = new ListViewItem(string.IsNullOrEmpty(it.Key) ? it.Item : (it.Item + "  ⚙"));
                     lvi.Tag = it.Key;
                     var subSt = lvi.SubItems.Add(st);
@@ -12947,21 +13319,26 @@ namespace Fluxion
                     lvi.SubItems.Add(exp);
                     lvi.UseItemStyleForSubItems = false;
                     subSt.ForeColor = c;
-                    subSt.Name = BadgeName;      // 告诉 DrawSubItem"这一格画胶囊"，见 IsBadgeCell
-                    // 实验档**不在这一列做视觉标记**：状态列已经用橙色胶囊表示"未生效"，
-                    // 项名再涂成橙色会让同一行出现两块橙色、各自含义不同。实验档的告知放在
-                    // 底部说明行 + 「一键优化」的分组清单里（那里有完整的代价文字）。
+                    subSt.Name = BadgeName;
                     lvOpt.Items.Add(lvi);
                 }
             }
             finally { lvOpt.EndUpdate(); }
+            if (btnKnobSel != null)
+                btnKnobSel.Enabled = lvOpt.SelectedItems.Count > 0 && !string.IsNullOrEmpty(lvOpt.SelectedItems[0].Tag as string);
             FitTableHeight();
+        }
+
+        void FillList(List<StatusItem> items)
+        {
+            if (lvOpt == null) return;
+            if (lvOpt.InvokeRequired) { lvOpt.Invoke((Action)(delegate { FillList(items); })); return; }
+            lastStatus = items;
+            UpdateOptChips(items);
+            ApplyOptFilter();
             UpdateHealth(items);
         }
 
-        // 第二趟补回来的那一行（DPC / 中断分布）：**原地改**，不重建整表 ——
-        //  FillList 会 Items.Clear()，把滚动位置和选中态一起丢掉；用户正看到一半时
-        //  表格自己跳回顶部，比那行晚 1 秒出现糟糕得多。
         void PatchStatusRow(StatusItem it)
         {
             if (it == null) return;
@@ -12973,10 +13350,25 @@ namespace Fluxion
             }
             try
             {
+                if (lastStatus != null)
+                {
+                    for (int i = 0; i < lastStatus.Count; i++)
+                        if (string.Equals(lastStatus[i].Item, it.Item, StringComparison.Ordinal)) { lastStatus[i] = it; break; }
+                    UpdateOptChips(lastStatus);
+                    UpdateHealth(lastStatus);
+                }
                 ListViewItem row = null;
                 foreach (ListViewItem x in lvOpt.Items)
                     if (x.Text != null && x.Text.StartsWith(it.Item, StringComparison.Ordinal)) { row = x; break; }
-                if (row == null || row.SubItems.Count < 4) return;
+                string fid = (optChips != null && !string.IsNullOrEmpty(optChips.SelectedId)) ? optChips.SelectedId : "all";
+                bool shouldShow = MatchesOptFilter(it, fid);
+                if (row == null)
+                {
+                    if (shouldShow) ApplyOptFilter();
+                    return;
+                }
+                if (!shouldShow) { ApplyOptFilter(); return; }
+                if (row.SubItems.Count < 4) return;
                 int kind = Program.BadgeKind(it.Status);
                 row.SubItems[1].Text = Program.BadgeText(it.Status);
                 row.SubItems[1].ForeColor = kind == Program.BadgeOk ? Theme.Ok
@@ -12984,16 +13376,98 @@ namespace Fluxion
                                           : kind == Program.BadgeInfo ? Theme.TextDim : Theme.Err;
                 row.SubItems[2].Text = it.Current == null ? "" : it.Current.Trim();
                 row.SubItems[3].Text = it.Expected == null ? "" : it.Expected.Trim();
-                // 健康度要跟着重算：这一行可能从"待确认"翻成"已生效"，顶上的计数不跟着变就是错的
-                if (lastStatus != null)
-                {
-                    for (int i = 0; i < lastStatus.Count; i++)
-                        if (string.Equals(lastStatus[i].Item, it.Item, StringComparison.Ordinal)) { lastStatus[i] = it; break; }
-                    UpdateHealth(lastStatus);
-                }
                 lvOpt.Invalidate();
             }
             catch { }
+        }
+
+        void AttachOptContextMenu()
+        {
+            if (lvOpt == null) return;
+            lvOpt.MouseDown += delegate(object smd, MouseEventArgs emd)
+            {
+                if (emd.Button == MouseButtons.Right && lvOpt != null && !lvOpt.IsDisposed)
+                {
+                    try
+                    {
+                        ListViewHitTestInfo hi = lvOpt.HitTest(emd.Location);
+                        if (hi.Item != null && !hi.Item.Selected)
+                        {
+                            lvOpt.SelectedItems.Clear();
+                            hi.Item.Selected = true;
+                            hi.Item.Focused = true;
+                        }
+                    }
+                    catch { }
+                }
+            };
+            ThemedMenu m = MenuFactory.New();
+            var miTune = new ToolStripMenuItem("调整此项档位…");
+            miTune.Click += delegate { OpenKnobForRow(); };
+            var miCopyRow = new ToolStripMenuItem("复制此项诊断信息");
+            miCopyRow.Click += delegate { CopyOptDiagRow(); };
+            var miCopyIssues = new ToolStripMenuItem("复制全部未生效项摘要");
+            miCopyIssues.Click += delegate { CopyOptUnapplied(); };
+            var miResetCol = new ToolStripMenuItem("恢复默认列宽");
+            var lvTarget = lvOpt;
+            miResetCol.Click += delegate { Theme.ResetListWidths(lvTarget); };
+
+            m.Items.Add(miTune);
+            m.Items.Add(miCopyRow);
+            m.Items.Add(miCopyIssues);
+            m.Items.Add(new ToolStripSeparator());
+            m.Items.Add(miResetCol);
+
+            m.Opening += delegate
+            {
+                bool hasSel = lvTarget != null && !lvTarget.IsDisposed && lvTarget.SelectedItems.Count > 0;
+                string key = hasSel ? (lvTarget.SelectedItems[0].Tag as string) : null;
+                miTune.Enabled = !string.IsNullOrEmpty(key);
+                miCopyRow.Enabled = hasSel;
+                int issues = 0;
+                if (lastStatus != null)
+                {
+                    for (int i = 0; i < lastStatus.Count; i++)
+                    {
+                        int k = Program.BadgeKind(lastStatus[i].Status);
+                        if (k == Program.BadgeWarn || k == Program.BadgeBad) issues++;
+                    }
+                }
+                miCopyIssues.Enabled = issues > 0;
+                miCopyIssues.Text = issues > 0 ? ("复制全部未生效项摘要（" + issues + " 项）") : "复制全部未生效项摘要";
+            };
+            lvOpt.ContextMenuStrip = m;
+            var menuRef = m;
+            lvOpt.Disposed += delegate { try { menuRef.Dispose(); } catch { } };
+        }
+
+        void CopyOptDiagRow()
+        {
+            if (lvOpt == null || lvOpt.SelectedItems.Count == 0) return;
+            ListViewItem r = lvOpt.SelectedItems[0];
+            if (r.SubItems.Count < 4) return;
+            string name = r.Text == null ? "" : r.Text.Replace("  ⚙", "").Trim();
+            string line = name + " ｜ 状态：" + r.SubItems[1].Text + " ｜ 当前：" + r.SubItems[2].Text + " ｜ 期望：" + r.SubItems[3].Text;
+            try { Clipboard.SetText(line); Log("已复制诊断项：" + name); } catch { }
+        }
+
+        void CopyOptUnapplied()
+        {
+            if (lastStatus == null || lastStatus.Count == 0) return;
+            var sb = new StringBuilder();
+            sb.AppendLine("[Fluxion 优化诊断摘要] " + DateTime.Now.ToString("yyyy-MM-dd HH:mm"));
+            sb.AppendLine(Program.SystemSummary());
+            int n = 0;
+            for (int i = 0; i < lastStatus.Count; i++)
+            {
+                StatusItem it = lastStatus[i];
+                int k = Program.BadgeKind(it.Status);
+                if (k != Program.BadgeWarn && k != Program.BadgeBad) continue;
+                n++;
+                sb.AppendLine("- " + it.Item + " [" + Program.BadgeText(it.Status) + "] 当前=" + (it.Current ?? "") + " ｜ 期望=" + (it.Expected ?? ""));
+            }
+            if (n == 0) return;
+            try { Clipboard.SetText(sb.ToString().TrimEnd()); Log("已复制 " + n + " 项未生效诊断摘要到剪贴板"); } catch { }
         }
 
         //  仪表盘标题下的摘要句（第 148 轮）。三段都是"现在怎么样"的事实，
@@ -13001,15 +13475,13 @@ namespace Fluxion
         void RefreshDashSub()
         {
             if (lblDashSub == null || lblDashSub.IsDisposed) return;
-            //  分两段：结论段（跟着状态变色）+ 量纲段（恒为次级灰）。见 MetaLine 注释。
-            string head = dashOpt.Length > 0 ? dashOpt : "正在读取优化状态…";
+            string head = dashOpt.Length > 0 ? dashOpt : "正在读取状态…";
             string tail = "";
             if (games != null && games.Count > 0) tail += "　·　库 " + games.Count + " 款";
             if (lastScanAt != DateTime.MinValue) tail += "　·　" + lastScanAt.ToString("HH:mm") + " 扫描";
-            bool warn = head.IndexOf("未生效", StringComparison.Ordinal) >= 0;
             lblDashSub.Head = head;
             lblDashSub.Tail = tail;
-            lblDashSub.HeadColor = warn ? Theme.TextSafe(Theme.Warn) : Theme.TextDim;
+            lblDashSub.HeadColor = Theme.TextDim;
             lblDashSub.Invalidate();
         }
 
@@ -13028,7 +13500,7 @@ namespace Fluxion
                 if (it.Risk == RiskLevel.Experimental) expN++;
             }
 
-            dashOpt = (warn + bad == 0) ? "全部优化已生效" : (warn + bad) + " 项优化未生效";
+            dashOpt = "已生效 " + ok + " / " + items.Count + " 项";
             RefreshDashSub();
             if (lblHealth != null)
             {
@@ -13044,26 +13516,23 @@ namespace Fluxion
             if (lblHealthSub != null)
                 SetBody(lblHealthSub, "已生效 " + ok + " 项 · 未生效 " + warn + " 项"
                     + (info > 0 ? " · 待确认 " + info + " 项" : "")
-                    + (bad > 0 ? " · 需处理 " + bad + " 项" : "") +
-                    (warn + bad > 0 ? "\n建议在「性能优化」页点一次一键优化"
-                                    : (info > 0 ? "\n其余「待确认」不是缺陷（可选 / 不适用 / 读不到），可逐行双击查看"
-                                                : "\n全部优化已生效"))
-                    // 单独一行说清"实验档"是什么 —— 这一档的代价是功能会直接不可用，
-                    // 不该只写在清单弹窗里（有人根本不点开就取消了）。
-                    + (expN > 0 ? "\n其中有 " + expN + " 项属「实验」档：会让 WSL2 / Docker / 模拟器 / 系统服务不可用。"
-                                + "点「一键优化」时会单独成组并写明代价，可只勾其余项。" : ""));
+                    + (bad > 0 ? " · 需处理 " + bad + " 项" : "")
+                    + (warn + bad > 0 ? "\n可在「性能优化」页执行一键优化恢复"
+                                      : "\n系统调优状态正常（待确认项属可选或不适用项）"));
             if (lblDrift != null)
             {
-                // 「待确认」不计进漂移：它们多数是"可选 / 不适用 / 读不到"，
-                // 把它们算成"被系统重置"会让漂移提示长期挂在那里，久了就没人看了。
                 if (warn + bad == 0)
                 {
                     SetBody(lblDrift, info > 0
-                        ? "✅ 没有未生效项；另有 " + info + " 项待确认（不一定是缺陷，见明细）。"
-                        : "✅ 全部 " + items.Count + " 项优化均已生效，无漂移。");
-                    lblDrift.ForeColor = info > 0 ? Theme.TextDim : Theme.Ok;
+                        ? "无设置漂移（另有 " + info + " 项可选/不适用项）。"
+                        : "全部 " + items.Count + " 项系统调优均已生效，未检测到设置漂移。");
+                    lblDrift.ForeColor = info > 0 ? Theme.TextDim : Theme.TextSafe(Theme.Ok);
                 }
-                else { SetBody(lblDrift, "⚠ 检测到 " + (warn + bad) + " 项未生效（系统更新 / 升级常静默重置优化项），点「一键优化」恢复。"); lblDrift.ForeColor = Theme.TextSafe(Theme.Warn); }
+                else
+                {
+                    SetBody(lblDrift, "检测到 " + (warn + bad) + " 项设置被重置，点击「一键优化」即可恢复。");
+                    lblDrift.ForeColor = Theme.TextSafe(Theme.Warn);
+                }
             }
 
             if (!driftWarned && tray != null)
@@ -13071,7 +13540,7 @@ namespace Fluxion
                 driftWarned = true;
                 if (warn + bad >= 3)
                 {
-                    string msg = "检测到 " + (warn + bad) + " 项优化未生效（可能被系统更新重置），建议点一次「一键优化」恢复。";
+                    string msg = "检测到 " + (warn + bad) + " 项优化未生效，可在「性能优化」页一键恢复。";
                     Log("[漂移检测] " + msg);
                     tray.ShowBalloonTip(4000, "Fluxion", msg, ToolTipIcon.Warning);
                 }
@@ -13128,8 +13597,17 @@ namespace Fluxion
                             if (c >= 0) { barCpu.Value = c; barCpu.RightText = c + "%"; barCpu.BarColor = LoadColor(c, Cfg.AlertCpuPct); }
                             if (m >= 0) { barMem.Value = m; barMem.RightText = m + "%"; barMem.BarColor = LoadColor(m, Cfg.AlertMemPct); }
                             if (g >= 0) { barGpu.Value = g; barGpu.RightText = g + "%"; }
-                            barTemp.Value = Math.Min(100, Math.Max(0, t)); barTemp.RightText = t + "°C";
-                            barTemp.BarColor = t >= 83 ? Theme.Err : (t >= 70 ? Theme.Warn : Theme.Ok);
+                            if (t >= 0)
+                            {
+                                barTemp.Value = Math.Min(100, Math.Max(0, t));
+                                barTemp.RightText = t + "°C";
+                                barTemp.BarColor = t >= 83 ? Theme.Err : (t >= 70 ? Theme.Warn : Theme.Ok);
+                            }
+                            else
+                            {
+                                barTemp.Value = 0;
+                                barTemp.RightText = "—";
+                            }
                             if (c >= 0 && spCpu != null) spCpu.Push(c);
                             if (g >= 0 && spGpu != null) spGpu.Push(g);
                             if (m >= 0 && spMem != null) spMem.Push(m);
@@ -13168,8 +13646,8 @@ namespace Fluxion
             if (msgs.Count == 0) return;
             string s = "⚠ " + string.Join("；", msgs.ToArray());
             Log(s);
-            if (tray != null && !closing)
-                try { Invoke((Action)(delegate { tray.ShowBalloonTip(3000, "Fluxion 硬件告警", s, ToolTipIcon.Warning); })); } catch { }
+            if (tray != null && !closing && IsHandleCreated)
+                try { BeginInvoke((Action)(delegate { if (tray != null && !closing) tray.ShowBalloonTip(3000, "Fluxion 硬件告警", s, ToolTipIcon.Warning); })); } catch { }
         }
 
         void UpdateLink()
@@ -13215,8 +13693,8 @@ namespace Fluxion
                 if (gameStartKey == null) gameStartKey = "";
                 bool inGame = game != null && game.Length > 0;
                 string state = inGame
-                    ? ("⚡ 游戏中：" + Program.GameDisplayName(game) + (cat.Length > 0 ? "  [" + cat + "]" : "  [自动]"))
-                    : (Program.SceneOffice ? "🛡️ 防护开启（办公场景）" : "待命 · 未检测到游戏");
+                    ? ("游戏中  ·  " + Program.GameDisplayName(game) + (cat.Length > 0 ? "  [" + cat + "]" : "  [自动]"))
+                    : (Program.SceneOffice ? "防护开启  ·  办公场景" : "待命  ·  未检测到游戏");
                 if (lblGameState != null)
                 {
                     //  层级（2026-10-20）：14pt 大标题只留给「正在玩」这一个时刻。
@@ -13234,8 +13712,7 @@ namespace Fluxion
                     //    这张卡的第一行因此读起来像一句注脚，卡也显得没开机）。
                     lblGameState.ForeColor = inGame ? Theme.TextSafe(Theme.Ok) : Theme.Text;
                 }
-                // 分隔统一用「　·　」（与帧生成那行一致）：四个半角空格在中文下面忽宽忽窄
-                SetBody(lblLink, "远控状态：" + remote + "　·　联动：" + (Cfg.AwareEnable ? "已开启" : "已关闭")
+                SetBody(lblLink, "远控：" + remote + "　·　联动：" + (Cfg.AwareEnable ? "已开启" : "已关闭")
                                + "　·　场景：" + (Program.SceneOffice ? "办公" : "游戏")
                                + (inGame && gameStartAt != DateTime.MinValue ? "　·　时长：" + FmtDur(DateTime.Now - gameStartAt) : ""));
                 if (tray != null)
@@ -13409,23 +13886,28 @@ namespace Fluxion
             else parts.Add("暂停远控");
             if (Cfg.PowerGameSwitch) parts.Add(Cfg.PowerScheme == "ultimate" ? "临时切卓越性能" : "临时切高性能");
             if (Cfg.GbEnable) parts.Add("加速包");
-            // 慢活整条链投进**同一个**后台线程按原顺序串行执行：显示器 PnP 设备启停带 400ms 强制等待、
-            // GamePowerOn 要起 2~4 个 powercfg 子进程（每个最长等 5s），同步跑在 UI 线程会让进游戏
-            // 冻结 1~3 秒（2026-09-30 体检）。顺序不能乱：分辨率要先于远控暂停完成（见上让位逻辑）。
+            // 慢活整条链投进受 linkOpLock 串行保护的后台块：显示器 PnP 启停带 400ms 等待、
+            // GamePowerOn 要起 powercfg 子进程，全部用同步版方法按序执行，杜绝 Enter/Exit 并发乱序。
+            int mySeq = System.Threading.Interlocked.Increment(ref linkSeq);
             System.Threading.ThreadPool.QueueUserWorkItem(delegate
             {
-                try
+                lock (linkOpLock)
                 {
-                    if (rr != null)
+                    if (mySeq != linkSeq || !linkActive) return;
+                    try
                     {
-                        string resLog = ResLink.Apply(rr);
-                        if (resLog.Length > 0) Program.Log("[分辨率联动] " + resLog);
+                        if (rr != null)
+                        {
+                            string resLog = ResLink.Apply(rr);
+                            if (resLog.Length > 0) Program.Log("[分辨率联动] " + resLog);
+                        }
+                        if (doPause) Program.PauseAllRemote();
+                        if (Cfg.PowerGameSwitch) Program.GamePowerOn();
+                        if (Cfg.GbEnable) Program.GameBoostStartLocked();
+                        Program.OverlaySync(true);
                     }
-                    if (doPause) Program.PauseAllRemoteAsync();
-                    if (Cfg.PowerGameSwitch) Program.GamePowerOn();
-                    if (Cfg.GbEnable) Program.GameBoostStartAsync();
+                    catch (Exception ex) { Program.Log("[联动] 后台执行异常: " + ex.Message); }
                 }
-                catch (Exception ex) { Program.Log("[联动] 后台执行异常: " + ex.Message); }
             });
             Program.ApplyGameTimer();
             if (Program.IsTimerApplied()) parts.Add("定时器 " + Cfg.TimerMs + "ms");
@@ -13452,21 +13934,24 @@ namespace Fluxion
                 long secs = (long)(DateTime.Now - gameStartAt).TotalSeconds;
                 if (secs > 5) Program.PlayTimeAdd(gameStartKey, secs);
             }
-            // ★ 分辨率联动收尾：先把主屏还原、副屏接回来，**再**放行远控恢复
-            //   （远控被拉起时显卡会重新协商，ResLink 先把模式摆正，远控那边的显示守卫也就无快照可抢）。
-            //   设备启停 + powercfg 同步跑要 1~3 秒，整条链按原顺序投进同一个后台线程（同 LinkGameEnter）。
+            // ★ 分辨率联动收尾：在同一个 linkOpLock 内按序执行同步还原，防止与 Enter 或远控恢复互抢显示状态。
             bool resRestored = ResLink.Active;
+            System.Threading.Interlocked.Increment(ref linkSeq);
             System.Threading.ThreadPool.QueueUserWorkItem(delegate
             {
-                try
+                lock (linkOpLock)
                 {
-                    if (ResLink.Active)
-                        foreach (string l in ResLink.Restore()) Program.Log("[分辨率联动] " + l);
-                    Program.ResumeAllRemoteIfPausedAsync();
-                    Program.GamePowerOff();
-                    Program.GameBoostStopAsync();
+                    try
+                    {
+                        if (ResLink.Active)
+                            foreach (string l in ResLink.Restore()) Program.Log("[分辨率联动] " + l);
+                        if (Program.RemotePausedByLink) Program.ResumeAllRemote();
+                        Program.GamePowerOff();
+                        Program.GameBoostStopLocked();
+                        Program.OverlaySync(false);
+                    }
+                    catch (Exception ex) { Program.Log("[联动] 后台收尾异常: " + ex.Message); }
                 }
-                catch (Exception ex) { Program.Log("[联动] 后台收尾异常: " + ex.Message); }
             });
             Program.RevertGameTimer();
             string done = "联动收尾：远控已恢复 · 电源/定时器/挂起进程已还原"
@@ -13548,7 +14033,7 @@ namespace Fluxion
                         {
                             try
                             {
-                                DateTime t = new DateTime(1970, 1, 1, 8, 0, 0, DateTimeKind.Local).AddSeconds(last);
+                                DateTime t = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(last).ToLocalTime();
                                 TimeSpan d = DateTime.Now - t;
                                 if (d.TotalMinutes < 60) when = "刚刚";
                                 else if (t.Date == DateTime.Today) when = "今天";
@@ -13571,14 +14056,11 @@ namespace Fluxion
                         int genMz = FgVerify.MeasuredGen(selected);
                         line += "\n实测帧生成：" + (genMz >= 0
                             ? (genMz + 1) + "X（" + FgVerify.MeasuredWhen(selected).ToString("MM-dd HH:mm") + "）"
-                            : "暂无读数（进游戏跑一局，退出后自动读回）");
+                            : "暂无记录（运行游戏后自动读取）");
                         SetBody(lblGi, line);
                     }
                 }
 
-                //  启动参数状态行（与上面 lblGi 同卡）：跟着选中游戏走，保存对话框后立即回显。
-                //  2026-10-31 起区分三态：用户自定义 / 内置预设（鸣潮这类自带启动规矩的游戏，自动带上）/
-                //  未设置 —— 让"到底会不会带参数"在界面上就能看穿，不用翻 library.json。
                 if (lblGiArgs != null)
                 {
                     if (selected == null) SetBody(lblGiArgs, "");
@@ -13587,10 +14069,8 @@ namespace Fluxion
                         string custom, preset; int nEnv;
                         Lib.LaunchConfigView(selected, out custom, out preset, out nEnv);
                         string tail = nEnv > 0 ? " · 环境变量 " + nEnv + " 条" : "";
-                        //  文案保持一行能放下（Body 不折行，长句会顶出卡片圆角）；
-                        //  参数怎么写、举什么例，教给对话框正文说。
                         SetBody(lblGiArgs, custom.Length > 0 ? ("启动参数：" + custom + tail)
-                            : preset.Length > 0 ? ("启动参数：" + preset + "（内置，启动自动带上）" + tail)
+                            : preset.Length > 0 ? ("启动参数：" + preset + "（内置预设）" + tail)
                             : (nEnv > 0 ? "启动参数：无" + tail : "启动参数：未设置"));
                     }
                 }
@@ -13644,10 +14124,7 @@ namespace Fluxion
                 }
                 if (lblPatrol != null)
                 {
-                    //  每次进页面 / 换选中游戏都按目录里的真实文件重算一遍（只读）。
-                    //  刻意不写日志：巡检只负责"看得见"，要不要处理由用户点按钮决定，
-                    //  每次刷页面都记一行会把日志刷满。
-                    string pt = selected == null ? "入口状态：未选中游戏（先在列表里点一个）"
+                    string pt = selected == null ? "入口状态：未选中游戏"
                                                  : Plan.PatrolLine(selected.Dir);
                     SetBody(lblPatrol, pt);
                     lblPatrol.ForeColor = pt.IndexOf('\u26a0') >= 0 ? Theme.Warn : Theme.TextDim;
@@ -13661,7 +14138,6 @@ namespace Fluxion
                     }
                     else if (XeMfg.Detect(FgDir(selected)).Length == 0)
                     {
-                        // 通用（3A 单机）：入口名由上面的下拉决定
                         string en = Cfg.DlssgGenericEntry;
                         string pf = Path.Combine(XeMfg.TargetDir(FgDir(selected), ""), en);
                         bool inPlace = File.Exists(pf) && Plan.OwnerOf(pf) == Plan.D030;
@@ -13672,8 +14148,8 @@ namespace Fluxion
                             if (File.Exists(q) && Plan.OwnerOf(q) == Plan.Legacy) legacyIn = true;
                         }
                         SetBody(lbl030, "当前：通用模式（3A 单机）· 入口 " + en + "  "
-                            + (inPlace ? "← 本方案在用" : (legacyIn ? "← 装着旧版代理（上限 4X），切过来即可升到 6X"
-                                                                  : "← 未接入")));
+                            + (inPlace ? "· 本方案在用" : (legacyIn ? "· 已装旧版代理（上限 4X）"
+                                                                  : "· 未接入")));
                         lbl030.ForeColor = inPlace ? Theme.Ok : Theme.TextDim;
                     }
                     else
@@ -13684,7 +14160,7 @@ namespace Fluxion
                         SetBody(lbl030, cur3 == Plan.None
                             ? "当前：原生纯净（未安装）"
                             : "当前：" + Plan.PlanName(cur3) + "（" + slot3 + " 槽位）"
-                              + (mine3 ? "  ← 本方案在用" : "  ← 切到本方案会把它改名停放"));
+                              + (mine3 ? " · 本方案在用" : "（切换时自动停放）"));
                         lbl030.ForeColor = mine3 ? Theme.Ok : Theme.TextDim;
                     }
                 }
@@ -13693,7 +14169,7 @@ namespace Fluxion
                     string packLine = Dlssg040.PackCaption();
                     if (selected == null)
                     {
-                        SetBody(lbl040, packLine + "\n未选中游戏（先在列表里点一个）");
+                        SetBody(lbl040, packLine + "\n未选中游戏");
                         lbl040.ForeColor = Theme.TextDim;
                     }
                     else
@@ -13702,9 +14178,6 @@ namespace Fluxion
                         string e4 = Dlssg040.InstalledEntry(FgDir(selected));
                         string miss4 = Dlssg040.DeployedLack(FgDir(selected));
                         bool mine4 = cur4 == Plan.D040;
-                        // 二游：把这张表给的答案摆到状态行，别让人靠猜。
-                        //  0.4.x 与 0.3.x 的推荐入口是同一套（同一颗代理换名字）；
-                        //  异环例外 —— 0.4.0 没有 ASI 版。
                         string gk = SecondGame.Detect(selected);
                         string want4 = gk.Length > 0 ? SecondGame.SuggestEntry040(gk) : "";
                         string gkLine = gk.Length > 0
@@ -13716,7 +14189,7 @@ namespace Fluxion
                             + (cur4 == Plan.None ? "当前：原生纯净（未安装）"
                                                  : "当前：" + Plan.PlanName(cur4)
                                                    + (e4.Length > 0 ? "（入口 " + e4 + " 在位）" : "")
-                                                   + (mine4 ? "  ← 本方案在用" : "  ← 切过来会把它改名停放"))
+                                                   + (mine4 ? " · 本方案在用" : "（切换时自动停放）"))
                             + gkLine
                             + (mine4 && miss4.Length > 0 ? "\n⚠ 部署不齐：" + miss4 : ""));
                         lbl040.ForeColor = mine4 ? Theme.Ok : Theme.TextDim;
@@ -13727,7 +14200,7 @@ namespace Fluxion
                     string capNv = MfgBridge.Caption();
                     if (selected == null)
                     {
-                        SetBody(lblNv, capNv + "\n未选中游戏（先在列表里点一个）");
+                        SetBody(lblNv, capNv + "\n未选中游戏");
                         lblNv.ForeColor = Theme.TextDim;
                     }
                     else
@@ -13737,9 +14210,9 @@ namespace Fluxion
                         string curN = Plan.Current(FgDir(selected));
                         SetBody(lblNv,
                             capNv + "\n"
-                            + (mineN ? "当前：" + Plan.PlanName(curN) + "（入口 " + eN + " 在位）  ← 本方案在用"
+                            + (mineN ? "当前：" + Plan.PlanName(curN) + "（入口 " + eN + " 在位） · 本方案在用"
                                      : (curN == Plan.None ? "当前：原生纯净（未安装）"
-                                                          : "当前：" + Plan.PlanName(curN) + "  ← 切过来会把它改名停放")));
+                                                          : "当前：" + Plan.PlanName(curN) + "（切换时自动停放）")));
                         lblNv.ForeColor = mineN ? Theme.Ok : Theme.TextDim;
                     }
                 }
@@ -13780,14 +14253,13 @@ namespace Fluxion
                     {
                         string api = Lib.RenderApi(selected);
                         if (api.Length > 0)
-                            mode = "　·　" + selected.Title + " 运行模式：" + api
+                            mode = "\n" + selected.Title + "：" + api
                                  + (api == "DX12" ? "" : "（未开 DX12，右键卡片可切）");
                     }
                     SetBody(lblFgRuntime, "运行时：" + (src ? "已就绪" : "未下载")
                                         + "　·　HAGS：" + hags
-                                        + "　·　方案 A 注入 " + xe + " 个"
-                                        + "　·　0.3.x 通用 " + g30 + " 个"
-                                        + (ign > 0 ? "　·　被忽略 " + ign + " 个" : "") + mode);
+                                        + "\n方案 A 注入 " + xe + " 款　·　0.3.x 通用 " + g30 + " 款"
+                                        + (ign > 0 ? "　·　已忽略 " + ign + " 款" : "") + mode);
                     lblFgRuntime.ForeColor = mode.IndexOf("未开 DX12") >= 0 ? Theme.Warn : Theme.TextDim;
                 }
                 if (btnDownload != null) btnDownload.Text = src ? "重新下载" : "下载运行时";
@@ -13813,7 +14285,7 @@ namespace Fluxion
         void DoDownload()
         {
             if (btnDownload != null) btnDownload.Enabled = false;
-            Log(">>> 开始下载帧生成运行时…");
+            Log("开始下载帧生成运行时…");
             var gw = new BackgroundWorker();
             gw.DoWork += delegate(object s, DoWorkEventArgs e)
             {
@@ -13829,15 +14301,15 @@ namespace Fluxion
                 var msgs = e.Result as List<string>;
                 if (msgs != null) foreach (var m in msgs) Log("  " + m);
                 RefreshFgSummary();
-                Log(">>> 运行时下载流程结束（失败项通常是网络 / 代理问题，可在「设置」页改代理）");
+                Log("运行时下载流程结束（若失败可在「设置」页配置下载代理）");
             };
             gw.RunWorkerAsync();
         }
 
-        // 添加自定义扫描目录（F:\黄油 这类第三方下载、无注册表记录的游戏）
+        // 添加自定义扫描目录（第三方安装、无注册表记录的本地游戏）
         void DoAddScanRoot()
         {
-            string dir = ModernFolderPicker.PickFolder(this.Handle, "选择要纳入扫描的游戏目录（例如 F:\\黄油）", Program.AppDir);
+            string dir = ModernFolderPicker.PickFolder(this.Handle, "选择要纳入扫描的游戏目录（例如 D:\\Games）", Program.AppDir);
             if (string.IsNullOrEmpty(dir)) return;
             if (Program.Cfg.DlssgExtraRoots.Contains(dir)) { Log("  该目录已在扫描列表：" + dir); return; }
             Program.Cfg.DlssgExtraRoots.Add(dir);
@@ -13846,7 +14318,7 @@ namespace Fluxion
             RunScan(true);
         }
 
-        // 主题切换：**立即生效**（原地重建控件树），不提示、不重启、不弹窗
+        // 主题切换：立即生效（原地重建控件树）
         bool isSwitchingTheme = false;
         void DoSwitchTheme(bool dark)
         {
@@ -13863,13 +14335,11 @@ namespace Fluxion
                     + "—— 本次运行内生效，重启后会退回原主题。请到下面「数据目录」换成可写目录。");
             Theme.SetMode(v);
             RebuildChrome();
-            Log("界面主题已切换为「" + (dark ? "深色" : "浅色") + "」（原地重建控件树，无需重启）");
+            Log("已切换为" + (dark ? "深色" : "浅色") + "主题");
             }
             finally { isSwitchingTheme = false; }
         }
 
-        // 动效档位切换：立即生效 + 写配置（与主题切换同一套写法），并当场演示一次选中淡入，
-        // 否则用户改成「始终开启」之后要等下一次切页才知道有没有生效。
         void DoSwitchMotion(int idx)
         {
             string v = idx == 1 ? "on" : (idx == 2 ? "off" : "auto");
@@ -13889,12 +14359,12 @@ namespace Fluxion
             if (navMenu != null) navMenu.Invalidate();
         }
 
-        // 配置导出：把"换机/重装后需要恢复的东西"整包拷到一个文件夹
+        // 配置导出：把换机/重装后需要恢复的文件整包复制到目标文件夹
         void DoExportConfig()
         {
             string picked = ModernFolderPicker.PickFolder(this.Handle, "选择配置导出目标文件夹", Program.AppDir);
             if (string.IsNullOrEmpty(picked)) return;
-            string dst = Path.Combine(picked, "GameBoost-配置备份");
+            string dst = Path.Combine(picked, "Fluxion-配置备份");
             string[] files = new string[] { "config.json", "config.local.json", "library.json",
                 "games.json", "gameProfiles.override.json", "playtime.json", "ui.scale" };
             int n = 0;
@@ -13910,17 +14380,17 @@ namespace Fluxion
                 if (Directory.Exists(cov)) { Program.CopyDirTree(cov, Path.Combine(dst, "covers")); n++; }
             }
             catch (Exception ex) { Log("⚠ 导出失败：" + ex.Message); return; }
-            Log("✓ 配置已导出到 " + dst + "（含 " + n + " 项：设置 / 游戏库 / 标记 / 时长 / 封面）");
+            Log("✓ 配置已导出至 " + dst + "（共 " + n + " 项）");
             try { Process.Start("explorer.exe", "\"" + dst + "\""); } catch { }
         }
 
         // 配置导入：校验后再落盘（坏文件不许进）
         void DoImportConfig()
         {
-            string src = ModernFolderPicker.PickFolder(this.Handle, "选择之前导出的 GameBoost-配置备份 文件夹", Program.AppDir);
+            string src = ModernFolderPicker.PickFolder(this.Handle, "选择之前导出的 Fluxion-配置备份 文件夹", Program.AppDir);
             if (string.IsNullOrEmpty(src)) return;
             string cfg = Path.Combine(src, "config.json");
-            if (!File.Exists(cfg)) { Log("⚠ 该文件夹里没有 config.json —— 请选 GameBoost-配置备份 那个目录"); return; }
+            if (!File.Exists(cfg)) { Log("⚠ 该文件夹内未找到 config.json —— 请选择 Fluxion-配置备份 目录"); return; }
             try
             {
                 new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<Dictionary<string, object>>(File.ReadAllText(cfg, Encoding.UTF8));
@@ -13958,7 +14428,7 @@ namespace Fluxion
             if (scanRunning) return;
             scanRunning = true;
             SetScanning(true);
-            if (manual) Log(">>> 开始扫描游戏目录（Steam 库 + 常见路径 + 注册表）…");
+            if (manual) Log("开始扫描游戏目录（Steam 库 + 常见路径 + 注册表）…");
             var bw = new BackgroundWorker();
             bw.DoWork += delegate(object s, DoWorkEventArgs e)
             {
@@ -14011,23 +14481,17 @@ namespace Fluxion
                 //  明细写日志（含新增了哪几款），页脚只留一句短结论 —— 参照 FileButler：页脚是"状态"，
                 //  不是日志窗口。以前这里把整串新增名单塞进页脚，一条提示铺满整行、还会被 96 字截断成
                 //  半句话（"…新增 Chill with You Lo-Fi Story、MyDockF…"），是最像"内部工具"的一处。
-                Program.Log(">>> " + (manual ? "扫描完成" : "自动扫描完成") + "：游戏目录 " + games.Count
+                Program.Log((manual ? "扫描完成" : "自动扫描完成") + "：游戏目录 " + games.Count
                     + " 个（有效 " + act + " 个）；已接入方案 A 注入 " + xe + " 个；含 DLSS 帧生成组件 " + fg + " 个"
                     + (news.Length > 0 ? "；新增 " + news : ""));
                 Foot("扫描完成 · " + games.Count + " 款"
-                    //  首次扫描（old 为空）时"全是新增"，说出来只是噪音；只有重扫才报增量
                     + (newCount > 0 && old.Count > 0 ? "，新增 " + newCount + " 款" : ""));
                 try { DoAutoFetchCovers(); } catch { }
-                try { DoAutoFetchCovers(); } catch { }
-                // 被忽略的条目也照样进列表（灰显），这里同时把原因说出来 ——
-                // 此前静默丢弃正是"装了却识别不出来"的来源（2026-09-13 原神即此）
                 if (igHits.Count > 0)
                 {
                     string ign = "";
                     foreach (var g in igHits) ign += (ign.Length > 0 ? "、" : "") + g.Title + "（" + g.Dir + "）";
-                    // 状态栏只给结论；完整清单写进日志文件（以及「被忽略的目录」那一页）。
-                    //  原来把 3 个游戏的标题+路径全塞进状态栏，一条提示占满整行，很"内部工具"。
-                    Log(">>> " + igHits.Count + " 个已忽略目录未参与扫描（列表里灰显，选中后点「开启选中」可恢复）");
+                    Log(igHits.Count + " 个已忽略目录未参与扫描（列表里灰显，选中后点「开启选中」可恢复）");
                     Program.Log("    已忽略：" + ign);
                 }
                 RefreshFgSummary();
@@ -14155,6 +14619,14 @@ namespace Fluxion
                             if (tile.Game != null) { SelectGame(tile.Game, false); DoLaunchGame(); }
                         };
                         t.SchemeMenu += ShowSchemeMenuFor;
+                        t.RightClicked += delegate(DlssgGame gm)
+                        {
+                            if (gm != null)
+                            {
+                                SelectGame(gm, false);
+                                ShowRowMenu(Cursor.Position);
+                            }
+                        };
                     }
                     else if (t.Game != g) t.Rebind(g);
                     //  复用卡也要跟上当前格宽（窗口/列数变过之后，旧卡的尺寸可能还停在上一档）
@@ -14445,6 +14917,7 @@ namespace Fluxion
         {
             if (selected == null) return;
             if (act == "launch") { DoLaunchGame(); return; }
+            if (act == "detail") { SelectGame(selected, true); return; }
             if (act == "dx12") { DoToggleDx12(); return; }
             if (act == "launchcfg") { ShowLaunchConfigDialog(); return; }
             if (act == "fgcfg") { ShowFgConfigDialog(); return; }
@@ -14464,7 +14937,7 @@ namespace Fluxion
             if (act == "fg")
             {
                 Switch(P_FG);
-                Log("  已切到「游戏库」，目标游戏已选中：" + selected.Title + " —— 点「开启选中」即可");
+                Log("  已切到「游戏库」，目标游戏已选中：" + selected.Title);
             }
         }
 
@@ -14472,8 +14945,6 @@ namespace Fluxion
         void FillFgList()
         {
             if (lstFg == null) return;
-            //  ⚠ 这里必须和库墙用**同一套**匹配（2026-10-22）：原来只做 Title 子串，
-            //  "cs" 搜不到 "Counter-Strike 2"（Steam 能搜到，用户直接拿这个对比）。
             string q = lstSearch == null ? "" : (lstSearch.RealText ?? "").Trim().ToLowerInvariant();
             if (q.Length == 0) { lstFg.SetItems(games, selected); return; }
             var hit = new List<DlssgGame>();
@@ -14482,14 +14953,11 @@ namespace Fluxion
             lstFg.SetItems(hit, selected);
         }
 
-        // 帧生成页左栏的右键菜单：只放常用项（完整 13 项在卡片页，那边现在没有入口了）。
-        //  动作全部转给 OnCardMenu，避免两套逻辑各改各的。
+        // 游戏右键菜单（封面卡 / 侧栏快捷游戏共用）
         void ShowRowMenu(Point screen)
         {
             if (selected == null) return;
-            var m = MenuFactory.New();
-            m.Renderer = new ThemedMenuRenderer();
-            m.ShowImageMargin = false;
+            ThemedMenu m = MenuFactory.New();
             Action<string, string> add = delegate(string text, string act)
             {
                 var it = new ToolStripMenuItem(text);
@@ -14497,22 +14965,19 @@ namespace Fluxion
                 m.Items.Add(it);
             };
             add("启动游戏", "launch");
+            add("打开详情页", "detail");
             add("打开目录", "opendir");
             if (!Program.ShareBuild)
             {
-                //  ★ 第 148 轮：把「DX12 模式启动」放回菜单里。
-                //  它一直是**死的**：`OnCardMenu("dx12")` 的分发在，`DoToggleDx12()` 也在，
-                //  但没有任何菜单项发这个动作 —— 而帧生成页那行提示还写着"右键卡片可切"
-                //  （`GameCard.BuildMenu` 的注释也是这么说的）。用户照提示右键，找不到。
-                //  ⚠ 不用 Checked 属性：自绘渲染器没实现 OnRenderItemCheck，对勾画不对。
-                //    用动词表达状态，和下面的「取消收藏 / 收藏」同一套写法。
                 m.Items.Add(new ToolStripSeparator());
                 add(Lib.HasDx12Arg(selected) ? "关闭 DX12 模式启动" : "开启 DX12 模式启动", "dx12");
+                add("检测运行模式", "dxapi");
                 add("启动参数与环境变量…", "launchcfg");
                 add("帧生成参数…", "fgcfg");
             }
             m.Items.Add(new ToolStripSeparator());
             add(selected.Favorite ? "取消收藏" : "收藏", "fav");
+            add("重命名…", "rename");
             add(selected.Private ? "取消私密" : "私密", "priv");
             add(selected.Hidden ? "取消隐藏" : "隐藏", "hid");
             if (!Program.ShareBuild)
@@ -14535,6 +15000,7 @@ namespace Fluxion
             }
             m.Items.Add(new ToolStripSeparator());
             add("从列表移除", "remove");
+            m.PrepareLayout();
             m.Show(screen);
         }
 
@@ -14650,6 +15116,24 @@ namespace Fluxion
             return false;
         }
 
+        // BUG-G7: 焦点是否在交互控件上（按钮/下拉/输入框/搜索框）——
+        // 在这些控件上按 Enter/方向键应交给控件处理，不应被 ProcessCmdKey 拦截启动游戏
+        bool FocusInInteractiveControl()
+        {
+            try
+            {
+                Control c = ActiveControl;
+                while (c != null)
+                {
+                    if (c is TextBoxBase || c is ComboBox || c is RoundCombo
+                        || c is RoundField || c is FlatBtn || c is Button) return true;
+                    c = c.Parent;
+                }
+            }
+            catch { }
+            return false;
+        }
+
         // 联网按名字搜一张竖版图当封面（Bing 图片搜索；会访问任意 https 图片站）
         void DoWebCover()
         {
@@ -14658,7 +15142,7 @@ namespace Fluxion
             if (!Cfg.DlssgOnlineCovers) { Log("  已关闭「联网获取游戏封面」，请先在设置页打开"); return; }
             webCoverRunning = true;
             DlssgGame g = selected;
-            Log(">>> 联网搜寻封面：" + g.Title + "（只取竖版大图）");
+            Log("联网检索封面：" + g.Title + "（竖版大图）");
             var bw = new BackgroundWorker();
             bw.DoWork += delegate(object s, DoWorkEventArgs e)
             {
@@ -14700,7 +15184,7 @@ namespace Fluxion
             try { if (File.Exists(Path.Combine(CoverArt.CoversDir, oldNm + ".png"))) File.Delete(Path.Combine(CoverArt.CoversDir, oldNm + ".png")); } catch { }
             DlssgGame g = selected;
             redownloadRunning = true;
-            Log(">>> 重新获取官方封面：" + g.Title);
+            Log("重新获取官方封面：" + g.Title);
             var bw = new BackgroundWorker();
             bw.DoWork += delegate(object s, DoWorkEventArgs e)
             {
@@ -14737,7 +15221,7 @@ namespace Fluxion
             if (fetchAllCoversRunning) { Log("  批量获取封面正在进行中…"); return; }
             if (games == null || games.Count == 0) { Log("  库中暂无游戏"); return; }
             fetchAllCoversRunning = true;
-            Log(">>> 开始一键补全全库封面（后台并行检索）…");
+            Log("开始一键补全全库封面（后台检索）…");
             var bw = new BackgroundWorker();
             bw.DoWork += delegate(object s, DoWorkEventArgs e)
             {
@@ -14844,37 +15328,49 @@ namespace Fluxion
                 f.Text = title;
                 f.FormBorderStyle = FormBorderStyle.FixedDialog;
                 f.StartPosition = FormStartPosition.CenterParent;
-                f.ClientSize = new Size(Theme.S(430), Theme.S(146));
+                f.AutoScaleMode = AutoScaleMode.None;
+                f.ClientSize = new Size(Theme.S(440), Theme.S(168));
                 f.MaximizeBox = false; f.MinimizeBox = false; f.ShowInTaskbar = false;
                 f.ShowIcon = false;
-                f.BackColor = Theme.Panel;
+                f.BackColor = Theme.Bg;
                 f.ForeColor = Theme.Text;
                 f.Font = Theme.F(9f);
                 try { Theme.ApplyChrome(f.Handle); } catch { }
 
                 var lb = new TxtLbl();
                 lb.Text = hint; lb.AutoSize = false;
-                lb.Location = new Point(Theme.S(16), Theme.S(12)); lb.Size = new Size(Theme.S(398), Theme.S(34));
-                lb.ForeColor = Theme.TextDim; lb.Font = Theme.F(9f);
+                lb.Location = new Point(Theme.S(18), Theme.S(14)); lb.Size = new Size(Theme.S(404), Theme.S(36));
+                lb.ForeColor = Theme.TextDim; lb.Font = Theme.F(9f); lb.BackColor = Theme.Bg;
                 f.Controls.Add(lb);
 
-                var tb = new TextBox();
-                tb.Text = def;
-                tb.Location = new Point(Theme.S(16), Theme.S(52)); tb.Width = Theme.S(398);
-                tb.Font = Theme.F(10f);
-                tb.BackColor = Theme.Field;
-                tb.ForeColor = Theme.Text;
-                tb.BorderStyle = BorderStyle.FixedSingle;
-                f.Controls.Add(tb);
+                var rf = new RoundField(Theme.S(404), "");
+                rf.Location = new Point(Theme.S(18), Theme.S(56));
+                rf.SetCorner(Theme.Bg);
+                rf.SetText(def ?? "");
+                f.Controls.Add(rf);
 
-                var ok = new FlatBtn(); ok.Text = "确定"; ok.Kind = BtnKind.Primary; ok.DialogResult = DialogResult.OK;
-                ok.Location = new Point(Theme.S(246), Theme.S(96)); ok.Width = Theme.S(80);
-                var no = new FlatBtn(); no.Text = "取消"; no.DialogResult = DialogResult.Cancel;
-                no.Location = new Point(Theme.S(334), Theme.S(96)); no.Width = Theme.S(80);
-                f.Controls.Add(ok); f.Controls.Add(no);
+                var bar = new FlowLayoutPanel();
+                bar.Dock = DockStyle.Bottom;
+                bar.Height = Theme.S(54);
+                bar.FlowDirection = FlowDirection.RightToLeft;
+                bar.WrapContents = false;
+                bar.BackColor = Theme.Panel;
+                bar.Padding = new Padding(0, Theme.S(11), Theme.S(18), 0);
+                Buffered(bar);
+                bar.Paint += delegate(object s2, PaintEventArgs e2)
+                {
+                    using (var p2 = new Pen(Theme.Line, 1f))
+                        e2.Graphics.DrawLine(p2, 0, 0, bar.Width, 0);
+                };
+
+                var ok = new FlatBtn(); ok.Text = "确定"; ok.Kind = BtnKind.Primary; ok.DialogResult = DialogResult.OK; ok.Width = Theme.S(84);
+                var no = new FlatBtn(); no.Text = "取消"; no.DialogResult = DialogResult.Cancel; no.Width = Theme.S(84);
+                bar.Controls.Add(no);
+                bar.Controls.Add(ok);
+                f.Controls.Add(bar);
                 f.AcceptButton = ok; f.CancelButton = no;
-                tb.SelectAll();
-                return f.ShowDialog(this) == DialogResult.OK ? tb.Text : null;
+                f.Shown += delegate { try { rf.Box.Focus(); rf.Box.SelectAll(); } catch { } };
+                return f.ShowDialog(this) == DialogResult.OK ? rf.RealText : null;
             }
         }
 
@@ -14942,7 +15438,7 @@ namespace Fluxion
             if (coverRunning) { Log("  封面获取正在进行中…"); return; }
             bool online = Cfg.DlssgOnlineCovers;
             coverRunning = true;
-            Log(">>> 开始获取封面（先读 Steam 本地缓存" + (online ? "，缺失的再走官方 CDN" : "；联网封面已关闭，只取本地") + "）…");
+            Log("开始获取封面（先读 Steam 本地缓存" + (online ? "，缺失的再走官方 CDN" : "；联网封面已关闭，只取本地") + "）…");
             var bw = new BackgroundWorker();
             bw.DoWork += delegate(object s, DoWorkEventArgs e)
             {
@@ -15075,8 +15571,87 @@ namespace Fluxion
 
         void DoAddGameExe(string exe)
         {
-            Log(">>> 添加自定义游戏：" + Dlssg.AddCustomGame(exe));
+            Log("添加自定义游戏：" + Dlssg.AddCustomGame(exe));
             MergeScanThen(games, delegate { FillGameList(); RefreshFgSummary(); });
+        }
+
+        Panel WrapThemedListBox(ListBox lb)
+        {
+            var wrap = new Panel();
+            Buffered(wrap);
+            wrap.BackColor = Theme.Panel;
+            wrap.Padding = new Padding(Theme.S(4));
+            wrap.Paint += delegate(object s2, PaintEventArgs e2)
+            {
+                var g2 = e2.Graphics;
+                g2.SmoothingMode = SmoothingMode.AntiAlias;
+                var r2 = new Rectangle(0, 0, wrap.Width - 1, wrap.Height - 1);
+                Theme.FillRound(g2, r2, Theme.S(8), Theme.Panel);
+                Theme.EdgeRound(g2, r2, Theme.S(8), Theme.FieldEdge, 1f);
+            };
+
+            lb.Dock = DockStyle.Fill;
+            lb.BorderStyle = BorderStyle.None;
+            lb.BackColor = Theme.Panel;
+            lb.ForeColor = Theme.Text;
+            lb.Font = Theme.F(9.5f);
+            lb.IntegralHeight = false;
+            lb.DrawMode = DrawMode.OwnerDrawFixed;
+            lb.ItemHeight = Theme.S(30);
+
+            int hotIdx = -1;
+            lb.MouseMove += delegate(object s2, MouseEventArgs e2)
+            {
+                int idx = lb.IndexFromPoint(e2.Location);
+                if (idx >= 0 && idx < lb.Items.Count && !lb.GetItemRectangle(idx).Contains(e2.Location))
+                    idx = -1;
+                if (idx == hotIdx) return;
+                int prev = hotIdx;
+                hotIdx = idx;
+                try { if (prev >= 0 && prev < lb.Items.Count) lb.Invalidate(lb.GetItemRectangle(prev)); } catch { }
+                try { if (hotIdx >= 0 && hotIdx < lb.Items.Count) lb.Invalidate(lb.GetItemRectangle(hotIdx)); } catch { }
+            };
+            lb.MouseLeave += delegate(object s2, EventArgs e2)
+            {
+                if (hotIdx < 0) return;
+                int prev = hotIdx;
+                hotIdx = -1;
+                try { if (prev >= 0 && prev < lb.Items.Count) lb.Invalidate(lb.GetItemRectangle(prev)); } catch { }
+            };
+            lb.DrawItem += delegate(object s2, DrawItemEventArgs e2)
+            {
+                var g2 = e2.Graphics;
+                g2.SmoothingMode = SmoothingMode.AntiAlias;
+                g2.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                using (var bgB = new SolidBrush(Theme.Panel))
+                    g2.FillRectangle(bgB, e2.Bounds);
+                if (e2.Index < 0 || e2.Index >= lb.Items.Count) return;
+
+                bool isSel = (e2.State & DrawItemState.Selected) != 0;
+                bool isHot = e2.Index == hotIdx;
+                var pill = new Rectangle(e2.Bounds.X + Theme.S(2), e2.Bounds.Y + Theme.S(1),
+                    Math.Max(1, e2.Bounds.Width - Theme.S(4)), Math.Max(1, e2.Bounds.Height - Theme.S(2)));
+                if (isSel)
+                {
+                    Theme.FillRound(g2, pill, Theme.S(6), Theme.Selected);
+                    Theme.EdgeRound(g2, pill, Theme.S(6), Color.FromArgb(Theme.Dark ? 70 : 50, Theme.Accent), 1f);
+                }
+                else if (isHot)
+                {
+                    Theme.FillRound(g2, pill, Theme.S(6), Theme.Hover);
+                }
+
+                string txt = lb.Items[e2.Index] == null ? "" : lb.Items[e2.Index].ToString();
+                var tr = new Rectangle(pill.X + Theme.S(10), pill.Y,
+                    Math.Max(1, pill.Width - Theme.S(20)), pill.Height);
+                Theme.DrawTxt(g2, txt, isSel ? Theme.FM(9.5f) : Theme.F(9.5f), tr,
+                    isSel ? Theme.Accent : Theme.Text,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine
+                    | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            };
+
+            wrap.Controls.Add(lb);
+            return wrap;
         }
 
         //  通用单选列表窗（文件夹浏览之后挑一个文件）：标题 + 行格式化 + 选中回调。双击 = 确认。
@@ -15096,7 +15671,7 @@ namespace Fluxion
             try { Theme.ApplyChrome(dlg.Handle); } catch { }
 
             var tip = new TxtLbl();
-            tip.Text = "点选一项 → 「确定」；双击同效。";
+            tip.Text = "点选一项后点击「确定」，或直接双击确认。";
             tip.AutoSize = true;
             tip.ForeColor = Theme.TextDim;
             tip.Font = Theme.F(9f);
@@ -15104,30 +15679,32 @@ namespace Fluxion
             dlg.Controls.Add(tip);
 
             var lb = new ListBox();
-            lb.Font = Theme.F(9.5f);
-            lb.ItemHeight = Theme.S(22);
-            lb.BorderStyle = BorderStyle.FixedSingle;
-            lb.HorizontalScrollbar = true;
+            var wrap = WrapThemedListBox(lb);
+            wrap.Location = new Point(Theme.S(16), Theme.S(38));
+            wrap.Size = new Size(dlg.ClientSize.Width - Theme.S(32), dlg.ClientSize.Height - Theme.S(104));
             foreach (string it in items)
-            {
-                string row = fmt(it);
-                int maxW = lb.ClientSize.Width - Theme.S(24);
-                while (row.Length > 6 && TextRenderer.MeasureText(row, lb.Font).Width > maxW)
-                    row = row.Substring(0, row.Length - 2).TrimEnd() + "…";
-                lb.Items.Add(row);
-            }
+                lb.Items.Add(fmt(it));
             if (items.Count > 0) lb.SelectedIndex = 0;
-            lb.Location = new Point(Theme.S(16), Theme.S(40));
-            lb.Size = new Size(dlg.ClientSize.Width - Theme.S(32), dlg.ClientSize.Height - Theme.S(108));
-            dlg.Controls.Add(lb);
+            dlg.Controls.Add(wrap);
+
+            var bar = new FlowLayoutPanel();
+            bar.Dock = DockStyle.Bottom;
+            bar.Height = Theme.S(54);
+            bar.FlowDirection = FlowDirection.RightToLeft;
+            bar.WrapContents = false;
+            bar.BackColor = Theme.Panel;
+            bar.Padding = new Padding(0, Theme.S(11), Theme.S(16), 0);
+            Buffered(bar);
+            bar.Paint += delegate(object s2, PaintEventArgs e2)
+            {
+                using (var p2 = new Pen(Theme.Line, 1f))
+                    e2.Graphics.DrawLine(p2, 0, 0, bar.Width, 0);
+            };
 
             var btnCancel = new FlatBtn(); btnCancel.Text = "取消"; btnCancel.Width = Theme.S(84);
-            btnCancel.Location = new Point(dlg.ClientSize.Width - Theme.S(100), dlg.ClientSize.Height - Theme.S(52));
             btnCancel.Click += delegate { dlg.Close(); };
-            dlg.Controls.Add(btnCancel);
 
-            var btnGo = new FlatBtn(); btnGo.Text = "确定"; btnGo.Kind = BtnKind.Primary; btnGo.Width = Theme.S(110);
-            btnGo.Location = new Point(dlg.ClientSize.Width - Theme.S(224), dlg.ClientSize.Height - Theme.S(52));
+            var btnGo = new FlatBtn(); btnGo.Text = "确定"; btnGo.Kind = BtnKind.Primary; btnGo.Width = Theme.S(96);
             btnGo.Click += delegate
             {
                 if (lb.SelectedIndex < 0 || lb.SelectedIndex >= items.Count) return;
@@ -15135,9 +15712,15 @@ namespace Fluxion
                 dlg.Close();
                 onPick(pick);
             };
-            dlg.Controls.Add(btnGo);
+            bar.Controls.Add(btnCancel);
+            bar.Controls.Add(btnGo);
+            dlg.Controls.Add(bar);
+            dlg.AcceptButton = btnGo;
+            dlg.CancelButton = btnCancel;
             lb.DoubleClick += delegate { btnGo.PerformClick(); };
 
+            Theme.ScrollThemeTree(dlg);
+            dlg.Shown += delegate { try { Theme.ScrollThemeTree(dlg); } catch { } };
             dlg.ShowDialog(this);
         }
 
@@ -15154,7 +15737,7 @@ namespace Fluxion
                 "要恢复收录：选中它点「开启选中」，或点「忽略清单」按钮放行。",
                 "移除游戏", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
             if (okr != DialogResult.OK) { Log("已取消移除：" + selected.Title); return; }
-            Log(">>> 移除：" + Dlssg.RemoveGame(selected));
+            Log("移除：" + Dlssg.RemoveGame(selected));
             MergeScanThen(games, delegate { FillGameList(); RefreshFgSummary(); });
         }
 
@@ -15166,7 +15749,7 @@ namespace Fluxion
         {
             var dlg = new Form();
             Fx.FadeOnClose(dlg);   // 关闭淡出 200ms（关动画/系统关特效时零行为）
-            dlg.Text = "忽略清单（以下目录不会被扫描收录）";
+            dlg.Text = "忽略清单";
             dlg.StartPosition = FormStartPosition.CenterParent;
             dlg.FormBorderStyle = FormBorderStyle.Sizable;
             dlg.MaximizeBox = false; dlg.MinimizeBox = false;
@@ -15174,34 +15757,53 @@ namespace Fluxion
             dlg.ForeColor = Theme.Text;
             dlg.Font = Theme.F(9f);
             dlg.AutoScaleMode = AutoScaleMode.None;
-            dlg.MinimumSize = new Size(Theme.S(520), Theme.S(380));
-            dlg.ClientSize = new Size(Theme.S(560), Theme.S(440));
+            dlg.MinimumSize = new Size(Theme.S(520), Theme.S(460));
+            dlg.ClientSize = new Size(Theme.S(580), Theme.S(530));
             dlg.ShowIcon = false;
             try { Theme.ApplyChrome(dlg.Handle); } catch { }
 
             var pg = new Pg();
             pg.Dock = DockStyle.Fill;
             var sec = new Sec("被忽略的目录");
-            var lv = NewList(new string[] { "目录", "磁盘现状" }, new int[] { 340, 0 }, Theme.S(200));
+            var lv = NewList(new string[] { "目录", "磁盘现状" }, new int[] { 340, 0 }, Theme.S(175));
             lv.MultiSelect = true;
-            lv.Resize += delegate { FillLastColumn(lv, Theme.S(140)); };
-            sec.Block(BoxOf(lv), Theme.S(200) + Theme.S(30));
+            sec.Block(BoxOf(lv), Theme.S(175) + Theme.S(30));
             var lblCount = sec.Body("");
-            sec.Body("只记忽略，不动文件；「放行选中」可恢复收录。");
+            sec.Body("仅记录忽略状态，不改动磁盘文件；点击「放行选中」即可恢复扫描收录。");
 
             var btnRestore = new FlatBtn(); btnRestore.Text = "放行选中"; btnRestore.Kind = BtnKind.Primary; btnRestore.Width = Theme.S(96);
+            btnRestore.Enabled = false;
             var btnAll = new FlatBtn(); btnAll.Text = "全部放行"; btnAll.Width = Theme.S(96);
-            var btnClose = new FlatBtn(); btnClose.Text = "关闭"; btnClose.Width = Theme.S(84);
-            sec.Buttons(btnRestore, btnAll, btnClose);
+            sec.Buttons(btnRestore, btnAll);
             pg.Add(sec);
             dlg.Controls.Add(pg);
             pg.BringToFront();
+
+            var bar = new FlowLayoutPanel();
+            bar.Dock = DockStyle.Bottom;
+            bar.Height = Theme.S(54);
+            bar.FlowDirection = FlowDirection.RightToLeft;
+            bar.WrapContents = false;
+            bar.BackColor = Theme.Panel;
+            bar.Padding = new Padding(0, Theme.S(11), Theme.S(18), 0);
+            Buffered(bar);
+            bar.Paint += delegate(object s2, PaintEventArgs e2)
+            {
+                using (var p2 = new Pen(Theme.Line, 1f))
+                    e2.Graphics.DrawLine(p2, 0, 0, bar.Width, 0);
+            };
+            var btnClose = new FlatBtn(); btnClose.Text = "关闭"; btnClose.Kind = BtnKind.Primary; btnClose.Width = Theme.S(88);
+            bar.Controls.Add(btnClose);
+            dlg.Controls.Add(bar);
+            dlg.CancelButton = btnClose;
 
             Action updHint = delegate
             {
                 string s = "共 " + lv.Items.Count + " 项";
                 if (lv.SelectedItems.Count > 0) s += "，已选 " + lv.SelectedItems.Count + " 项";
                 SetBody(lblCount, s);
+                btnRestore.Enabled = lv.SelectedItems.Count > 0;
+                btnAll.Enabled = lv.Items.Count > 0;
             };
             Action refresh = null;
             refresh = delegate
@@ -15242,26 +15844,33 @@ namespace Fluxion
                 foreach (ListViewItem it in lv.SelectedItems) sel.Add(it.Tag as string);
                 if (sel.Count == 0) { Log("请先在忽略清单里选中要放行的目录"); return; }
                 string r = Dlssg.UnignoreDirs(sel);
-                Log(">>> 忽略清单：" + r);
+                Log("忽略清单：" + r);
                 if (r.StartsWith("已从忽略清单")) needRescan = true;
                 refresh();
             };
             btnAll.Click += delegate
             {
-                if (lv.Items.Count == 0) { Log("忽略清单本来就是空的"); return; }
+                if (lv.Items.Count == 0) { Log("忽略清单为空"); return; }
                 string r = Dlssg.UnignoreDirs(null);
-                Log(">>> 忽略清单：" + r);
+                Log("忽略清单：" + r);
                 if (r.StartsWith("已从忽略清单")) needRescan = true;
                 refresh();
             };
             btnClose.Click += delegate { dlg.Close(); };
 
             refresh();
+            pg.Reflow();
+            dlg.Shown += delegate
+            {
+                try { pg.Reflow(); } catch { }
+                try { Theme.ScrollThemeTree(dlg); } catch { }
+                try { dlg.ActiveControl = null; } catch { }
+            };
             dlg.ShowDialog(this);
             try { dlg.Dispose(); } catch { }
             if (needRescan)
             {
-                Log(">>> 忽略清单已放行，正在重新扫描…");
+                Log("忽略清单已放行，正在重新扫描…");
                 RunScan(false);
             }
         }
@@ -15281,28 +15890,44 @@ namespace Fluxion
             dlg.ForeColor = Theme.Text;
             dlg.Font = Theme.F(9f);
             dlg.AutoScaleMode = AutoScaleMode.None;
-            dlg.MinimumSize = new Size(Theme.S(540), Theme.S(400));
-            dlg.ClientSize = new Size(Theme.S(640), Theme.S(470));
+            dlg.MinimumSize = new Size(Theme.S(560), Theme.S(480));
+            dlg.ClientSize = new Size(Theme.S(680), Theme.S(565));
             dlg.ShowIcon = false;
             try { Theme.ApplyChrome(dlg.Handle); } catch { }
 
             var pg = new Pg();
             pg.Dock = DockStyle.Fill;
-            var sec = new Sec("每一项都可以单独回收（标了「保留」的受保留策略保护）");
-            var lv = NewList(new string[] { "目录", "归属", "时间", "体积" }, new int[] { 300, 168, 104, 0 }, Theme.S(230));
+            var sec = new Sec("备份与隔离项（标「保留」项受保留策略保护）");
+            var lv = NewList(new string[] { "目录", "归属", "时间", "体积" }, new int[] { 300, 168, 104, 0 }, Theme.S(210));
             lv.MultiSelect = true;
-            lv.Resize += delegate { FillLastColumn(lv, Theme.S(120)); };
-            sec.Block(BoxOf(lv), Theme.S(230) + Theme.S(30));
+            sec.Block(BoxOf(lv), Theme.S(210) + Theme.S(30));
             var lblSum = sec.Body("");
-            sec.Body("带 * 的是目录修改时间；回收站可还原，不硬删。");
+            sec.Body("带 * 项为目录修改时间；回收项将移至系统回收站，可随时还原。");
             var btnRecycle = new FlatBtn(); btnRecycle.Text = "回收选中"; btnRecycle.Kind = BtnKind.Danger;
             btnRecycle.Width = Theme.S(112);
             var btnRefresh = new FlatBtn(); btnRefresh.Text = "重新统计"; btnRefresh.Width = Theme.S(96);
-            var btnClose = new FlatBtn(); btnClose.Text = "关闭"; btnClose.Width = Theme.S(84);
-            sec.Buttons(btnRecycle, btnRefresh, btnClose);
+            sec.Buttons(btnRecycle, btnRefresh);
             pg.Add(sec);
             dlg.Controls.Add(pg);
             pg.BringToFront();
+
+            var bar = new FlowLayoutPanel();
+            bar.Dock = DockStyle.Bottom;
+            bar.Height = Theme.S(54);
+            bar.FlowDirection = FlowDirection.RightToLeft;
+            bar.WrapContents = false;
+            bar.BackColor = Theme.Panel;
+            bar.Padding = new Padding(0, Theme.S(11), Theme.S(18), 0);
+            Buffered(bar);
+            bar.Paint += delegate(object s2, PaintEventArgs e2)
+            {
+                using (var p2 = new Pen(Theme.Line, 1f))
+                    e2.Graphics.DrawLine(p2, 0, 0, bar.Width, 0);
+            };
+            var btnClose = new FlatBtn(); btnClose.Text = "关闭"; btnClose.Kind = BtnKind.Primary; btnClose.Width = Theme.S(88);
+            bar.Controls.Add(btnClose);
+            dlg.Controls.Add(bar);
+            dlg.CancelButton = btnClose;
 
             Action updHint = delegate
             {
@@ -15365,16 +15990,23 @@ namespace Fluxion
                 if (MessageBox.Show(this, Junk.ConfirmText(sel), "送回收站",
                         MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) != DialogResult.OK)
                 {
-                    Log(">>> 备份回收：用户取消，未做任何改动");
+                    Log("备份回收：已取消，未做任何改动");
                     return;
                 }
                 DoRecycle(sel);
                 refresh();
             };
-            btnRefresh.Click += delegate { refresh(); Log(">>> 备份重新统计：" + Junk.SummaryOf(items)); };
+            btnRefresh.Click += delegate { refresh(); Log("备份重新统计：" + Junk.SummaryOf(items)); };
             btnClose.Click += delegate { dlg.Close(); };
 
             refresh();
+            pg.Reflow();
+            dlg.Shown += delegate
+            {
+                try { pg.Reflow(); } catch { }
+                try { Theme.ScrollThemeTree(dlg); } catch { }
+                try { dlg.ActiveControl = null; } catch { }
+            };
             dlg.ShowDialog(this);
             try { dlg.Dispose(); } catch { }
             SetJunkLabel();
@@ -15386,7 +16018,7 @@ namespace Fluxion
             string r;
             try { r = Junk.Recycle(items, this.Handle); }
             catch (Exception ex) { r = "回收异常：" + ex.GetType().Name + "：" + ex.Message; }
-            Log(">>> 备份回收：" + r.Replace("\n", "\n      "));
+            Log("备份回收：" + r.Replace("\n", "\n      "));
             SetJunkLabel();
         }
 
@@ -15462,7 +16094,7 @@ namespace Fluxion
             string cur = Plan.Current(FgDir(selected));
             if (cur == Plan.None)
             {
-                Log(">>> 停放遗留项：" + selected.Title + " 目录里没有代理在位（游戏跑原生），无需处理");
+                Log("停放遗留项：" + selected.Title + " 目录里没有代理在位（游戏跑原生），无需处理");
                 return;
             }
             var stray = new List<string>();
@@ -15470,7 +16102,7 @@ namespace Fluxion
                 if (h.Owner != cur) stray.Add(h.Label());
             if (stray.Count == 0)
             {
-                Log(">>> 停放遗留项：" + selected.Title + " 只有一套代理在位，没有遗留项可停");
+                Log("停放遗留项：" + selected.Title + " 只有一套代理在位，没有遗留项可停");
                 return;
             }
             string msg = "将在「" + selected.Title + "」的目录里改名停放下面 " + stray.Count
@@ -15482,13 +16114,13 @@ namespace Fluxion
                     MessageBoxButtons.OKCancel, MessageBoxIcon.Warning,
                     MessageBoxDefaultButton.Button2) != DialogResult.OK)
             {
-                Log(">>> 停放遗留项：用户取消，未做任何改动");
+                Log("停放遗留项：已取消，未做任何改动");
                 return;
             }
             string r;
             try { r = Plan.ParkForeignReport(FgDir(selected)); }
             catch (Exception ex) { r = "异常：" + ex.GetType().Name + "：" + ex.Message; }
-            Log(">>> 停放遗留项：" + selected.Title + " —— " + r.Replace("\n", "\n      "));
+            Log("停放遗留项：" + selected.Title + " —— " + r.Replace("\n", "\n      "));
             Log("  " + Plan.PatrolLine(FgDir(selected)));
             RefreshFgSummary();
         }
@@ -15502,7 +16134,7 @@ namespace Fluxion
             string span = days <= 0 ? "不限时长" : "满 " + days + " 天";
             if (aged.Count == 0)
             {
-                Log(">>> 备份回收：" + Junk.SummaryOf(all) + " —— 没有「" + span + "」且不受保留策略保护的可回收项");
+                Log("备份回收：" + Junk.SummaryOf(all) + " —— 没有「" + span + "」且不受保留策略保护的可回收项");
                 MessageBox.Show(this,
                     "没有可回收的项：「" + span + "」的那些要么受保留策略保护（回滚要用），要么本来就没有。\n\n"
                     + Junk.SummaryOf(all),
@@ -15513,7 +16145,7 @@ namespace Fluxion
                     MessageBoxButtons.OKCancel, MessageBoxIcon.Warning,
                     MessageBoxDefaultButton.Button2) != DialogResult.OK)
             {
-                Log(">>> 备份回收：用户取消，未做任何改动");
+                Log("备份回收：已取消，未做任何改动");
                 return;
             }
             DoRecycle(aged);
@@ -15527,7 +16159,7 @@ namespace Fluxion
             // 命中忽略清单 → 先放行再继续。这就是"识别不出来"的正解，不该让用户去翻 ProgramData 里的 json
             if (selected.Ignored)
             {
-                Log(">>> 恢复收录：" + selected.Title);
+                Log("恢复收录：" + selected.Title);
                 Log("  " + Dlssg.UnignoreDirs(new List<string> { selDir }));
                 // 全库合并（含每条目 Inspect 重探）在后台跑，完成后再找回该条目并继续开启流程
                 MergeScanThen(games, delegate
@@ -15561,7 +16193,7 @@ namespace Fluxion
                     (selected.HasFsr3 ? "；但它自带 FSR3 帧生成，可在游戏内直接开" : ""));
                 return;
             }
-            Log(">>> 开启帧生成: " + selected.Title);
+            Log("开启帧生成：" + selected.Title);
             // 二游/内核反作弊类：注入第三方代理有封号风险（社区已记录反作弊直接拦截代理加载的案例）
             string risk = Dlssg.InjectionRiskNote(selected);
             if (risk != null &&
@@ -15597,7 +16229,7 @@ namespace Fluxion
         {
             if (selected == null) { Log("请先在列表里点选一个游戏"); return; }
             if (selected.Ignored) { Log("「" + selected.Title + "」还在忽略清单里（列表灰显），先点「开启选中」恢复收录再换入口"); return; }
-            Log(">>> 换入口重试: " + selected.Title);
+            Log("换入口重试：" + selected.Title);
             Log("  " + Dlssg.SwitchEntry(selected));
             FillGameList();
             RefreshFgSummary();
@@ -15607,7 +16239,7 @@ namespace Fluxion
         void DoFgUninstall()
         {
             if (selected == null) { Log("请先在列表里点选一个游戏"); return; }
-            Log(">>> 关闭帧生成: " + selected.Title);
+            Log("关闭帧生成：" + selected.Title);
             string r = Dlssg.Uninstall(selected);
             Log("  " + r);
             FillGameList();
@@ -15617,7 +16249,7 @@ namespace Fluxion
         void DoFgDiagnose()
         {
             if (selected == null) { Log("请先在列表里点选一个游戏"); return; }
-            Log(">>> 运行诊断: " + selected.Title);
+            Log("运行诊断：" + selected.Title);
             Log("  支持情况：" + (selected.HasFrameGen ? "已集成 DLSS 帧生成" : "未集成 DLSS 帧生成") +
                 (selected.HasFsr3 ? "；自带 FSR3 帧生成" : "") + (selected.HasUpscaler ? "；DLSS 超分" : ""));
             bool? hwFg = Dlssg.GpuSupportsDlssFg();
@@ -15813,7 +16445,7 @@ namespace Fluxion
             }
             string when = logUnix > 0 ? DateTimeOffset.FromUnixTimeSeconds(logUnix).ToLocalTime().ToString("MM-dd HH:mm") : "?";
             if (api == "DX12")
-                Log("  运行模式：" + api + " ✅（" + when + " 的记录）—— 游戏内「设置 → 画面 → 高级」应有「超分辨率 / 帧生成」");
+                Log("  运行模式：" + api + " ✓（" + when + " 的记录）—— 游戏内「设置 → 画面 → 高级」应有「超分辨率 / 帧生成」");
             else
                 Log("  运行模式：" + api + " ⚠（" + when + " 的记录）—— DX12 未生效："
                     + (Lib.HasDx12Arg(selected) ? "参数已配好，用「启动游戏」重新进一次" : "先右键开「DX12 模式启动」再启动游戏"));
@@ -15836,7 +16468,7 @@ namespace Fluxion
                 {
                     t.Stop(); t.Dispose();
                     if (api == "DX12")
-                        Log("  ✅ 已确认：游戏跑在 Direct3D 12 —— 游戏内「设置 → 画面 → 高级」应出现「超分辨率 / 帧生成」");
+                        Log("  ✓ 已确认：游戏跑在 Direct3D 12 —— 游戏内「设置 → 画面 → 高级」应出现「超分辨率 / 帧生成」");
                     else
                         Log("  ⚠ 仍是 Direct3D 11：-use-d3d12 没生效（显卡/驱动不支持，或被杀软/反作弊拦了参数）");
                     return;
@@ -15892,6 +16524,7 @@ namespace Fluxion
             //  Smooth Motion 没有"自动"推荐（推荐引擎不产出它），只有手动选才显示；
             //  没选中游戏时"自动"一套都不显示，只留上方的推荐卡说明该做什么。
             bool vSm = i == 5;
+            bool vSpoof = !(i == 1 || i == 5 || (i == 0 && (a == "opti" || a == "dx12" || a == "none" || a.Length == 0)));
 
             //  这里只登记"该不该显示"，真正落 Visible 的是 ApplyDetailVis ——
             //  它还要叠加"当前在哪个页签"，直接写 Visible 会被页签切换覆盖掉。
@@ -15899,6 +16532,7 @@ namespace Fluxion
             if (s040Sec != null) secWant[s040Sec] = v040;
             if (sNvSec != null) secWant[sNvSec] = vNv;
             if (sSmSec != null) secWant[sSmSec] = vSm;
+            if (sSpoofSec != null) secWant[sSpoofSec] = vSpoof;
 
             //  推荐高亮：标题染色 = "推荐引擎点的是它"。手动选了别的方案时，
             //  看到的区块标题是暗的 —— 这本身就是一个信息（"你现在用的不是推荐"）。
@@ -16112,7 +16746,7 @@ namespace Fluxion
                                 MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            Log(">>> 安装并应用（" + SchemeShort(a) + "）：" + selected.Title);
+            Log("安装并应用（" + SchemeShort(a) + "）：" + selected.Title);
             ApplyAction(a);
             RefreshFgSummary();
         }
@@ -16122,7 +16756,7 @@ namespace Fluxion
         {
             if (selected == null) { Log("  先从左侧游戏栏选一个游戏"); return; }
             string cur = Plan.Current(selected.Dir);
-            Log(">>> 卸载补丁（" + Plan.PlanName(cur) + "）：" + selected.Title);
+            Log("卸载补丁（" + Plan.PlanName(cur) + "）：" + selected.Title);
             if (cur == Plan.Opti) DoXeUndeploy();
             else if (cur == Plan.D030) Do030Undeploy();
             else if (cur == Plan.D040) Do040Undeploy();
@@ -16154,7 +16788,7 @@ namespace Fluxion
         {
             if (selected == null) { Log("  先从左侧游戏栏选一个游戏"); return; }
             var rec = Dlssg.BuildRec(selected);
-            Log(">>> 一键应用推荐：" + rec.Head);
+            Log("一键应用推荐：" + rec.Head);
             if (rec.Action == "none")
             {
                 MessageBox.Show(rec.Head + "\n\n" + rec.Why, "方案推荐",
@@ -16179,31 +16813,29 @@ namespace Fluxion
             if (on)
             {
                 var ans = MessageBox.Show(
-                    "把显卡名改为 " + GpuSpoof.Target + "。\n\n"
-                    + "· 这是作者对「网游」明确要求的前置条件：绝区零的 DLSS / 帧生成选项靠它才会出现。\n"
-                    + "· 副作用：全系统所有程序看到的都是 RTX 5090；显卡驱动升级后要重做。\n"
-                    + "· 改完需重启电脑（或点「重启显卡设备」，不用重启系统）。\n"
-                    + "· 随时可点「还原真实显卡名」一键回退。\n\n"
-                    + "确定开启吗？", "开启显卡名伪装", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                    "即将将注册表显卡显示名称修改为 " + GpuSpoof.Target + "：\n\n"
+                    + "· 用途：解锁部分网游对非 40/50 系显卡隐藏的帧生成选项\n"
+                    + "· 影响：系统内所有软件均会识别为 RTX 5090；更新显卡驱动后需重新执行\n"
+                    + "· 生效：修改后需重启电脑（或点击「重启显卡设备」），可随时一键还原\n\n"
+                    + "确定开启伪装吗？", "开启显卡名伪装", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                 if (ans != DialogResult.Yes) return;
-                Log(">>> 开启显卡名伪装：" + GpuSpoof.Apply());
+                Log("开启显卡名伪装：" + GpuSpoof.Apply());
             }
             else
             {
                 var ans = MessageBox.Show(
-                    "还原真实显卡名。\n\n"
-                    + "绝区零的 DLSS / 帧生成选项会随之消失（那本来就是伪装的副产品）。\n"
-                    + "同样需要重启电脑（或「重启显卡设备」）才生效。\n\n"
-                    + "确定还原吗？", "还原显卡名", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    "确定还原真实显卡名称吗？\n\n"
+                    + "还原后部分网游内的帧生成选项将随之隐藏，重启电脑或显卡设备后生效。",
+                    "还原显卡名", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (ans != DialogResult.Yes) return;
-                Log(">>> 还原显卡名：" + GpuSpoof.Restore());
+                Log("还原显卡名：" + GpuSpoof.Restore());
             }
             RefreshSpoof();
         }
 
         void DoSpoofRestartDevice()
         {
-            Log(">>> 重启显卡设备：" + GpuSpoof.RestartAdapter());
+            Log("重启显卡设备：" + GpuSpoof.RestartAdapter());
             RefreshSpoof();
         }
 
@@ -16263,7 +16895,7 @@ namespace Fluxion
         // 前置条件检查：驱动版本 / 显卡名伪装状态 / 系统版本 / 6X 前提，逐条给结论
         void Do030Precheck()
         {
-            Log(">>> " + Dlssg030.Ver + " 前置条件检查");
+            Log(Dlssg030.Ver + " 前置条件检查");
             foreach (string ln in Dlssg030.PrereqReport().Split('\n'))
             {
                 string q = ln.TrimEnd();
@@ -16302,41 +16934,23 @@ namespace Fluxion
             if (selected == null) { Log("  请先在左侧游戏栏选中一个游戏"); return; }
             string kind = XeMfg.Detect(FgDir(selected));
             bool generic = kind.Length == 0;      // 通用（3A 单机）：作者文档只要求入口 + ini 两个文件
-            // 绝区零实测：装 0.3.x 之后设置里依然没有帧生成选项 ——
-            //  因为 0.3.x 走代理模式、**不做显卡名伪装**，而绝区零的 DLSS / 帧生成选项正是靠伪装才会出现。
-            //  2026-09-16 两次实测都如此，而且 0.3.x 还会顶掉本来能用的方案 A（用户照提示点卸载导致）。
-            //  所以这里在用户按下按钮的那一刻就把事实摆出来。
-            // 2026-09-18 改正两处与实测相反的文案：
-            //  ① "方案 A 在绝区零不可用、从未加载成功" 是错的 —— 绝区零现在跑的就是方案 A
-            //     （d3d12.dll 入口，OptiScaler.log 20:33 还在写）；
-            //  ② 教用户导入 .reg 改显卡名是危险的：DeviceFP 已把 MIHOYOSDK_GPU_NAME 记成 invalid，
-            //     走注册表还是走 DXGI 伪装都会被判环境篡改 → (0,11008) 闪退。
-            //  另：这六行原来把换行写成 `\\n`（字面反斜杠），弹窗里显示的就是一排 `\n` —— 一并修掉。
             string zzzWarn = kind == "zzz"
-                ? "※ 绝区零请注意（2026-09-18 实测改正）：\n"
-                + "  · 绝区零按显卡名决定是否显示 DLSS / 帧生成选项，非 40/50 系显卡（如 RTX 20/30 系列）会被官方识别判定为不支持原生 DLSS 3 帧生成；\n"
-                + "  · 但**不要**再尝试导入外部注册表显卡名伪装（如改注册表或假冒 RTX 4090）：\n"
-                + "    DeviceFP 已经会将非真实伪装的 GPU 名记成 invalid（MIHOYOSDK_GPU_NAME），\n"
-                + "    伪装无论走注册表还是走外部 DXGI 注入都很可能被游戏完整性校验判为环境篡改 → 进游戏后弹 (0,11008) 闪退。\n"
-                + "  · " + Dlssg030.Knowledge("zzz-spoof", "版本相关的伪装结论请先看说明页，别照旧印象操作") + "。\n"
-                + "    （这条是按当前代理版本 " + Dlssg030.Ver + " 从 catalog.json 的 knowledge 表挑的）\n"
-                + "  · 绝区零当前唯一能让「帧生成」选项出现的是方案 A。要用方案 A 就关掉本对话框，\n"
-                + "    在「概览」把方案选成「OptiScaler · 方案 A」，点「安装并应用」。\n\n"
+                ? "※ 绝区零兼容提示：\n"
+                + "  · 0.3.x 代理不包含显卡名伪装，非 40/50 系显卡安装后游戏内仍不会显示帧生成开关。\n"
+                + "  · 请勿对绝区零使用注册表显卡名伪装，否则可能触发完整性校验（报错 11008 闪退）。\n"
+                + "  · " + Dlssg030.Knowledge("zzz-spoof", "请优先使用方案 A") + "。\n"
+                + "  · 建议取消本次操作，在「概览」页切换为「方案 A · OptiScaler」。\n\n"
                 : "";
             if (MessageBox.Show(
                 zzzWarn
-                + "将部署 DLSSG for SM86 " + Dlssg030.Ver + "（代理模式，真 DLSS 多帧生成）。\n\n"
-                + "· 代理为自签名的第三方 DLL，带内核反作弊的游戏理论上仍有封号风险，请自行判断\n"
+                + "即将部署 DLSSG for SM86 " + Dlssg030.Ver + "（代理模式）：\n\n"
+                + "· 第三方自签名组件，含反作弊保护的游戏请自行评估风险\n"
                 + (generic
-                    ? "· 通用模式（3A 单机）：只放入口 " + Cfg.DlssgGenericEntry + " + dlssg_sm86.ini 两个文件，\n"
-                    + "  不覆盖游戏自带的 nvngx 运行库；单机通常不需要改显卡名。\n"
-                    + "  若游戏不加载这个入口名，回到本区块把「通用游戏入口」换成别的名字再试。\n"
-                    + "· 目录里已有的旧版代理（14.9 MB 那种）会被整套停放（只改名，不删文件）\n"
-                    : "· 与方案 A 互斥（两套抢同一个入口 DLL），切换会自动完成：\n"
-                    + "  本方案会把方案 A 的入口与配套组件改名停放（<文件>.parked.opti），不删任何文件；\n"
-                    + "  想切回去，在「概览」把方案选成「OptiScaler · 方案 A」再点「安装并应用」，停放的文件会原样改回原名。\n"
-                    + "· 覆盖的游戏自带 nvngx 运行库会自动备份\n")
-                + "\n确定为它切换到本方案吗？",
+                    ? "· 通用模式：写入入口 " + Cfg.DlssgGenericEntry + " 与 dlssg_sm86.ini，不覆盖原厂 nvngx 运行库\n"
+                    + "· 已有旧版代理将自动改名停放，不删除原文件\n"
+                    : "· 自动将当前目录内互斥方案改名停放（.parked.*），可随时切回\n"
+                    + "· 自动备份被替换的原厂运行库\n")
+                + "\n确定部署吗？",
                 "切换到 DLSS MFG " + Dlssg030.Ver + " · " + selected.Title, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
             // 二游规则：作者发布包里那张「几个网游注入.txt」表只给了 0.3.x 那套的入口。
             //  跟作者给的不一致时先摆出来 —— 允许继续装（游戏不加载某个入口名是常态），
@@ -16562,9 +17176,8 @@ namespace Fluxion
             string e = Dlssg040.InstalledEntry(FgDir(selected));
             if (e.Length == 0) { Log("  这个目录里没有 0.4.x 的代理（无需清理）：" + FgDir(selected)); return; }
             if (MessageBox.Show(
-                "将**删除**（不是停放）该目录里的 0.4.x 代理 " + e + "、dlssg_sm86.ini 与整个 dlssg_sm86\\ 资源目录。\n"
-                + "· 与「停放」不同：这一步是真的删除，切不回来，只能重新部署\n"
-                + "· 只在确定不再用这套时才做\n\n确定删除吗？",
+                "即将彻底删除该游戏目录内的 0.4.x 代理（" + e + "）、dlssg_sm86.ini 与 dlssg_sm86\\ 目录。\n\n"
+                + "此操作将直接移除文件（而非改名停放），后续使用需重新部署。确定删除吗？",
                 "彻底清理 0.4.x · " + selected.Title, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
             Log("彻底清理 0.4.x：" + FgDir(selected));
             Log("  " + Dlssg040.Purge(FgDir(selected)));
@@ -16614,7 +17227,7 @@ namespace Fluxion
         void Do040Tuning()
         {
             Save040Tuning();
-            Log(">>> 应用 0.4.x 参数：Optimized=" + Cfg.DlssgOptimized040
+            Log("应用 0.4.x 参数：Optimized=" + Cfg.DlssgOptimized040
                 + " · Preset=" + Cfg.DlssgPreset040
                 + " · Engine=" + Cfg.DlssgEngine040
                 + " · SuperResolution=" + (Cfg.DlssgSr040 ? "M-INT8" : "Off"));
@@ -16639,7 +17252,7 @@ namespace Fluxion
         {
             if (selected == null) { Log("  请先选中一个游戏"); return; }
             string d = FgDir(selected);
-            Log(">>> 帧生成生效检查：" + selected.Title + " · " + Plan.PlanName(Plan.Current(d)));
+            Log("帧生成生效检查：" + selected.Title + " · " + Plan.PlanName(Plan.Current(d)));
             Log("  目录：" + d);
             Dlssg040.LogCheck lc = Dlssg040.CheckLogs(d);
             Log("  " + lc.Line());
@@ -16776,7 +17389,7 @@ namespace Fluxion
             if (upstreamBusy) { Log("  正在取新版，稍等"); return; }
             upstreamBusy = true;
             if (btnNvFetch != null) btnNvFetch.Enabled = false;
-            Log(">>> 查询 " + Upstream.RepoOf("mfgbridge") + " 的最新 release …"
+            Log("查询 " + Upstream.RepoOf("mfgbridge") + " 的最新 release …"
                 + (Cfg.DlssgUseProxy ? "（经代理 " + Cfg.DlssgProxy + "）" : "（直连）"));
 
             var gw = new BackgroundWorker();
@@ -16815,11 +17428,7 @@ namespace Fluxion
             gw.RunWorkerAsync();
         }
 
-        // 作者的网盘链接：不再"复制一大段文本让人自己粘"（2026-11-01 用户原话：
-        //  "难道不会定向到这个链接吗？还要别人一个一个复制吗"）—— 改成每条一个「打开」按钮，
-        //  点了直接跳浏览器；百度链接自带 ?pwd= 提取码，打开即免输。
-        //  仍不自动下载 —— 网盘要登录、直链会过期，写个抓取器也是"十次里成功两次"，
-        //  不如把入口做到一键直达。
+        // 作者的网盘链接：每条提供一键「打开」直达浏览器（百度链接自带 ?pwd= 提取码，打开即免输）。
         void DoNetDiskSources()
         {
             var all = NetDiskSources.All;
@@ -16834,81 +17443,130 @@ namespace Fluxion
             dlg.AutoScaleMode = AutoScaleMode.None;
             dlg.ShowInTaskbar = false;
             dlg.ShowIcon = false;
-            int rowH = Theme.S(52);
-            dlg.ClientSize = new Size(Theme.S(640), Theme.S(46 + all.Length * rowH + 54));
+            int rowH = Theme.S(54);
+            int cardH = Theme.S(12) + all.Length * rowH;
+            dlg.ClientSize = new Size(Theme.S(640), Theme.S(42) + cardH + Theme.S(16) + Theme.S(54));
             try { Theme.ApplyChrome(dlg.Handle); } catch { }
 
             var tip = new TxtLbl();
-            tip.Text = "点「打开」直接跳到网盘（提取码已带上）；下到的包用 0.4.x 区块的「导入资源包…」按钮选择导入。";
-            tip.AutoSize = true;
+            tip.Text = "点击「打开」直达对应网盘（已附提取码）；下载完成后可在 0.4.x 区块点击「导入资源包…」导入。";
+            tip.AutoSize = false;
+            tip.AutoEllipsis = true;
             tip.ForeColor = Theme.TextDim;
+            tip.BackColor = Theme.Bg;
             tip.Font = Theme.F(9f);
-            tip.Location = new Point(Theme.S(16), Theme.S(12));
+            tip.Location = new Point(Theme.S(18), Theme.S(12));
+            tip.Size = new Size(Theme.S(604), Theme.S(24));
             dlg.Controls.Add(tip);
 
-            int y = Theme.S(42);
-            foreach (NetDisk d in all)
+            var card = new Panel();
+            Buffered(card);
+            card.BackColor = Theme.Panel;
+            card.Location = new Point(Theme.S(18), Theme.S(42));
+            card.Size = new Size(Theme.S(604), cardH);
+            card.Paint += delegate(object s2, PaintEventArgs e2)
             {
+                var g2 = e2.Graphics;
+                g2.SmoothingMode = SmoothingMode.AntiAlias;
+                var cr = new Rectangle(0, 0, card.Width - 1, card.Height - 1);
+                Theme.FillRound(g2, cr, Theme.RCard, Theme.Panel);
+                Theme.EdgeRound(g2, cr, Theme.RCard, Theme.CardEdge, 1f);
+                using (var pDiv = new Pen(Theme.LineSoft, 1f))
+                {
+                    for (int ri = 1; ri < all.Length; ri++)
+                    {
+                        int dy = Theme.S(6) + ri * rowH;
+                        g2.DrawLine(pDiv, Theme.S(16), dy, card.Width - Theme.S(16), dy);
+                    }
+                }
+            };
+
+            for (int idx = 0; idx < all.Length; idx++)
+            {
+                NetDisk d = all[idx];
+                int ry = Theme.S(6) + idx * rowH;
+
                 var t = new TxtLbl();
                 t.Text = d.Name;
                 t.AutoSize = true;
+                t.BackColor = Theme.Panel;
+                t.ForeColor = Theme.Text;
                 t.Font = Theme.FB(9.5f);
-                t.Location = new Point(Theme.S(16), y);
-                dlg.Controls.Add(t);
+                t.Location = new Point(Theme.S(16), ry + Theme.S(7));
+                card.Controls.Add(t);
 
                 var f = new TxtLbl();
-                //  行 2 = 用途。测量截断到按钮区之前（2026-11-01：夸克条那行太长，压到「打开」下面 ——
-                //  用户原话"挡在那儿"。提取码不再拼在行尾 —— 「复制提取码」按钮就在旁边，码本身不必露出）。
-                string line2 = d.For;
-                int maxW = dlg.ClientSize.Width - Theme.S(232);
-                while (line2.Length > 4 && TextRenderer.MeasureText(line2, f.Font).Width > maxW)
-                    line2 = line2.Substring(0, line2.Length - 2).TrimEnd() + "…";
-                f.Text = line2;
-                f.AutoSize = true;
+                f.Text = d.For;
+                f.AutoSize = false;
+                f.AutoEllipsis = true;
+                f.BackColor = Theme.Panel;
                 f.ForeColor = Theme.TextDim;
                 f.Font = Theme.F(9f);
-                f.Location = new Point(Theme.S(16), y + Theme.S(21));
-                dlg.Controls.Add(f);
+                f.Location = new Point(Theme.S(16), ry + Theme.S(28));
+                f.Size = new Size(card.Width - Theme.S(216), Theme.S(20));
+                card.Controls.Add(f);
 
                 string url = d.Url, code = d.Code;
                 var btnOpen = new FlatBtn();
                 btnOpen.Text = "打开";
                 btnOpen.Kind = BtnKind.Primary;
-                btnOpen.Width = Theme.S(72);
-                btnOpen.Location = new Point(dlg.ClientSize.Width - Theme.S(184), y + Theme.S(4));
+                btnOpen.Width = Theme.S(74);
+                btnOpen.Location = new Point(card.Width - Theme.S(192), ry + Theme.S(11));
                 btnOpen.Click += delegate
                 {
                     try { Process.Start(url); }
                     catch (Exception ex) { Log("  打开网盘失败：" + ex.Message + "（链接：" + url + "）"); }
                 };
-                dlg.Controls.Add(btnOpen);
+                card.Controls.Add(btnOpen);
 
                 var btnCode = new FlatBtn();
                 btnCode.Text = "复制提取码";
-                btnCode.Width = Theme.S(100);
-                btnCode.Location = new Point(dlg.ClientSize.Width - Theme.S(104), y + Theme.S(4));
-                btnCode.Visible = code.IndexOf("免密", StringComparison.Ordinal) < 0;   // 夸克免密，没有码可复制
+                btnCode.Width = Theme.S(94);
+                btnCode.Location = new Point(card.Width - Theme.S(110), ry + Theme.S(11));
+                btnCode.Visible = code.IndexOf("免密", StringComparison.Ordinal) < 0;
                 btnCode.Click += delegate
                 {
                     try { Clipboard.SetText(code); Log("  提取码已复制：" + code); } catch { }
                 };
-                dlg.Controls.Add(btnCode);
-
-                y += rowH;
+                card.Controls.Add(btnCode);
             }
+            dlg.Controls.Add(card);
 
-            //  分享 / 存档用：老行为（整段文本进剪贴板）保留成一个角落按钮
+            var bar = new Panel();
+            Buffered(bar);
+            bar.Dock = DockStyle.Bottom;
+            bar.Height = Theme.S(54);
+            bar.BackColor = Theme.Panel;
+            bar.Paint += delegate(object s2, PaintEventArgs e2)
+            {
+                using (var p2 = new Pen(Theme.Line, 1f))
+                    e2.Graphics.DrawLine(p2, 0, 0, bar.Width, 0);
+            };
+
             var btnAll = new FlatBtn();
             btnAll.Text = "复制全部文本";
-            btnAll.Width = Theme.S(110);
-            btnAll.Location = new Point(Theme.S(16), dlg.ClientSize.Height - Theme.S(40));
+            btnAll.Width = Theme.S(112);
+            btnAll.Location = new Point(Theme.S(18), Theme.S(11));
             btnAll.Click += delegate
             {
                 try { Clipboard.SetText(NetDiskSources.Block()); Log("  网盘清单已复制到剪贴板"); } catch { }
             };
-            dlg.Controls.Add(btnAll);
+            bar.Controls.Add(btnAll);
 
-            Log(">>> 网盘下载源：打开 " + all.Length + " 条（点「打开」直达对应网盘）");
+            var btnClose = new FlatBtn();
+            btnClose.Text = "关闭";
+            btnClose.Kind = BtnKind.Primary;
+            btnClose.Width = Theme.S(88);
+            btnClose.Location = new Point(dlg.ClientSize.Width - Theme.S(18) - Theme.S(88), Theme.S(11));
+            btnClose.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnClose.DialogResult = DialogResult.Cancel;
+            bar.Controls.Add(btnClose);
+
+            dlg.Controls.Add(bar);
+            dlg.AcceptButton = btnClose;
+            dlg.CancelButton = btnClose;
+
+            Log("网盘下载源：共 " + all.Length + " 条可用镜像");
             dlg.ShowDialog(this);
         }
 
@@ -16926,7 +17584,7 @@ namespace Fluxion
             }
             updBusy = true;
             if (btnUpdCheck != null) btnUpdCheck.Enabled = false;
-            if (manual) Log(">>> 检查更新（" + SelfRepo + "）…");
+            if (manual) Log("检查更新（" + SelfRepo + "）…");
             var gw = new BackgroundWorker();
             gw.DoWork += delegate(object s, DoWorkEventArgs e)
             {
@@ -17013,35 +17671,238 @@ namespace Fluxion
             return r;
         }
 
-        // 「下载源 / 资源包」：改 GitHub 仓库地址与"要不要连带超分组件"
+        // 「下载源 / 资源包」：统一主题化设置对话框（替代旧版连续两次 Prompt 文本弹窗）
         void DoUpstreamSettings()
         {
             string cur = Cfg.DlssgGitHub;
             if (cur == null || cur.Length == 0) cur = Upstream.Repo();
-            string v = Prompt("GitHub 下载源",
-                "留空或写错会退回作者那个仓库（sdli1995/dlssg_for_sm86）。\n"
-                + "想跟着别人 fork 走，就把它的地址填在这里（支持完整 URL 或 owner/repo）。", cur);
-            if (v == null) return;
-            v = v.Trim();
-            if (v.Length > 0)
+
+            var dlg = new Form();
+            Fx.FadeOnClose(dlg);
+            dlg.Text = "下载源与资源包选项";
+            dlg.StartPosition = FormStartPosition.CenterParent;
+            dlg.FormBorderStyle = FormBorderStyle.Sizable;
+            dlg.MaximizeBox = false; dlg.MinimizeBox = false;
+            dlg.BackColor = Theme.Bg;
+            dlg.ForeColor = Theme.Text;
+            dlg.Font = Theme.F(9f);
+            dlg.AutoScaleMode = AutoScaleMode.None;
+            dlg.MinimumSize = new Size(Theme.S(520), Theme.S(420));
+            dlg.ClientSize = new Size(Theme.S(560), Theme.S(445));
+            dlg.ShowIcon = false;
+            try { Theme.ApplyChrome(dlg.Handle); } catch { }
+
+            var pg = new Pg();
+            pg.Dock = DockStyle.Fill;
+
+            var sRepo = new Sec("GitHub 下载源");
+            var fRepo = new RoundField(Theme.S(380), "例如 sdli1995/dlssg_for_sm86");
+            fRepo.SetText(cur);
+            sRepo.Row("仓库地址", fRepo);
+            sRepo.Body("支持完整 GitHub 地址或 owner/repo 简写；留空将恢复默认上游仓库。\n"
+                     + "当前网络模式：" + (Cfg.DlssgUseProxy ? ("经代理 " + Cfg.DlssgProxy) : "直连") + "（可在「设置」页调整）。");
+            pg.Add(sRepo);
+
+            var sSr = new Sec("0.4.x 超分组件选项");
+            var cbSr = new RoundCheck();
+            Theme.StyleCheck(cbSr, "导入 0.4.x 资源包时一并落盘超分组件（sr\\ 约 186 MB）");
+            cbSr.Checked = Cfg.DlssgSr;
+            sSr.Pair(null, cbSr, 0, null, null, 0);
+            sSr.Body("仅开启 0.4.x 的 [SuperResolution] 实验性超分加速（M-INT8）时才需此目录；仅用多帧生成无需勾选。");
+            pg.Add(sSr);
+
+            dlg.Controls.Add(pg);
+            pg.BringToFront();
+
+            var bar = new FlowLayoutPanel();
+            bar.Dock = DockStyle.Bottom;
+            bar.Height = Theme.S(54);
+            bar.FlowDirection = FlowDirection.RightToLeft;
+            bar.WrapContents = false;
+            bar.BackColor = Theme.Panel;
+            bar.Padding = new Padding(0, Theme.S(11), Theme.S(18), 0);
+            Buffered(bar);
+            bar.Paint += delegate(object s2, PaintEventArgs e2)
             {
-                Cfg.DlssgGitHub = v;
-                Program.SetConfigStr("dlssg", "github", v);
-            }
-            string sr = Prompt("0.4.x 的超分组件",
-                "导入资源包时是否连另 sr\\ 一起落盘（约 186 MB）。\n"
-                + "[SuperResolution] Mode=On 才用得上，出厂是 Off。\n\n"
-                + "填 1 或 yes 表示要，其它表示不要。", Cfg.DlssgSr ? "1" : "0");
-            if (sr != null)
+                using (var p2 = new Pen(Theme.Line, 1f))
+                    e2.Graphics.DrawLine(p2, 0, 0, bar.Width, 0);
+            };
+            var btnSave = new FlatBtn(); btnSave.Text = "保存"; btnSave.Kind = BtnKind.Primary; btnSave.Width = Theme.S(96);
+            var btnCancel = new FlatBtn(); btnCancel.Text = "取消"; btnCancel.Width = Theme.S(84);
+            btnSave.DialogResult = DialogResult.OK;
+            btnCancel.DialogResult = DialogResult.Cancel;
+            bar.Controls.Add(btnCancel);
+            bar.Controls.Add(btnSave);
+            dlg.Controls.Add(bar);
+
+            pg.Reflow();
+            dlg.Shown += delegate
             {
-                bool want = sr.Trim() == "1" || sr.Trim().Equals("yes", StringComparison.OrdinalIgnoreCase)
-                         || sr.Trim().Equals("true", StringComparison.OrdinalIgnoreCase);
-                Cfg.DlssgSr = want;
-                Program.SetConfigBool("dlssg", "superResolutionFiles", want);
+                try { pg.Reflow(); } catch { }
+                try { Theme.ScrollThemeTree(dlg); } catch { }
+                try { dlg.ActiveControl = null; } catch { }
+            };
+
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+            string v = fRepo.RealText == null ? "" : fRepo.RealText.Trim();
+            if (v.Length == 0) v = "https://github.com/sdli1995/dlssg_for_sm86";
+            Cfg.DlssgGitHub = v;
+            Program.SetConfigStr("dlssg", "github", v);
+
+            bool wantSr = cbSr.Checked;
+            Cfg.DlssgSr = wantSr;
+            Program.SetConfigBool("dlssg", "superResolutionFiles", wantSr);
+
+            Log("下载源已设为 " + Upstream.Repo() + "；代理 " + (Cfg.DlssgUseProxy ? Cfg.DlssgProxy : "直连"));
+            Log("超分组件（186 MB）：" + (Cfg.DlssgSr ? "下次导入时一并落盘" : "不落盘（开启超分加速时按需导入）"));
+        }
+
+        // DLSS 运行库巡检与无损热替换对话框（对标 DLSS Swapper，零外部依赖）
+        void ShowDlssRuntimeDialog()
+        {
+            if (selected == null || string.IsNullOrEmpty(selected.Dir))
+            {
+                Log("  请先在左侧选择一个游戏，再打开 DLSS 运行库管理");
+                return;
             }
-            Log("下载源已设为 " + Upstream.Repo() + "；代理 " + (Cfg.DlssgUseProxy ? Cfg.DlssgProxy : "直连")
-                + "（代理开关在「设置」页）");
-            Log("超分组件（186 MB）：" + (Cfg.DlssgSr ? "下次导入时一并落盘" : "不落盘（开 SuperResolution 时再导一次）"));
+            DlssgGame g = selected;
+
+            var dlg = new Form();
+            Fx.FadeOnClose(dlg);
+            dlg.Text = "DLSS 运行库管理 · " + g.Title;
+            dlg.StartPosition = FormStartPosition.CenterParent;
+            dlg.FormBorderStyle = FormBorderStyle.Sizable;
+            dlg.MaximizeBox = false; dlg.MinimizeBox = false;
+            dlg.BackColor = Theme.Bg;
+            dlg.ForeColor = Theme.Text;
+            dlg.Font = Theme.F(9f);
+            dlg.AutoScaleMode = AutoScaleMode.None;
+            dlg.MinimumSize = new Size(Theme.S(560), Theme.S(400));
+            dlg.ClientSize = new Size(Theme.S(620), Theme.S(440));
+            dlg.ShowIcon = false;
+            try { Theme.ApplyChrome(dlg.Handle); } catch { }
+
+            var pg = new Pg();
+            pg.Dock = DockStyle.Fill;
+
+            var sInfo = new Sec("组件状态与可用版本");
+            Label lblSlots = sInfo.Body("正在扫描游戏目录中的 DLSS 组件…");
+            var btnUpAll = new FlatBtn(); btnUpAll.Text = "一键升级可用组件"; btnUpAll.Kind = BtnKind.Primary; btnUpAll.Width = Theme.S(148);
+            var btnUpSr = new FlatBtn(); btnUpSr.Text = "仅升级超分 (SR)"; btnUpSr.Width = Theme.S(124);
+            var btnUpFg = new FlatBtn(); btnUpFg.Text = "仅升级帧生成 (FG)"; btnUpFg.Width = Theme.S(134);
+            var btnRest = new FlatBtn(); btnRest.Text = "无损还原原厂备份"; btnRest.Width = Theme.S(136);
+            sInfo.Buttons(btnUpAll, btnUpSr, btnUpFg, btnRest);
+            pg.Add(sInfo);
+
+            var sSafe = new Sec("安全保障机制");
+            sSafe.Body("· 仅接受具备 NVIDIA 官方数字签名或上游可信证书的 DLL，拒绝覆盖任何未知来源文件。\n"
+                     + "· 首次替换前自动将游戏出厂 DLL 备份为 *" + DlssRuntime.OrigBakSuffix + "（多次升级不会覆盖出厂备份）。\n"
+                     + "· 也可将新版官方 DLL 放入数据目录下的 dlss-repo\\ 文件夹，本窗口会自动识别最高版本。");
+            pg.Add(sSafe);
+
+            Action refreshView = delegate
+            {
+                List<DlssRuntime.Slot> slots = DlssRuntime.Inspect(g.Dir);
+                var sb = new StringBuilder();
+                bool anyUp = false, srUp = false, fgUp = false, anyBak = false;
+                foreach (DlssRuntime.Slot s in slots)
+                {
+                    if (sb.Length > 0) sb.Append("\n\n");
+                    sb.Append("■ ").Append(s.Label).Append("（").Append(s.DllName).Append("）\n");
+                    if (!s.HasGameDll)
+                    {
+                        sb.Append("  游戏当前：未检出（该游戏未内置此组件）");
+                    }
+                    else
+                    {
+                        sb.Append("  游戏当前：").Append(s.GameVer.Length > 0 ? s.GameVer : "版本未知")
+                          .Append("（").Append(s.GameDllPath).Append("）");
+                    }
+                    sb.Append("\n  资源包最新：").Append(s.PackVer.Length > 0 ? s.PackVer : "本地暂无可用包");
+                    if (s.HasBackup)
+                    {
+                        anyBak = true;
+                        sb.Append("\n  原厂备份：已就绪（出厂 ").Append(s.BackupVer.Length > 0 ? s.BackupVer : "已留存").Append("，随时可无损还原）");
+                    }
+                    if (s.CanUpgrade)
+                    {
+                        anyUp = true;
+                        if (s.Kind == "sr") srUp = true;
+                        if (s.Kind == "fg") fgUp = true;
+                        sb.Append("\n  ★ 可升级至 ").Append(s.PackVer);
+                    }
+                }
+                SetBody(lblSlots, sb.ToString());
+                btnUpAll.Enabled = anyUp;
+                btnUpSr.Enabled = srUp;
+                btnUpFg.Enabled = fgUp;
+                btnRest.Enabled = anyBak;
+                try { pg.Reflow(); } catch { }
+            };
+
+            btnUpAll.Click += delegate
+            {
+                string msg = DlssRuntime.Upgrade(g.Dir, "all");
+                Log("[DLSS 运行库] " + g.Title + "：" + msg);
+                refreshView();
+                try { RefreshFgSummary(); } catch { }
+                MessageBox.Show(dlg, msg, "DLSS 运行库升级", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+            btnUpSr.Click += delegate
+            {
+                string msg = DlssRuntime.Upgrade(g.Dir, "sr");
+                Log("[DLSS 运行库] " + g.Title + "：" + msg);
+                refreshView();
+                try { RefreshFgSummary(); } catch { }
+                MessageBox.Show(dlg, msg, "DLSS 超分运行库升级", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+            btnUpFg.Click += delegate
+            {
+                string msg = DlssRuntime.Upgrade(g.Dir, "fg");
+                Log("[DLSS 运行库] " + g.Title + "：" + msg);
+                refreshView();
+                try { RefreshFgSummary(); } catch { }
+                MessageBox.Show(dlg, msg, "DLSS 帧生成运行库升级", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+            btnRest.Click += delegate
+            {
+                string msg = DlssRuntime.Restore(g.Dir, "all");
+                Log("[DLSS 运行库] " + g.Title + "：" + msg);
+                refreshView();
+                try { RefreshFgSummary(); } catch { }
+                MessageBox.Show(dlg, msg, "还原原厂运行库", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+
+            dlg.Controls.Add(pg);
+            pg.BringToFront();
+
+            var bar = new FlowLayoutPanel();
+            bar.Dock = DockStyle.Bottom;
+            bar.Height = Theme.S(54);
+            bar.FlowDirection = FlowDirection.RightToLeft;
+            bar.WrapContents = false;
+            bar.BackColor = Theme.Panel;
+            bar.Padding = new Padding(0, Theme.S(11), Theme.S(18), 0);
+            Buffered(bar);
+            bar.Paint += delegate(object s2, PaintEventArgs e2)
+            {
+                using (var p2 = new Pen(Theme.Line, 1f))
+                    e2.Graphics.DrawLine(p2, 0, 0, bar.Width, 0);
+            };
+            var btnCloseDlg = new FlatBtn(); btnCloseDlg.Text = "完成"; btnCloseDlg.Kind = BtnKind.Primary; btnCloseDlg.Width = Theme.S(96);
+            btnCloseDlg.DialogResult = DialogResult.OK;
+            bar.Controls.Add(btnCloseDlg);
+            dlg.Controls.Add(bar);
+
+            refreshView();
+            dlg.Shown += delegate
+            {
+                try { pg.Reflow(); } catch { }
+                try { Theme.ScrollThemeTree(dlg); } catch { }
+                try { dlg.ActiveControl = null; } catch { }
+            };
+            dlg.ShowDialog(this);
         }
 
         // 「从 GitHub 取新版」：查 release → 下 asset → 交给 Pack 识别归位
@@ -17051,7 +17912,7 @@ namespace Fluxion
             upstreamBusy = true;
             if (btnUpRelease != null) btnUpRelease.Enabled = false;
             // 每一步都打进日志：卡在查询、下载还是识别阶段，用户一眼能看出来
-            Log(">>> 查询 " + Upstream.Repo() + " 的最新 release …"
+            Log("查询 " + Upstream.Repo() + " 的最新 release …"
                 + (Cfg.DlssgUseProxy ? "（经代理 " + Cfg.DlssgProxy + "）" : "（直连）"));
 
             var gw = new BackgroundWorker();
@@ -17114,7 +17975,7 @@ namespace Fluxion
 
             upstreamBusy = true;
             if (btnUpRelease != null) btnUpRelease.Enabled = false;
-            Log(">>> 下载 " + r.Asset + "（" + Math.Round(r.Size / 1048576.0, 1) + " MB）…");
+            Log("下载 " + r.Asset + "（" + Math.Round(r.Size / 1048576.0, 1) + " MB）…");
             var gw = new BackgroundWorker();
             string localZip = null, err = null;
             gw.DoWork += delegate(object s, DoWorkEventArgs e)
@@ -17160,7 +18021,7 @@ namespace Fluxion
             try { Theme.ApplyChrome(dlg.Handle); } catch { }
 
             var tip = new TxtLbl();
-            tip.Text = "这个文件夹里有 " + zips.Count + " 个插件包（新→旧）。点选一个 → 「导入选中」。";
+            tip.Text = "当前文件夹包含 " + zips.Count + " 个组件包（按时间倒序）。点选一项后点击「导入选中」，或直接双击确认。";
             tip.AutoSize = true;
             tip.ForeColor = Theme.TextDim;
             tip.Font = Theme.F(9f);
@@ -17168,10 +18029,9 @@ namespace Fluxion
             dlg.Controls.Add(tip);
 
             var lb = new ListBox();
-            lb.Font = Theme.F(9.5f);
-            lb.ItemHeight = Theme.S(22);
-            lb.BorderStyle = BorderStyle.FixedSingle;
-            lb.HorizontalScrollbar = true;
+            var wrap = WrapThemedListBox(lb);
+            wrap.Location = new Point(Theme.S(16), Theme.S(38));
+            wrap.Size = new Size(dlg.ClientSize.Width - Theme.S(32), dlg.ClientSize.Height - Theme.S(104));
             var picked = new List<string>();
             foreach (string z in zips)
             {
@@ -17179,23 +18039,29 @@ namespace Fluxion
                 FileInfo fi = new FileInfo(z);
                 string row = string.Format("{0}　·　{1:0.0} MB　·　{2:MM-dd HH:mm}",
                     Path.GetFileName(z), fi.Length / 1048576.0, fi.LastWriteTime);
-                int maxW = lb.ClientSize.Width - Theme.S(24);
-                while (row.Length > 6 && TextRenderer.MeasureText(row, lb.Font).Width > maxW)
-                    row = row.Substring(0, row.Length - 2).TrimEnd() + "…";
                 lb.Items.Add(row);
             }
             if (picked.Count > 0) lb.SelectedIndex = 0;
-            lb.Location = new Point(Theme.S(16), Theme.S(40));
-            lb.Size = new Size(dlg.ClientSize.Width - Theme.S(32), dlg.ClientSize.Height - Theme.S(108));
-            dlg.Controls.Add(lb);
+            dlg.Controls.Add(wrap);
+
+            var bar = new FlowLayoutPanel();
+            bar.Dock = DockStyle.Bottom;
+            bar.Height = Theme.S(54);
+            bar.FlowDirection = FlowDirection.RightToLeft;
+            bar.WrapContents = false;
+            bar.BackColor = Theme.Panel;
+            bar.Padding = new Padding(0, Theme.S(11), Theme.S(16), 0);
+            Buffered(bar);
+            bar.Paint += delegate(object s2, PaintEventArgs e2)
+            {
+                using (var p2 = new Pen(Theme.Line, 1f))
+                    e2.Graphics.DrawLine(p2, 0, 0, bar.Width, 0);
+            };
 
             var btnCancel = new FlatBtn(); btnCancel.Text = "取消"; btnCancel.Width = Theme.S(84);
-            btnCancel.Location = new Point(dlg.ClientSize.Width - Theme.S(100), dlg.ClientSize.Height - Theme.S(52));
             btnCancel.Click += delegate { dlg.Close(); };
-            dlg.Controls.Add(btnCancel);
 
-            var btnGo = new FlatBtn(); btnGo.Text = "导入选中"; btnGo.Kind = BtnKind.Primary; btnGo.Width = Theme.S(110);
-            btnGo.Location = new Point(dlg.ClientSize.Width - Theme.S(224), dlg.ClientSize.Height - Theme.S(52));
+            var btnGo = new FlatBtn(); btnGo.Text = "导入选中"; btnGo.Kind = BtnKind.Primary; btnGo.Width = Theme.S(104);
             btnGo.Click += delegate
             {
                 if (lb.SelectedIndex < 0 || lb.SelectedIndex >= picked.Count) return;
@@ -17203,9 +18069,15 @@ namespace Fluxion
                 dlg.Close();
                 StartPackImport(new List<string> { pick });   // 重活在后台（两段式），窗口不卡
             };
-            dlg.Controls.Add(btnGo);
+            bar.Controls.Add(btnCancel);
+            bar.Controls.Add(btnGo);
+            dlg.Controls.Add(bar);
+            dlg.AcceptButton = btnGo;
+            dlg.CancelButton = btnCancel;
             lb.DoubleClick += delegate { btnGo.PerformClick(); };
 
+            Theme.ScrollThemeTree(dlg);
+            dlg.Shown += delegate { try { Theme.ScrollThemeTree(dlg); } catch { } };
             dlg.ShowDialog(this);
         }
 
@@ -17217,7 +18089,7 @@ namespace Fluxion
         void DoCleanResidue()
         {
             if (selected == null) { Log("请先在列表里点选一个游戏"); return; }
-            Log(">>> 扫描反作弊隔离残留: " + selected.Title);
+            Log("扫描反作弊隔离残留：" + selected.Title);
             var r = Dlssg.ScanResidue(selected.Dir);
             if (r.Count == 0)
             {
@@ -17503,18 +18375,18 @@ namespace Fluxion
                     new Rectangle(Theme.S(20), 0, head.Width - Theme.S(68), head.Height), Theme.Text,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
             };
-            var btnX = new TxtLbl();
-            btnX.Text = "×";
-            btnX.Dock = DockStyle.Right;
-            btnX.Width = Theme.S(44);
-            btnX.TextAlign = ContentAlignment.MiddleCenter;
-            btnX.Font = Theme.F(13f);
-            btnX.ForeColor = Theme.TextDim;
+            var btnX = new WinBtn();
+            btnX.Kind = WinKind.Close;
+            btnX.Width = Theme.S(36);
+            btnX.Height = Theme.S(30);
             btnX.BackColor = Theme.Bg;
-            btnX.Cursor = Cursors.Hand;
+            btnX.Location = new Point(dlg.ClientSize.Width - Theme.S(46), (head.Height - btnX.Height) / 2);
+            btnX.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnX.Click += delegate { dlg.DialogResult = DialogResult.Cancel; dlg.Close(); };
-            btnX.MouseEnter += delegate { btnX.ForeColor = Theme.Text; };
-            btnX.MouseLeave += delegate { btnX.ForeColor = Theme.TextDim; };
+            head.Resize += delegate
+            {
+                btnX.Location = new Point(head.Width - Theme.S(46), (head.Height - btnX.Height) / 2);
+            };
             head.Controls.Add(btnX);
 
             //  ---- 正文（纵向流式，不套 Pg：不会再出现滚动条与渐变裁切）----
@@ -17558,17 +18430,23 @@ namespace Fluxion
             hint.ForeColor = Theme.TextDim;
             hint.BackColor = Theme.Bg;
             hint.Margin = new Padding(0);
-            hint.Text = "勾选后不再问；恢复去「设置 → 窗口与托盘」。";
+            hint.Text = "勾选后不再询问；后续可在「设置 → 窗口与托盘」中修改。";
             body.Controls.Add(hint);
 
             //  ---- 底部按钮 ----
             var bar = new FlowLayoutPanel();
             bar.Dock = DockStyle.Bottom;
-            bar.Height = Theme.S(58);
+            bar.Height = Theme.S(54);
             bar.FlowDirection = FlowDirection.RightToLeft;
             bar.WrapContents = false;
-            bar.BackColor = Theme.Bg;
-            bar.Padding = new Padding(0, Theme.S(10), Theme.S(18), 0);
+            bar.BackColor = Theme.Panel;
+            bar.Padding = new Padding(0, Theme.S(11), Theme.S(18), 0);
+            Buffered(bar);
+            bar.Paint += delegate(object s2, PaintEventArgs e2)
+            {
+                using (var p2 = new Pen(Theme.Line, 1f))
+                    e2.Graphics.DrawLine(p2, 0, 0, bar.Width, 0);
+            };
             var btnOk = new FlatBtn(); btnOk.Text = "确认"; btnOk.Kind = BtnKind.Primary; btnOk.Width = Theme.S(88);
             var btnCancel = new FlatBtn(); btnCancel.Text = "取消"; btnCancel.Width = Theme.S(88);
             btnOk.DialogResult = DialogResult.OK;
@@ -17581,21 +18459,31 @@ namespace Fluxion
             dlg.Controls.Add(head);
             dlg.AcceptButton = btnOk; dlg.CancelButton = btnCancel;
 
-            //  圆角 + 1px 描边：Region 是硬边，但配合底色一致的外框看不出来
+            //  Win11 优先走 DWM 硬件抗锯齿圆角与原生边框/阴影；旧系统回退 Region + 1px 描边
+            bool dwm = false;
             Action round = delegate
             {
                 try
                 {
+                    if (dlg.IsHandleCreated && !dwm)
+                        dwm = Theme.ApplyMenuChrome(dlg.Handle);
+                    if (dwm)
+                    {
+                        if (dlg.Region != null) { Region r0 = dlg.Region; dlg.Region = null; r0.Dispose(); }
+                        return;
+                    }
                     if (dlg.Region != null) dlg.Region.Dispose();
                     dlg.Region = new Region(Theme.Round(new Rectangle(0, 0, dlg.Width, dlg.Height), Theme.S(10)));
                 }
                 catch { }
             };
+            dlg.HandleCreated += delegate { round(); };
             dlg.Resize += delegate { round(); };
             dlg.Paint += delegate(object s, PaintEventArgs e)
             {
+                if (dwm) return;
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                Theme.EdgeRound(e.Graphics, new Rectangle(0, 0, dlg.Width - 1, dlg.Height - 1), Theme.S(10), Theme.Line, 1f);
+                Theme.EdgeRound(e.Graphics, new Rectangle(0, 0, dlg.Width - 1, dlg.Height - 1), Theme.S(10), Theme.CardEdge, 1f);
             };
 
             //  按住标题栏拖窗口（无边框窗口默认不能拖）
@@ -17842,7 +18730,7 @@ namespace Fluxion
         {
             base.OnResize(e);
             //  最小化（不是托盘）也算后台：任务栏里挂着的那份不需要 1Hz 的时钟重绘
-            try { SetBgMode(WindowState == FormWindowState.Minimized); } catch { }
+            try { SetBgMode(!Visible || WindowState == FormWindowState.Minimized); } catch { }
             if (resizeRepaintQueued || !IsHandleCreated) return;
             resizeRepaintQueued = true;
             try
@@ -17933,7 +18821,31 @@ namespace Fluxion
             {
                 if (sysTimer != null) sysTimer.Start();
                 if (linkTimer != null) linkTimer.Start();
-                if (logTimer != null) logTimer.Start();
+                if (!bgMode && logTimer != null) logTimer.Start();
+            }
+            else if (m.Msg == WM_DPICHANGED)
+            {
+                int newDpi = (int)(m.WParam.ToInt64() & 0xFFFF);
+                bool scaleChanged = Theme.UpdateDpi(newDpi);
+                if (m.LParam != IntPtr.Zero)
+                {
+                    try
+                    {
+                        NcRect suggested = (NcRect)Marshal.PtrToStructure(m.LParam, typeof(NcRect));
+                        MinimumSize = new Size(Theme.S(860), Theme.S(560));
+                        Bounds = new Rectangle(suggested.Left, suggested.Top,
+                            Math.Max(MinimumSize.Width, suggested.Right - suggested.Left),
+                            Math.Max(MinimumSize.Height, suggested.Bottom - suggested.Top));
+                    }
+                    catch { }
+                }
+                if (scaleChanged)
+                {
+                    try { RebuildChrome(); } catch { }
+                    try { SyncMaxBounds(); } catch { }
+                }
+                m.Result = IntPtr.Zero;
+                return;
             }
             else if (m.Msg == WM_DROPFILES)
             {
@@ -18041,7 +18953,7 @@ namespace Fluxion
             if (usable.Count == 0) return;
             paths = usable;
             packBusy = true;
-            Log(">>> 插件包导入：共 " + paths.Count + " 项（重活已在后台跑，窗口不会卡）");
+            Log("正在识别导入包（共 " + paths.Count + " 项）…");
             foreach (string p in paths) Log("    " + p);
             System.Threading.ThreadPool.QueueUserWorkItem(delegate
             {
@@ -18158,9 +19070,9 @@ namespace Fluxion
                     + "\n目标：" + Dlssg030.PackRoot
                     + "\n\n已装本方案的游戏（" + targets.Count + "）："
                     + (targets.Count > 0 ? GameNames(targets) : "无")
-                    + "\n\n【是】更新资源包，并重抄到上面这些游戏\n"
-                    + "【否】只更新资源包，游戏等你自己去点\n"
-                    + "【取消】什么都不做";
+                    + "\n\n「是」：更新组件包并同步部署至上述游戏\n"
+                    + "「否」：仅更新本地组件包\n"
+                    + "「取消」：放弃导入";
                 DialogResult r = MessageBox.Show(ask, "插件包导入 · " + Path.GetFileName(p.Input),
                     MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (r == DialogResult.Cancel) { Log("  → 已取消"); continue; }
@@ -18179,7 +19091,7 @@ namespace Fluxion
                     List<DlssgGame> targets = (List<DlssgGame>)job[2];
                     try
                     {
-                        Log(">>> 归位到资源包：" + Path.GetFileName(p.Input));
+                        Log("归位到资源包：" + Path.GetFileName(p.Input));
                         Log("  " + Pack.Import(p, delegate(string s) { Log(s); }));
                         imported++;
                         try
@@ -18191,7 +19103,7 @@ namespace Fluxion
 
                         if (mode == 1)
                         {
-                            Log(">>> 重新部署（强制重抄资源包里的新文件）");
+                            Log("重新部署（同步新组件至已安装游戏）");
                             Log("  " + Pack.DeployTo(targets, delegate(string s) { Log(s); }));
                         }
                     }
@@ -18245,7 +19157,7 @@ namespace Fluxion
         {
             if (lvOpt == null || lvOpt.SelectedItems.Count == 0)
             {
-                MessageBox.Show(this, "请先在下面的列表里点选一行（带 ⚙ 的行可以调）。", "取值细调",
+                MessageBox.Show(this, "请先在下方列表中点选一行（标有「可调」的行可调整具体档位）。", "取值细调",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
@@ -18254,12 +19166,9 @@ namespace Fluxion
             if (string.IsNullOrEmpty(key))
             {
                 string exp = sel.SubItems.Count > 3 ? sel.SubItems[3].Text : "";
-                MessageBox.Show(this, "「" + sel.Text.Replace("  ⚙", "") + "」没有可调档位，本工具不代改。\n\n"
-                    + (string.IsNullOrEmpty(exp) ? "" : "这一项自己的说明：\n" + exp + "\n\n")
-                    + "只有两类会这样：\n"
-                    + "· 没有「更优的档位」可选 —— 默认即最优（如异类策略、核心拓扑）；\n"
-                    + "· 改错的代价是设备消失 / 系统起不来 —— HPET 强制、GPU 中断绑核、MSI 强制转换、rBAR 全局强开。\n\n"
-                    + "状态若是灰色的「待确认」，那不是缺陷（可选 / 不适用 / 读不到），不用处理。",
+                MessageBox.Show(this, "「" + sel.Text.Replace("  ⚙", "") + "」为只读核验项，无可选档位。\n\n"
+                    + (string.IsNullOrEmpty(exp) ? "" : "参考建议：" + exp + "\n\n")
+                    + "注：默认已是最优或涉及底层硬件安全（如中断亲和、HPET、全局 rBAR）的项目仅做状态核验，不提供代改。",
                     "取值细调", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
@@ -18273,7 +19182,7 @@ namespace Fluxion
 
             var dlg = new Form();
             Fx.FadeOnClose(dlg);   // 关闭淡出 200ms（关动画/系统关特效时零行为）
-            dlg.Text = "取值细调（保存后立即写入系统）";
+            dlg.Text = "取值细调";
             dlg.StartPosition = FormStartPosition.CenterParent;
             dlg.FormBorderStyle = FormBorderStyle.Sizable;
             dlg.MaximizeBox = false; dlg.MinimizeBox = false;
@@ -18300,7 +19209,17 @@ namespace Fluxion
                     pg.Add(sec);
                     lastGroup = k.Group;
                 }
-                else sec = (Sec)pg.Controls[pg.Controls.Count - 1];
+                else
+                {
+                    // BUG-G7: 安全遍历找到最后一个 Sec，不硬转 pg.Controls 末尾（末尾可能是 FlatScroll）
+                    sec = null;
+                    for (int ci = pg.Controls.Count - 1; ci >= 0; ci--)
+                    {
+                        sec = pg.Controls[ci] as Sec;
+                        if (sec != null) break;
+                    }
+                    if (sec == null) { sec = new Sec(k.Group); pg.Add(sec); lastGroup = k.Group; }
+                }
 
                 var cb = new RoundCombo();
                 cb.Tag = k;
@@ -18323,9 +19242,9 @@ namespace Fluxion
                 if (focusKey != null && k.Key == focusKey) focusCb = cb;
             }
 
-            var sNote = new Sec("怎么用 / 边界");
-            sNote.Body("每项对应 config.json 的一个键，重启后仍保留；标「需重启」的当次不生效。\n"
-                     + "只放「改坏能改回」的项；会让设备消失的那类只做只读核验。");
+            var sNote = new Sec("说明");
+            sNote.Body("修改项将写入 config.json 并立即应用至系统；标注「需重启」的项目在重启电脑后生效。\n"
+                     + "底层高风险硬件项仅在列表做只读核验，不在此处开放修改。");
             pg.Add(sNote);
 
             dlg.Controls.Add(pg);
@@ -18333,11 +19252,17 @@ namespace Fluxion
 
             var bar = new FlowLayoutPanel();
             bar.Dock = DockStyle.Bottom;
-            bar.Height = Theme.S(52);
+            bar.Height = Theme.S(54);
             bar.FlowDirection = FlowDirection.RightToLeft;
             bar.WrapContents = false;
-            bar.BackColor = Theme.Bg;
-            bar.Padding = new Padding(0, Theme.S(11), Theme.S(16), 0);
+            bar.BackColor = Theme.Panel;
+            bar.Padding = new Padding(0, Theme.S(11), Theme.S(18), 0);
+            Buffered(bar);
+            bar.Paint += delegate(object s2, PaintEventArgs e2)
+            {
+                using (var p2 = new Pen(Theme.Line, 1f))
+                    e2.Graphics.DrawLine(p2, 0, 0, bar.Width, 0);
+            };
             var btnSave = new FlatBtn(); btnSave.Text = "保存并应用"; btnSave.Kind = BtnKind.Primary; btnSave.Width = Theme.S(104);
             var btnCancel = new FlatBtn(); btnCancel.Text = "取消"; btnCancel.Width = Theme.S(84);
             btnSave.DialogResult = DialogResult.OK;
@@ -18355,7 +19280,21 @@ namespace Fluxion
             dlg.Shown += delegate
             {
                 try { pg.Reflow(); } catch { }
-                if (focusCb != null) { try { focusCb.Focus(); } catch { } }
+                try { Theme.ScrollThemeTree(dlg); } catch { }
+                if (focusCb != null)
+                {
+                    // BUG-G7: 滚到目标旋钮所在分区使其可见（弹窗内 Pg 也可能需要滚动）
+                    try
+                    {
+                        for (Control p = focusCb; p != null; p = p.Parent)
+                        {
+                            Sec s = p as Sec;
+                            if (s != null) { pg.ScrollToSec(s); break; }
+                        }
+                    }
+                    catch { }
+                    try { focusCb.Focus(); } catch { }
+                }
             };
 
             if (dlg.ShowDialog(this) != DialogResult.OK) return;
@@ -18442,7 +19381,7 @@ namespace Fluxion
             //  为一句话占一整张卡片（约 90px）会把内容顶出一屏，用户还得滚一下才看得全。
             sEnv.Body("一行一条 KEY=VALUE；空行与 # 开头的行忽略。\n"
                      + "值里可以再有 =，只按第一个 = 切分。例：DXVK_HUD=fps"
-                     + (steam ? "\n⚠ 这个游戏走 steam:// 协议启动，参数与环境变量都不会传进去。" : ""));
+                     + (steam ? "\n提示：Steam 游戏会经 steam://rungameid 透传启动参数；若配置了环境变量则自动改走主程序直启并注入 SteamAppId。" : ""));
             pg.Add(sEnv);
 
             dlg.Controls.Add(pg);
@@ -18450,11 +19389,17 @@ namespace Fluxion
 
             var bar = new FlowLayoutPanel();
             bar.Dock = DockStyle.Bottom;
-            bar.Height = Theme.S(52);
+            bar.Height = Theme.S(54);
             bar.FlowDirection = FlowDirection.RightToLeft;
             bar.WrapContents = false;
-            bar.BackColor = Theme.Bg;
-            bar.Padding = new Padding(0, Theme.S(11), Theme.S(16), 0);
+            bar.BackColor = Theme.Panel;
+            bar.Padding = new Padding(0, Theme.S(11), Theme.S(18), 0);
+            Buffered(bar);
+            bar.Paint += delegate(object s2, PaintEventArgs e2)
+            {
+                using (var p2 = new Pen(Theme.Line, 1f))
+                    e2.Graphics.DrawLine(p2, 0, 0, bar.Width, 0);
+            };
             var btnSave = new FlatBtn(); btnSave.Text = "保存"; btnSave.Kind = BtnKind.Primary; btnSave.Width = Theme.S(96);
             var btnCancel = new FlatBtn(); btnCancel.Text = "取消"; btnCancel.Width = Theme.S(84);
             btnSave.DialogResult = DialogResult.OK;
@@ -18468,6 +19413,7 @@ namespace Fluxion
             dlg.Shown += delegate
             {
                 try { pg.Reflow(); } catch { }
+                try { Theme.ScrollThemeTree(dlg); } catch { }
                 //  焦点不能留在第一个输入框上：RoundField 的占位提示是"聚焦即清空"，
                 //  一打开就被清掉等于没有提示（浅色截图里那个空框就是这么来的）。
                 try { dlg.ActiveControl = null; } catch { }
@@ -18496,7 +19442,7 @@ namespace Fluxion
             Lib.SetLaunchConfig(g, args, envText);
             int n = Lib.ParseEnv(envText).Count;
             Log("[启动配置] " + g.Title + "：" + (args.Length > 0 ? "参数 " + args : "无参数")
-                + " · 环境变量 " + n + " 条" + (steam && (args.Length > 0 || n > 0) ? "（Steam 协议启动，不会生效）" : ""));
+                + " · 环境变量 " + n + " 条");
             try { RefreshFgSummary(); } catch { }
         }
 
@@ -18519,8 +19465,8 @@ namespace Fluxion
             dlg.ForeColor = Theme.Text;
             dlg.Font = Theme.F(9f);
             dlg.AutoScaleMode = AutoScaleMode.None;
-            dlg.MinimumSize = new Size(Theme.S(560), Theme.S(400));
-            dlg.ClientSize = new Size(Theme.S(600), Theme.S(388));
+            dlg.MinimumSize = new Size(Theme.S(560), Theme.S(380));
+            dlg.ClientSize = new Size(Theme.S(600), Theme.S(410));
             dlg.ShowIcon = false;
             try { Theme.ApplyChrome(dlg.Handle); } catch { }
 
@@ -18531,7 +19477,7 @@ namespace Fluxion
             var cbMax = new RoundCombo();
             cbMax.Items.AddRange(new object[] { "跟随全局", "2X（1 帧）", "3X（2 帧）", "4X（3 帧）", "5X（4 帧）", "6X（5 帧）" });
             cbMax.SelectedIndex = g.FgMax > 0 ? Math.Min(5, g.FgMax) : 0;
-            s1.Row("倍率上限", cbMax, Theme.S(180));
+            s1.Row("倍率上限", cbMax, Theme.S(240));
 
             var cbPreset = new RoundCombo();
             cbPreset.Items.AddRange(new object[] { "跟随全局", "A", "B", "C（FG Lite）" });
@@ -18539,15 +19485,14 @@ namespace Fluxion
             if (g.FgPreset == "Auto" || g.FgPreset == "A") cbPreset.SelectedIndex = 1;
             else if (g.FgPreset == "B") cbPreset.SelectedIndex = 2;
             else if (g.FgPreset == "C") cbPreset.SelectedIndex = 3;
-            s1.Row("DLSS-G 预设", cbPreset, Theme.S(180));
+            s1.Row("DLSS-G 预设", cbPreset, Theme.S(240));
 
             var cbOpt = new RoundCombo();
             cbOpt.Items.AddRange(new object[] { "跟随全局", "0", "1", "2", "3" });
             cbOpt.SelectedIndex = g.FgOpt >= 0 ? Math.Min(4, g.FgOpt + 1) : 0;
-            s1.Row("Optimized 档", cbOpt, Theme.S(180));
-            s1.Body("「跟随全局」= 不覆盖，用「帧生成」页参数区里的全局值。\n"
-                     + "倍率对 0.3.x / 0.4.x 都生效；预设与 Optimized 只对 0.4.x 生效。\n"
-                     + "保存时如果这个游戏已部署，会立即写进它的 INI 并在日志里给回执。");
+            s1.Row("Optimized 档", cbOpt, Theme.S(240));
+            s1.Body("「跟随全局」将沿用帧生成页的全局参数设置。\n"
+                  + "倍率上限适用于 0.3.x / 0.4.x；预设与 Optimized 仅适用于 0.4.x（保存后立即写入已部署游戏的 INI）。");
             pg.Add(s1);
 
             dlg.Controls.Add(pg);
@@ -18555,11 +19500,17 @@ namespace Fluxion
 
             var bar = new FlowLayoutPanel();
             bar.Dock = DockStyle.Bottom;
-            bar.Height = Theme.S(52);
+            bar.Height = Theme.S(54);
             bar.FlowDirection = FlowDirection.RightToLeft;
             bar.WrapContents = false;
-            bar.BackColor = Theme.Bg;
-            bar.Padding = new Padding(0, Theme.S(11), Theme.S(16), 0);
+            bar.BackColor = Theme.Panel;
+            bar.Padding = new Padding(0, Theme.S(11), Theme.S(18), 0);
+            Buffered(bar);
+            bar.Paint += delegate(object s2, PaintEventArgs e2)
+            {
+                using (var p2 = new Pen(Theme.Line, 1f))
+                    e2.Graphics.DrawLine(p2, 0, 0, bar.Width, 0);
+            };
             var btnSave = new FlatBtn(); btnSave.Text = "保存"; btnSave.Kind = BtnKind.Primary; btnSave.Width = Theme.S(96);
             var btnCancel = new FlatBtn(); btnCancel.Text = "取消"; btnCancel.Width = Theme.S(84);
             btnSave.DialogResult = DialogResult.OK;
@@ -18572,6 +19523,7 @@ namespace Fluxion
             dlg.Shown += delegate
             {
                 try { pg.Reflow(); } catch { }
+                try { Theme.ScrollThemeTree(dlg); } catch { }
                 try { dlg.ActiveControl = null; } catch { }
             };
 
@@ -18595,7 +19547,7 @@ namespace Fluxion
         {
             var dlg = new Form();
             Fx.FadeOnClose(dlg);   // 关闭淡出 200ms（关动画/系统关特效时零行为）
-            dlg.Text = "自定义优化项（保存后立即生效）";
+            dlg.Text = "自定义优化项";
             dlg.StartPosition = FormStartPosition.CenterParent;
             dlg.FormBorderStyle = FormBorderStyle.Sizable;
             dlg.MaximizeBox = false; dlg.MinimizeBox = false;
@@ -18603,8 +19555,8 @@ namespace Fluxion
             dlg.ForeColor = Theme.Text;
             dlg.Font = Theme.F(9f);
             dlg.AutoScaleMode = AutoScaleMode.None;
-            dlg.MinimumSize = new Size(Theme.S(460), Theme.S(420));
-            dlg.ClientSize = new Size(Theme.S(470), Theme.S(560));
+            dlg.MinimumSize = new Size(Theme.S(520), Theme.S(440));
+            dlg.ClientSize = new Size(Theme.S(580), Theme.S(620));
             dlg.ShowIcon = false;
             try { Theme.ApplyChrome(dlg.Handle); } catch { }
 
@@ -18670,9 +19622,8 @@ namespace Fluxion
                     MessageBox.Show(this, why, "导出配置", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
-                MessageBox.Show(this, "已导出到：\n" + sd.FileName
-                    + (awareOff ? "\n\n游戏联动已置为关闭：对方导入后不会自动在后台改系统，要开由他自己在设置页打开。" : "")
-                    + "\n\n这份文件可以带到另一台机器上导入，也能直接读（就是个 JSON）。",
+                MessageBox.Show(this, "配置已导出至：\n" + sd.FileName
+                    + (awareOff ? "\n\n注：导出文件中已默认关闭「游戏联动」，避免在他人设备上自动修改系统状态。" : ""),
                     "导出配置", MessageBoxButtons.OK, MessageBoxIcon.Information);
             };
             btnImport.Click += delegate
@@ -18699,12 +19650,12 @@ namespace Fluxion
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine("配置已导入并立即生效。");
                 foreach (var n in notes) sb.AppendLine("· " + n);
-                Log(">>> 导入配置：" + od.FileName + (notes.Count > 0 ? "（" + notes.Count + " 条提示）" : ""));
+                Log("导入配置：" + od.FileName + (notes.Count > 0 ? "（" + notes.Count + " 条提示）" : ""));
                 MessageBox.Show(this, sb.ToString(), "导入配置", MessageBoxButtons.OK, MessageBoxIcon.Information);
             };
             secIO.Buttons(btnExport, btnImport);
-            secIO.Body("只搬本工具自己的 config.json（执行策略 / 档位 / 外观 / 下载源）。\n"
-                     + "系统设置不在这份文件里 —— 那部分由「恢复备份」负责，两者不会互相覆盖。");
+            secIO.Body("导出或导入本程序的 config.json 配置文件（含优化开关、档位取值与界面设置）。\n"
+                     + "系统注册表与驱动快照由主界面「恢复备份」独立管理，互不覆盖。");
             pg.Add(secIO);
 
             dlg.Controls.Add(pg);
@@ -18712,11 +19663,17 @@ namespace Fluxion
 
             var bar = new FlowLayoutPanel();
             bar.Dock = DockStyle.Bottom;
-            bar.Height = Theme.S(52);
+            bar.Height = Theme.S(54);
             bar.FlowDirection = FlowDirection.RightToLeft;
             bar.WrapContents = false;
-            bar.BackColor = Theme.Bg;
-            bar.Padding = new Padding(0, Theme.S(11), Theme.S(16), 0);
+            bar.BackColor = Theme.Panel;
+            bar.Padding = new Padding(0, Theme.S(11), Theme.S(18), 0);
+            Buffered(bar);
+            bar.Paint += delegate(object s2, PaintEventArgs e2)
+            {
+                using (var p2 = new Pen(Theme.Line, 1f))
+                    e2.Graphics.DrawLine(p2, 0, 0, bar.Width, 0);
+            };
             var btnSave = new FlatBtn(); btnSave.Text = "保存"; btnSave.Kind = BtnKind.Primary; btnSave.Width = Theme.S(84);
             var btnCancel = new FlatBtn(); btnCancel.Text = "取消"; btnCancel.Width = Theme.S(84);
             btnSave.DialogResult = DialogResult.OK;
@@ -18735,6 +19692,7 @@ namespace Fluxion
             dlg.Shown += delegate
             {
                 try { pg.Reflow(); } catch { }
+                try { Theme.ScrollThemeTree(dlg); } catch { }
                 //  焦点不能留在第一个输入框上：RoundField 的占位提示是"聚焦即清空"，
                 //  一打开就被清掉等于没有提示（浅色截图里那个空框就是这么来的）。
                 try { dlg.ActiveControl = null; } catch { }
@@ -18774,6 +19732,23 @@ namespace Fluxion
                 Log("自定义优化已保存：更新 " + changed + " 项并即时生效");
                 RefreshGridAsync();
             }
+        }
+
+        // BUG-G3: 窗口销毁时释放全部计时器与托盘图标，防止后台 Tick 访问已释放控件
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Timer[] ts = new Timer[] { sysTimer, linkTimer, logTimer, clockTimer, scanBeat, bgTrimT, fgCheckTimer, searchDebounce };
+                for (int i = 0; i < ts.Length; i++)
+                {
+                    if (ts[i] != null) { try { ts[i].Stop(); ts[i].Dispose(); } catch { } }
+                }
+                sysTimer = null; linkTimer = null; logTimer = null; clockTimer = null;
+                scanBeat = null; bgTrimT = null; fgCheckTimer = null; searchDebounce = null;
+                if (tray != null) { try { tray.Visible = false; tray.Dispose(); } catch { } tray = null; }
+            }
+            base.Dispose(disposing);
         }
     }
 }

@@ -73,23 +73,58 @@ namespace Fluxion
         // 会把整库静默重写成单条 —— 收藏/隐藏/重命名/指认的启动 exe 全部丢失（2026-09-30 体检 high）。
         // 规则：解析失败 → 先试 .bak（SaveAll 的 File.Replace 留下的上一版），再退这里，绝不用空表覆盖旧库。
         static Dictionary<string, GameMeta> lastGood;
+        static string lastGoodPath = "";
+        static string cachedSig = "";
+        static Dictionary<string, GameMeta> cachedMap;
         // library.json 的读-改-写有 UI 线程（收藏/启动）与后台线程（扫描/批量封面）并发，
         // 无锁时后写者会用旧快照覆盖先写者（2026-09-30 体检）。lock 可重入，Save 里套 Load/SaveAll 没问题。
         static readonly object ioLock = new object();
+
+        static string FileSig(string p)
+        {
+            try
+            {
+                FileInfo fi = new FileInfo(p);
+                if (!fi.Exists) return p + "|missing";
+                return p + "|" + fi.Length + "|" + fi.LastWriteTimeUtc.Ticks;
+            }
+            catch { return ""; }
+        }
 
         public static Dictionary<string, GameMeta> Load()
         {
             lock (ioLock)
             {
-                var map = TryRead(MetaPath);
-                if (map == null && File.Exists(MetaPath))
+                string mp = MetaPath;
+                string sig = FileSig(mp);
+                if (sig.Length > 0 && sig == cachedSig && cachedMap != null)
+                    return new Dictionary<string, GameMeta>(cachedMap);
+
+                if (!File.Exists(mp))
+                {
+                    var empty = new Dictionary<string, GameMeta>();
+                    cachedSig = sig;
+                    cachedMap = empty;
+                    return new Dictionary<string, GameMeta>(empty);
+                }
+
+                var map = TryRead(mp);
+                if (map == null && File.Exists(mp))
                 {
                     Program.Log("library.json 解析失败，尝试上一版备份 library.json.bak");
-                    map = TryRead(MetaPath + ".bak");
+                    map = TryRead(mp + ".bak");
                 }
-                if (map != null) lastGood = map;
-                else map = lastGood;
-                return map ?? new Dictionary<string, GameMeta>();
+                if (map != null)
+                {
+                    lastGood = map;
+                    lastGoodPath = mp;
+                    cachedMap = map;
+                    cachedSig = sig;
+                    return new Dictionary<string, GameMeta>(map);
+                }
+                if (lastGood != null && string.Equals(lastGoodPath, mp, StringComparison.OrdinalIgnoreCase))
+                    return new Dictionary<string, GameMeta>(lastGood);
+                return new Dictionary<string, GameMeta>();
             }
         }
 
@@ -160,6 +195,11 @@ namespace Fluxion
                     File.WriteAllText(tmp, new JavaScriptSerializer().Serialize(root), new UTF8Encoding(false));
                     if (File.Exists(MetaPath)) File.Replace(tmp, MetaPath, MetaPath + ".bak");
                     else File.Move(tmp, MetaPath);
+                    var snap = new Dictionary<string, GameMeta>(map);
+                    lastGood = snap;
+                    lastGoodPath = MetaPath;
+                    cachedMap = snap;
+                    cachedSig = FileSig(MetaPath);
                 }
                 catch (Exception ex) { Program.Log("library.json 写入失败: " + ex.Message); }
             }
@@ -1972,13 +2012,8 @@ namespace Fluxion
             string id = g.Id == null ? "" : g.Id;
             string key = id + "|hero|" + maxW;
             Image cached;
-            //  ★ 命中缓存也要交**副本**（2026-10-26 第 149 轮）：原来这里直接 return cached，
-            //  于是 Card() 的语义是"第一次给副本、之后给缓存本体"—— 调用方一律按"自己持有、自己释放"
-            //  写（CoverTile / LibHero / LibActionBar 都在 Dispose 时释放 cover），
-            //  第二次取同一个 key 就会把缓存本体销毁掉，之后任何一次绘制都是在已销毁的
-            //  GDI+ 句柄上作图 → ArgumentException「参数无效」→ 控件被填白打叉。
-            //  这与 0915 那次"16 张白框红叉"是同一个根因的残留分支：缓存自己持有，调用方只拿副本。
-            lock (memLock) { cached = Hit(key); if (cached != null) return Own(cached); }
+            //  Hit(key) 内部已在锁内通过 Own(cached) 克隆了独占副本，此处直接返回，避免双重克隆泄漏位图
+            lock (memLock) { cached = Hit(key); if (cached != null) return cached; }
             try
             {
                 // 1. 优先在 covers/ 查找根据游戏标题命名的 _hero 横幅或通用高清封面
@@ -1992,8 +2027,7 @@ namespace Fluxion
                         Image img = LoadWide(hf, maxW);
                         if (img != null)
                         {
-                            Remember(key, img);
-                            return Own(img);
+                            lock (memLock) { Remember(key, img); return Own(img); }
                         }
                     }
                 }
@@ -2009,8 +2043,7 @@ namespace Fluxion
                         Image img = LoadWide(cache, maxW);
                         if (img != null)
                         {
-                            Remember(key, img);
-                            return Own(img);
+                            lock (memLock) { Remember(key, img); return Own(img); }
                         }
                     }
                 }
@@ -2038,9 +2071,13 @@ namespace Fluxion
             //  改成「竖版封面缩到极小再放大」的廉价模糊底 —— 有图、看不出裁切，标题压在上面也清楚。
             //  这里的画布按 16:9 算（横幅实际比例由 Compose 再裁，这层只是兜底底图）。
             int fw = maxW, fh = Math.Max(1, maxW * 9 / 16);
-            Image fallback = Card(g, fw, fh);
-            if (fallback == null) return null;
-            return AmbientWithCover(g, fallback, fw, fh);
+            using (Image fallback = Card(g, fw, fh))
+            {
+                if (fallback == null) return null;
+                Image amb = AmbientWithCover(g, fallback, fw, fh);
+                if (amb == null) return null;
+                lock (memLock) { Remember(key, amb); return Own(amb); }
+            }
         }
 
         //  无横版时的氛围底：模糊背景 + **右下角放完整竖版封面**（等比缩小，不裁切）。
@@ -2340,13 +2377,8 @@ namespace Fluxion
             // 两个不同游戏会共用同一张图（2026-09-14 探针实测踩到）
             string key = id + "|" + SafeName(g.Title) + "|" + w + "x" + h;
             Image cached;
-            //  ★ 命中缓存也要交**副本**（2026-10-26 第 149 轮）：原来这里直接 return cached，
-            //  于是 Card() 的语义是"第一次给副本、之后给缓存本体"—— 调用方一律按"自己持有、自己释放"
-            //  写（CoverTile / LibHero / LibActionBar 都在 Dispose 时释放 cover），
-            //  第二次取同一个 key 就会把缓存本体销毁掉，之后任何一次绘制都是在已销毁的
-            //  GDI+ 句柄上作图 → ArgumentException「参数无效」→ 控件被填白打叉。
-            //  这与 0915 那次"16 张白框红叉"是同一个根因的残留分支：缓存自己持有，调用方只拿副本。
-            lock (memLock) { cached = Hit(key); if (cached != null) return Own(cached); }
+            //  Hit(key) 内部已在锁内通过 Own(cached) 克隆了独占副本，此处直接返回，避免双重克隆泄漏位图
+            lock (memLock) { cached = Hit(key); if (cached != null) return cached; }
 
             Image img = null;
             try
@@ -2453,7 +2485,7 @@ namespace Fluxion
             catch { }
             // 加进缓存后当场在锁内复制出调用方的独占副本：Own 若放到锁外，
             // 中间可能被并发 ClearCache 把源图 Dispose 掉（0915 白框事故同款）
-            if (img != null) { Remember(key, img); return Own(img); }
+            if (img != null) { lock (memLock) { Remember(key, img); return Own(img); } }
             return null;
         }
 
@@ -3025,6 +3057,7 @@ namespace Fluxion
             try
             {
                 if (g == null) return "";
+                if (XeMfg.IsNonWuwaUe(g.Title, g.Dir)) return "";
                 bool wuwa = "Client-Win64-Shipping.exe".Equals(g.Exe ?? "", StringComparison.OrdinalIgnoreCase);
                 if (!wuwa)
                 {
@@ -3146,26 +3179,35 @@ namespace Fluxion
             if (g == null) return "无效的游戏条目";
             try
             {
-                if (g.Platform == "steam" && g.AppId != null && Regex.IsMatch(g.AppId, @"^\d{1,12}$"))
-                    Process.Start("steam://rungameid/" + g.AppId);
+                string args = EffectiveLaunchArgs(g);
+                List<KeyValuePair<string, string>> env = ParseEnv(EffectiveLaunchEnv(g));
+                string pinned = MetaStore.LaunchExeOf(g);
+                bool isSteam = g.Platform == "steam" && g.AppId != null && Regex.IsMatch(g.AppId, @"^\d{1,12}$");
+
+                // Steam 游戏：若未指定自定义环境变量且未手动锁定 exe，走 steam:// 协议（支持透传启动参数）；
+                // 若用户显式配置了环境变量或手动锁定了启动 exe，则直启目标程序以保证环境变量与指定入口生效。
+                if (isSteam && env.Count == 0 && pinned.Length == 0)
+                {
+                    string uri = args.Length > 0
+                        ? ("steam://rungameid/" + g.AppId + "//" + args + "/")
+                        : ("steam://rungameid/" + g.AppId);
+                    Process.Start(uri);
+                }
                 else
                 {
                     string exe = LaunchTargetOf(g);
                     if (exe.Length > 0)
                     {
-                        //  ★ 2026-10-31：启动前以磁盘为准重读（EffectiveLaunch*）。
-                        //    g.LaunchArgs 是扫描期并进来的内存值：用户刚保存 / 手改过 library.json、
-                        //    或后台保存没同步到本对象时，直用内存值会把参数丢掉（用户报"填了会被擦"的
-                        //    另一半根因）。EffectiveLaunchArgs 还带已知游戏的内置预设（鸣潮画质档）。
-                        string args = EffectiveLaunchArgs(g);
-                        List<KeyValuePair<string, string>> env = ParseEnv(EffectiveLaunchEnv(g));
                         if (env.Count == 0)
                         {
-                            // 没有环境变量：沿用原来的启动方式。
-                            // 刻意不统一改成 ProcessStartInfo —— UseShellExecute=false 会改变
-                            // 工作目录与 shell 行为，这条路径跑了很久没出问题，不为"整齐"去动它。
-                            if (args.Length > 0) Process.Start(exe, args);
-                            else Process.Start(exe);
+                            // 没有环境变量：沿用 UseShellExecute=true 的 shell 启动方式，但显式指定 WorkingDirectory 为游戏目录，
+                            // 防止依赖当前目录相对路径的单机游戏落到 Fluxion 目录导致黑屏或缺资源。
+                            var psi = new ProcessStartInfo(exe);
+                            if (args.Length > 0) psi.Arguments = args;
+                            psi.UseShellExecute = true;
+                            string wd = Path.GetDirectoryName(exe);
+                            if (!string.IsNullOrEmpty(wd) && Directory.Exists(wd)) psi.WorkingDirectory = wd;
+                            Process.Start(psi);
                         }
                         else
                         {
@@ -3178,6 +3220,10 @@ namespace Fluxion
                             if (args.Length > 0) psi.Arguments = args;
                             psi.UseShellExecute = false;
                             psi.WorkingDirectory = Path.GetDirectoryName(exe);
+                            if (isSteam && g.AppId != null && g.AppId.Length > 0)
+                            {
+                                try { psi.EnvironmentVariables["SteamAppId"] = g.AppId; } catch { }
+                            }
                             foreach (KeyValuePair<string, string> kv in env)
                             {
                                 try { psi.EnvironmentVariables[kv.Key] = kv.Value; } catch { }
@@ -3267,7 +3313,8 @@ namespace Fluxion
         //   %USERPROFILE%\AppData\LocalLow\<厂商>\<产品>\Player.log 里的
         //     "Version:  Direct3D 12" 或 "Direct3D 11.0"
         // 哪个日志属于哪款游戏：日志正文里有该游戏的数据目录路径（第 3 行就是），按路径匹配。
-        static readonly Dictionary<string, string> PlayerLogCache = new Dictionary<string, string>();
+        static readonly Dictionary<string, string> PlayerLogCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        static readonly object playerLogLock = new object();
 
         public static string RenderApi(DlssgGame g) { long t; return RenderApiEx(g, out t); }
 
@@ -3291,8 +3338,12 @@ namespace Fluxion
         static string FindPlayerLog(string gameDir)
         {
             string key = gameDir.ToLowerInvariant();
-            string hit;
-            if (PlayerLogCache.TryGetValue(key, out hit)) return hit;
+            lock (playerLogLock)
+            {
+                string hit;
+                if (PlayerLogCache.TryGetValue(key, out hit) && hit != null && hit.Length > 0 && File.Exists(hit))
+                    return hit;
+            }
             string found = "";
             try
             {
@@ -3300,15 +3351,21 @@ namespace Fluxion
                 string needle = gameDir.Replace('\\', '/').TrimEnd('/');
                 if (Directory.Exists(root))
                     foreach (string comp in Directory.GetDirectories(root))
+                    {
                         foreach (string prod in Directory.GetDirectories(comp))
                         {
                             string log = Path.Combine(prod, "Player.log");
                             if (!File.Exists(log)) continue;
                             if (File.ReadAllText(log).IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0) { found = log; break; }
                         }
+                        if (found.Length > 0) break;
+                    }
             }
             catch { }
-            PlayerLogCache[key] = found;
+            if (found.Length > 0)
+            {
+                lock (playerLogLock) { PlayerLogCache[key] = found; }
+            }
             return found;
         }
 

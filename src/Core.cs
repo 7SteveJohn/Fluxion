@@ -18,9 +18,9 @@ using Microsoft.Win32;
 //  ⚠ 这三行是 exe「右键 → 属性 → 详细信息」里给人看的版本号，2026-10-23 才接上程序版本：
 //    以前停在改名前的 3.3.2.0，安装包写 1.2.2、文件属性写 3.3.2.0，分享出去一眼就对不上。
 //    改版本号时**四处一起改**：Core.cs AppVersion ↔ 这三行 ↔ iss 的 #define ↔ VersionInfoVersion。
-[assembly: System.Reflection.AssemblyVersion("1.3.1.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.3.1.0")]
-[assembly: System.Reflection.AssemblyInformationalVersion("1.3.1")]
+[assembly: System.Reflection.AssemblyVersion("1.3.2.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.3.2.0")]
+[assembly: System.Reflection.AssemblyInformationalVersion("1.3.2")]
 
 namespace Fluxion
 {
@@ -100,6 +100,22 @@ namespace Fluxion
         public static extern bool EmptyWorkingSet(IntPtr hProcess);
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool GetLogicalProcessorInformation(IntPtr buffer, ref uint returnLength);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct MEMORYSTATUSEX
+        {
+            public uint dwLength;
+            public uint dwMemoryLoad;
+            public ulong ullTotalPhys;
+            public ulong ullAvailPhys;
+            public ulong ullTotalPageFile;
+            public ulong ullAvailPageFile;
+            public ulong ullTotalVirtual;
+            public ulong ullAvailVirtual;
+            public ulong ullAvailExtendedVirtual;
+        }
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
         // 深色标题栏（Win10 1809+）。属性号 20 是现行编号，19 是 1809~1909 的旧编号，
         // 两个都试一遍，失败直接忽略 —— 这只是观感问题，不值得抛异常。
         [DllImport("dwmapi.dll", PreserveSig = true)]
@@ -1241,8 +1257,77 @@ namespace Fluxion
         delegate int DlgErrMsg(int status, byte* desc);
         delegate int DlgDeleteProfile(IntPtr h, IntPtr profile);
         delegate int DlgRestoreProfile(IntPtr h, IntPtr profile);
+        delegate int DlgEnumGpus(IntPtr* handles, out uint count);
+        delegate int DlgGetPstates(IntPtr hGpu, uint* info);
+        delegate int DlgGetThermal(IntPtr hGpu, uint sensorIdx, uint* settings);
 
         const uint NvAPI_GetErrorMessage_ID = 0x6C2D048C;
+        const uint NvAPI_EnumPhysicalGPUs_ID = 0xE5AC921F;
+        const uint NvAPI_GPU_GetDynamicPstatesInfoEx_ID = 0x60DED2ED;
+        const uint NvAPI_GPU_GetThermalSettings_ID = 0xE3640A56;
+
+        // 进程内直读 NVAPI 显卡核心占用率与核心温度（微秒级、零子进程开销），替代每 4 秒拉起一次 nvidia-smi.exe
+        public static bool TryReadGpuStats(out int utilPct, out int tempC)
+        {
+            utilPct = -1;
+            tempC = -1;
+            try
+            {
+                var init = Get<Dlg0>(NvAPI_Initialize_ID);
+                var enumGpus = Get<DlgEnumGpus>(NvAPI_EnumPhysicalGPUs_ID);
+                if (init == null || enumGpus == null) return false;
+                if (init() != 0) return false;
+
+                IntPtr* gpus = stackalloc IntPtr[64];
+                uint gpuCount = 0;
+                if (enumGpus(gpus, out gpuCount) != 0 || gpuCount == 0 || gpus[0] == IntPtr.Zero)
+                    return false;
+                IntPtr hGpu = gpus[0];
+
+                var getPstates = Get<DlgGetPstates>(NvAPI_GPU_GetDynamicPstatesInfoEx_ID);
+                if (getPstates != null)
+                {
+                    // NV_GPU_DYNAMIC_PSTATES_INFO_EX (v1): sizeof = 72 (18 uints)
+                    uint* ps = stackalloc uint[18];
+                    for (int i = 0; i < 18; i++) ps[i] = 0;
+                    ps[0] = 72u | (1u << 16);
+                    if (getPstates(hGpu, ps) == 0 && ps[2] != 0)
+                    {
+                        int u = (int)ps[3];
+                        if (u >= 0 && u <= 100) utilPct = u;
+                    }
+                }
+
+                var getThermal = Get<DlgGetThermal>(NvAPI_GPU_GetThermalSettings_ID);
+                if (getThermal != null)
+                {
+                    // NV_GPU_THERMAL_SETTINGS (v2 / v1): sizeof = 68 (17 uints), sensorIndex = 15 (ALL)
+                    uint* th = stackalloc uint[17];
+                    for (int ver = 2; ver >= 1 && tempC < 0; ver--)
+                    {
+                        for (int i = 0; i < 17; i++) th[i] = 0;
+                        th[0] = 68u | ((uint)ver << 16);
+                        if (getThermal(hGpu, 15u, th) == 0 && th[1] > 0)
+                        {
+                            uint cnt = th[1] > 3u ? 3u : th[1];
+                            for (uint s = 0; s < cnt; s++)
+                            {
+                                int c = (int)th[2 + s * 5 + 3];
+                                uint target = th[2 + s * 5 + 4];
+                                if ((target == 1u || s == 0) && c > 0 && c < 130)
+                                {
+                                    tempC = c;
+                                    if (target == 1u) break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return utilPct >= 0 || tempC >= 0;
+            }
+            catch { return false; }
+        }
 
         public static string ErrText(int status)
         {
@@ -1447,19 +1532,20 @@ namespace Fluxion
                 st = load(h); if (st != 0) return "DRS 配置读取失败 " + st;
                 int c1, o1, c2, o2, c3, o3, c4, o4; c1 = o1 = c2 = o2 = c3 = o3 = c4 = o4 = 0;
                 if (fps != null && fps.Count > 0)
-                    ApplyCategory(h, find, findApp, createProfile, createApp, setSetting, fps, WithDlss(CompSettings()), ProfileName, out c1, out o1);
+                    ApplyCategory(h, find, findApp, createProfile, createApp, setSetting, fps, WithBgFps(WithDlss(CompSettings())), ProfileName, out c1, out o1);
                 // MMO 与 3A 共用画质稳定档驱动设置（电源管理=最高性能/着色器缓存无限制/垂直同步跟随游戏）；
                 // MMO 的差异在系统层：单线程 CPU 瓶颈，靠 P 核绑定+High 优先级+后台挂起，见游戏联动
                 if (mmo != null && mmo.Count > 0)
-                    ApplyCategory(h, find, findApp, createProfile, createApp, setSetting, mmo, WithDlss(AaaSettings()), ProfileName + "-MMO", out c2, out o2);
+                    ApplyCategory(h, find, findApp, createProfile, createApp, setSetting, mmo, WithBgFps(WithDlss(AaaSettings())), ProfileName + "-MMO", out c2, out o2);
                 if (aaa != null && aaa.Count > 0)
-                    ApplyCategory(h, find, findApp, createProfile, createApp, setSetting, aaa, WithDlss(AaaSettings()), ProfileName + "-AAA", out c3, out o3);
+                    ApplyCategory(h, find, findApp, createProfile, createApp, setSetting, aaa, WithBgFps(WithDlss(AaaSettings())), ProfileName + "-AAA", out c3, out o3);
                 // 二游档驱动设置同 3A：着色器缓存无限制是二游 PC 端卡顿主因（鸣潮 UE4 着色器编译、原神版本更新重编译）
                 if (gacha != null && gacha.Count > 0)
-                    ApplyCategory(h, find, findApp, createProfile, createApp, setSetting, gacha, WithDlss(AaaSettings()), ProfileName + "-Gacha", out c4, out o4);
+                    ApplyCategory(h, find, findApp, createProfile, createApp, setSetting, gacha, WithBgFps(WithDlss(AaaSettings())), ProfileName + "-Gacha", out c4, out o4);
                 st = save(h); if (st != 0) return "DRS 保存失败 " + ErrText(st);
                 return "NVIDIA 驱动配置已写入——FPS档 " + c1 + "/" + o1 + "（最低延迟）、MMO档 " + c2 + "/" + o2 + "、3A档 " + c3 + "/" + o3 + "、二游档 " + c4 + "/" + o4 + "（画质档：电源管理=最高性能/着色器缓存=无限制/垂直同步=跟随游戏）"
-                       + (Program.Cfg.DlssOverride ? "；已附加 DLSS 模型覆盖（DLL 覆盖=开 / 预设=推荐值）" : "");
+                       + (Program.Cfg.DlssOverride ? "；已附加 DLSS 模型覆盖（DLL 覆盖=开 / 预设=推荐值）" : "")
+                       + (Program.Cfg.NvBgFpsLimit > 0 ? ("；后台帧率上限=" + Program.Cfg.NvBgFpsLimit + " FPS") : "");
             }
             finally { destroy(h); }
         }
@@ -1541,6 +1627,16 @@ namespace Fluxion
             list.Add(new uint[] { NvDrsDb.IdDlssPresetProfile, unchecked((uint)c.NvDlssPresetProfile) });
             list.Add(new uint[] { NvDrsDb.IdDlssPresetLetter, unchecked((uint)c.NvDlssPresetLetter) });
             return list.ToArray();
+        }
+
+        // 后台帧率上限独立包装：仅在 ApplyGameProfiles 外层附加，保持 CompSettings()/WithDlss() 探针不变量不变
+        static uint[][] WithBgFps(uint[][] s)
+        {
+            var c = Program.Cfg;
+            uint lim = (c != null && c.NvBgFpsLimit > 0) ? (uint)c.NvBgFpsLimit : 0u;
+            var r = new List<uint[]>(s);
+            r.Add(new uint[] { NvDrsDb.IdFrameLimitBg, lim });
+            return r.ToArray();
         }
 
         // 一类游戏的写入：预定义档直写设置，未收录的进自建档（应用一次只能归属一个档）
@@ -1743,7 +1839,7 @@ namespace Fluxion
                 bool swFound = false, swOn = false;
                 var sizes = new List<uint>();
                 int dlssTotal = 0, dlssOn = 0, rbarOn = 0, rbarOff = 0;
-                bool frlFound = false; uint frl = 0;
+                bool frlFound = false; uint frl = 0; int frlSetCnt = 0; uint frlUser = 0;
                 {
                     byte[] d = PrimaryBytes();
                     for (int i = 0; i + 16 <= d.Length; i++)
@@ -1757,7 +1853,11 @@ namespace Fluxion
                         else if (id == IdShaderCacheSize && IsUserSet(loc)) sizes.Add(val);
                         else if (id == IdDlssDllOverride) { dlssTotal++; if (val != 0) dlssOn++; }
                         else if (id == IdRbarEnable) { if (val != 0) rbarOn++; else rbarOff++; }
-                        else if (id == IdFrameLimitBg && !frlFound) { frlFound = true; frl = val; }
+                        else if (id == IdFrameLimitBg)
+                        {
+                            if (!frlFound) { frlFound = true; frl = val; }
+                            if (IsUserSet(loc) && val > 0) { if (frlUser == 0) frlUser = val; frlSetCnt++; }
+                        }
                     }
                 }
                 s.Ok = true;
@@ -1774,7 +1874,9 @@ namespace Fluxion
                                : (dlssOn > 0 ? ("已开启 " + dlssOn + "/" + dlssTotal + " 档") : ("未开启（" + dlssTotal + " 档记录全为关）"));
                 s.Rbar = (rbarOn + rbarOff == 0) ? "驱动库无记录"
                        : (rbarOn + " 个游戏开 / " + rbarOff + " 个关（均为驱动内置）");
-                s.FrlBackground = !frlFound ? "无记录" : (frl == 0 ? "未限（0）" : ("值 " + frl));
+                s.FrlBackground = frlSetCnt > 0
+                    ? (frlUser + " FPS" + (frlSetCnt > 1 ? "（" + frlSetCnt + " 档）" : ""))
+                    : (!frlFound ? "无记录" : (frl == 0 ? "未限（0）" : (frl + " FPS")));
             }
             catch { }
             return s;
@@ -2479,10 +2581,8 @@ namespace Fluxion
             string cur = st.DeviceDesc == null ? "" : st.DeviceDesc;
             int sc = cur.LastIndexOf(';');
             if (sc >= 0) cur = cur.Substring(sc + 1);
-            return "当前显卡名：" + cur
-                 + (st.Spoofed ? "    ← 已伪装（网游才会显示帧生成选项）"
-                               : "    ← 未伪装（网游不会显示帧生成选项）")
-                 + "\n改完需重启电脑才生效；随时可一键还原";
+            return "当前显卡名：" + cur + (st.Spoofed ? "（已伪装）" : "（未伪装）")
+                 + "\n修改后重启电脑生效，可随时一键还原";
         }
 
         public static string Apply()
@@ -2877,19 +2977,19 @@ namespace Fluxion
                     return dataDirCache;
                 }
 
-                // 规则 1：非系统盘安装（如用户安装在 D:\Fluxion）或就地便携版：100% 默认就地存放在 AppDir！
-                if ((isNonSystemDrive && appDirWritable) || hasLocalData)
+                string pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                string pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+                bool inProgramFiles = (!string.IsNullOrEmpty(pf) && AppDir.StartsWith(pf, StringComparison.OrdinalIgnoreCase))
+                                   || (!string.IsNullOrEmpty(pf86) && AppDir.StartsWith(pf86, StringComparison.OrdinalIgnoreCase));
+
+                // 规则 1：非系统盘安装（如用户安装在 D:\Fluxion）或非 Program Files 就地便携版：100% 默认就地存放在 AppDir！
+                if (((isNonSystemDrive && appDirWritable) || hasLocalData) && !inProgramFiles)
                 {
                     dataDirCache = AppDir;
                     return dataDirCache;
                 }
 
                 // 规则 2：若在系统盘普通目录（如桌面解压）且完全可写，依然 100% 就地存放在 AppDir！
-                string pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-                string pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-                bool inProgramFiles = (!string.IsNullOrEmpty(pf) && AppDir.StartsWith(pf, StringComparison.OrdinalIgnoreCase))
-                                   || (!string.IsNullOrEmpty(pf86) && AppDir.StartsWith(pf86, StringComparison.OrdinalIgnoreCase));
-
                 if (appDirWritable && !inProgramFiles)
                 {
                     dataDirCache = AppDir;
@@ -2945,15 +3045,22 @@ namespace Fluxion
             {
                 try { File.Copy(sLib, dLib, true); } catch { }
             }
-            // 3. 合并 config.local.json
-            string sCfgLocal = Path.Combine(src, "config.local.json");
-            string dCfgLocal = Path.Combine(dst, "config.local.json");
-            if (File.Exists(sCfgLocal) && !File.Exists(dCfgLocal))
+            // 3. 合并辅助配置与元数据（仅当目标缺失时补齐）
+            foreach (string fn in new string[] {
+                "config.local.json", "covers.json", "catalog.json",
+                "playtime.json", "nv-driver.txt", "gameProfiles.override.json" })
             {
-                try { File.Copy(sCfgLocal, dCfgLocal, true); } catch { }
+                string sf = Path.Combine(src, fn);
+                string df = Path.Combine(dst, fn);
+                if (File.Exists(sf) && !File.Exists(df))
+                {
+                    try { File.Copy(sf, df, true); } catch { }
+                }
             }
-            // 4. 合并 dlssg packs
-            foreach (string pack in new string[] { "dlssg", "dlssg030-pack", "dlssg040-pack", "xess-pack" })
+            // 4. 合并 dlssg 与运行库资源包
+            foreach (string pack in new string[] {
+                "dlssg", "dlssg030-pack", "dlssg040-pack", "xess-pack",
+                "mfgbridge-pack", "manual-pack", "dlss-repo" })
             {
                 string sp = Path.Combine(src, pack);
                 string dp = Path.Combine(dst, pack);
@@ -2984,8 +3091,10 @@ namespace Fluxion
 
         string[] items = new string[] {
             "config.json", "config.local.json", "library.json", "games.json",
-            "gameProfiles.override.json", "ui.scale", "covers", "logs", "backup",
-            "dlssg", "xess-pack", "dlssg030-pack", "dlssg040-pack"
+            "covers.json", "catalog.json", "playtime.json", "nv-driver.txt",
+            "gameProfiles.override.json", "ui.scale", "covers", "logs", "backup", "drs-backup",
+            "dlssg", "xess-pack", "dlssg030-pack", "dlssg040-pack",
+            "mfgbridge-pack", "manual-pack", "dlss-repo"
         };
 
         var moved = new List<string>();
@@ -3159,7 +3268,7 @@ namespace Fluxion
         // v1.0.0 = Fluxion 品牌首发（2026-09-20 由 GameBoost-DLSSG 全套改名而来）。
         // ⚠ 版本号在这里重开：改名换了安装包的 AppId，Windows 视作全新产品，
         //   旧的 3.6.x 线不再有升级关系（旧版需手动卸载）。两处版本号必须一起改（build.py --pkg 会校验）。
-        public const string AppVersion = "1.3.1";
+        public const string AppVersion = "1.3.2";
         public const string ShareVersion = "1.0.0";
         // ⚠ 必须用 #if 直接选常量（不能用运行时三元）：这样每个二进制里只留自己那条版本串，
         //   交付后可以直接在 exe 里搜 "SHARE-BUILD" 来证明「这份到底是不是分享构建」。
@@ -3369,6 +3478,8 @@ namespace Fluxion
             // 有序退出时把联动状态一并还原：挂起进程唤醒、临时电源/定时器还原；
             // 远控只在「当前没在游戏」时恢复——游戏还开着就恢复 UU远程 等于把掉帧元凶请回来
             try { GameBoostCleanupOrphans(); } catch { }
+            try { GameBoostStop(); } catch { }
+            try { OverlaySync(false); } catch { }
             try { GamePowerRecoverOrphan(); } catch { }
             try { RevertGameTimer(); } catch { }
             try { if (ResLink.Active) foreach (string l in ResLink.Restore()) Log("[分辨率联动] " + l); } catch { }
@@ -3541,6 +3652,7 @@ namespace Fluxion
         //  为什么单独一份文件：library.json 的读写是"文本手术"式的，往里加字段风险大；
         //  时长是纯附加数据，独立小文件最稳、也不影响其它读取方。
         static Dictionary<string, long> playTime;
+        static readonly object playTimeLock = new object();
         public static string PlayTimePath { get { return Path.Combine(DataDir, "playtime.json"); } }
 
         static void PlayTimeLoad()
@@ -3553,7 +3665,8 @@ namespace Fluxion
                 {
                     var d = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(
                         File.ReadAllText(PlayTimePath, Encoding.UTF8));
-                    foreach (var kv in d) { try { playTime[kv.Key] = Convert.ToInt64(kv.Value); } catch { } }
+                    if (d != null)
+                        foreach (var kv in d) { try { playTime[kv.Key] = Convert.ToInt64(kv.Value); } catch { } }
                 }
             }
             catch { }
@@ -3562,20 +3675,26 @@ namespace Fluxion
         public static long PlayTimeOf(string key)
         {
             if (key == null || key.Length == 0) return 0;
-            PlayTimeLoad();
-            long v;
-            return playTime.TryGetValue(key, out v) ? v : 0;
+            lock (playTimeLock)
+            {
+                PlayTimeLoad();
+                long v;
+                return playTime.TryGetValue(key, out v) ? v : 0;
+            }
         }
 
         public static void PlayTimeAdd(string key, long secs)
         {
             if (key == null || key.Length == 0 || secs <= 0) return;
-            PlayTimeLoad();
-            long v;
-            playTime.TryGetValue(key, out v);
-            playTime[key] = v + secs;
-            try { File.WriteAllText(PlayTimePath, new JavaScriptSerializer().Serialize(playTime), new UTF8Encoding(false)); }
-            catch { }
+            lock (playTimeLock)
+            {
+                PlayTimeLoad();
+                long v;
+                playTime.TryGetValue(key, out v);
+                playTime[key] = v + secs;
+                try { File.WriteAllText(PlayTimePath, new JavaScriptSerializer().Serialize(playTime), new UTF8Encoding(false)); }
+                catch { }
+            }
         }
 
         public static string FmtPlay(long secs)
@@ -3746,7 +3865,7 @@ namespace Fluxion
                 string dir = Path.Combine(DataDir, "logs"); Directory.CreateDirectory(dir);
                 string f = Path.Combine(dir, "incident_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + (full ? "" : "_b.txt"));
                 var sb = new StringBuilder();
-                sb.AppendLine("=== GameBoost 黑屏取证快照 ===");
+                sb.AppendLine("=== Fluxion 黑屏取证快照 ===");
                 sb.AppendLine("快照时间: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
                 sb.AppendLine("触发事件: " + src + "  事件ID: " + code + "  系统记录时间: " + WmiToDate(timeWmi));
                 if (!full)
@@ -3890,15 +4009,18 @@ namespace Fluxion
                     foreach (string name in Cfg.OverlayList)
                         foreach (var p in Process.GetProcessesByName(name))
                         {
+                            bool kept = false;
                             try
                             {
                                 if (Native.NtSuspendProcess(p.Handle) == 0)
                                 {
                                     overlaySuspended.Add(p);
+                                    kept = true;
                                     Log("已挂起覆盖层进程: " + p.ProcessName + " (PID " + p.Id + ")");
                                 }
                             }
-                            catch (Exception ex) { Log("挂起 " + p.ProcessName + " 失败: " + ex.Message); try { p.Dispose(); } catch { } }
+                            catch (Exception ex) { Log("挂起 " + p.ProcessName + " 失败: " + ex.Message); }
+                            finally { if (!kept) { try { p.Dispose(); } catch { } } }
                         }
                 }
                 else if (overlaySuspended.Count > 0)
@@ -4190,7 +4312,7 @@ namespace Fluxion
             try
             {
                 foreach (var p in Process.GetProcessesByName(name))
-                { try { p.Kill(); } catch { } }
+                { using (p) { try { p.Kill(); } catch { } } }
             }
             catch { }
         }
@@ -4637,7 +4759,7 @@ namespace Fluxion
                 {
                     foreach (var pr in Process.GetProcessesByName(gp))
                     {
-                        try { pr.ProcessorAffinity = (IntPtr)PMask; n++; } catch { }
+                        using (pr) { try { pr.ProcessorAffinity = (IntPtr)PMask; n++; } catch { } }
                     }
                 }
                 catch { }
@@ -4814,7 +4936,7 @@ namespace Fluxion
                     var procs = Process.GetProcessesByName(pn);
                     if (procs.Length > 0)
                     {
-                        foreach (var p in procs) { try { p.Kill(); killed++; } catch { } }
+                        foreach (var p in procs) { using (p) { try { p.Kill(); killed++; } catch { } } }
                         Log("已清理: " + pn);
                     }
                 }
@@ -4828,7 +4950,7 @@ namespace Fluxion
                     try
                     {
                         foreach (var p in Process.GetProcessesByName(gp))
-                        { try { p.PriorityClass = ProcessPriorityClass.High; found = true; } catch { } }
+                        { using (p) { try { p.PriorityClass = ProcessPriorityClass.High; found = true; } catch { } } }
                     }
                     catch { }
                 }
@@ -5134,18 +5256,23 @@ namespace Fluxion
         //   · 不跑 DISM——那条路在「功能本就没启用」的机器上要空跑几十秒并报无意义错误。
         //   · 代价（必须让用户知道）：WSL2 / Docker Desktop / Android 模拟器 / Windows 沙盒
         //     全部不可用。所以配置项默认关闭，且写入前一定先备份原值。
+        static int hypervisorCached = -1;
         public static bool HypervisorRunning()
         {
+            if (hypervisorCached >= 0) return hypervisorCached == 1;
             try
             {
                 using (var searcher = new ManagementObjectSearcher("SELECT HypervisorPresent FROM Win32_ComputerSystem"))
                     foreach (ManagementObject mo in searcher.Get())
                     {
                         object v = mo["HypervisorPresent"];
-                        return v != null && Convert.ToBoolean(v);
+                        bool run = v != null && Convert.ToBoolean(v);
+                        hypervisorCached = run ? 1 : 0;
+                        return run;
                     }
             }
             catch { }
+            hypervisorCached = 0;
             return false;
         }
 
@@ -5298,7 +5425,7 @@ namespace Fluxion
             string p = "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel";
             BackupReg(p, "GlobalTimerResolutionRequests");
             WriteReg(p, "GlobalTimerResolutionRequests", 1, RegistryValueKind.DWord);
-            Log("已启用全局定时器请求 GlobalTimerResolutionRequests=1（否则 0.5ms 只对 GameBoost 自身生效，游戏不受益；重启生效）");
+            Log("已启用全局定时器请求 GlobalTimerResolutionRequests=1（否则 0.5ms 只对 Fluxion 自身生效，游戏不受益；重启生效）");
         }
 
         // ---- 游戏加速包（Razer Cortex 挂起进程 / 游戏加加内存整理 / 社区验证的游戏期停 Windows 更新） ----
@@ -5316,12 +5443,14 @@ namespace Fluxion
                 {
                     foreach (var p in Process.GetProcessesByName(name))
                     {
+                        bool kept = false;
                         // 挂起而非杀：游戏退出可完整恢复（Cortex 同款做法），失败(权限/已退出)静默跳过
                         try
                         {
-                            if (Native.NtSuspendProcess(p.Handle) == 0) { suspendedProcs.Add(p); suspended++; }
+                            if (Native.NtSuspendProcess(p.Handle) == 0) { suspendedProcs.Add(p); suspended++; kept = true; }
                         }
                         catch { }
+                        finally { if (!kept) { try { p.Dispose(); } catch { } } }
                     }
                 }
                 catch { }
@@ -5329,9 +5458,16 @@ namespace Fluxion
             long freedMB = 0; int trimmed = 0;
             if (Cfg.GbTrim)
             {
-                // 内存整理：只修剪后台大进程(≥200MB)的工作集，游戏进程与自身不动
-                var gameNames = new List<string>(Cfg.GameProcesses);
+                // 内存整理：只修剪后台大进程(≥200MB)的工作集，全部入库/已知游戏进程与自身不动
+                var gameNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var gp in AllGameProcesses())
+                {
+                    if (!string.IsNullOrEmpty(gp))
+                        gameNames.Add(gp.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? gp.Substring(0, gp.Length - 4) : gp);
+                }
+                gameNames.Add("Fluxion");
                 gameNames.Add("GameBoost");
+                try { using (var self = Process.GetCurrentProcess()) gameNames.Add(self.ProcessName); } catch { }
                 try
                 {
                     foreach (var p in Process.GetProcesses())
@@ -5344,6 +5480,7 @@ namespace Fluxion
                             if (Native.EmptyWorkingSet(p.Handle)) { freedMB += before / (1024 * 1024); trimmed++; }
                         }
                         catch { }
+                        finally { try { p.Dispose(); } catch { } }
                     }
                 }
                 catch { }
@@ -5388,13 +5525,15 @@ namespace Fluxion
                 try
                 {
                     foreach (var p in Process.GetProcessesByName(name))
-                        try { Native.NtResumeProcess(p.Handle); } catch { }
+                        using (p) { try { Native.NtResumeProcess(p.Handle); } catch { } }
                 }
                 catch { }
         }
 
         // 服务停止/内存整理最长可耗时 20s+，绝不能在 UI 线程跑（联动的 tick 里只投后台并立即返回）
         static object gbLock = new object();
+        public static void GameBoostStartLocked() { lock (gbLock) GameBoostStart(); }
+        public static void GameBoostStopLocked() { lock (gbLock) GameBoostStop(); }
         public static void GameBoostStartAsync()
         {
             // 委托里任何一处抛出 = 线程池未处理异常 = 进程直接终止（全程序仅有的两个没包 try 的池入口，
@@ -5523,101 +5662,143 @@ namespace Fluxion
             catch { return null; }
         }
 
+        static readonly object cfgIoLock = new object();
+
+        static string EscapeJsonStr(string s)
+        {
+            if (s == null) return "";
+            var sb = new StringBuilder(s.Length + 8);
+            for (int i = 0; i < s.Length; i++)
+            {
+                char c = s[i];
+                switch (c)
+                {
+                    case '\\': sb.Append("\\\\"); break;
+                    case '"': sb.Append("\\\""); break;
+                    case '\r': sb.Append("\\r"); break;
+                    case '\n': sb.Append("\\n"); break;
+                    case '\t': sb.Append("\\t"); break;
+                    default:
+                        if (c < 0x20) sb.Append("\\u").Append(((int)c).ToString("x4"));
+                        else sb.Append(c);
+                        break;
+                }
+            }
+            return sb.ToString();
+        }
+
         // 统一写回：定位节 → 正则替换键值；键/节缺失就补写。写前整份文件校验一遍
         // （2026-09 曾因配置文件被写入非法占位符导致整体解析失败、全部配置静默回默认 —— 这类事故必须挡在写入前）
         static bool WriteConfigKey(string section, string key, string pat, string rawValue)
         {
-            try
+            lock (cfgIoLock)
             {
-                string text = File.ReadAllText(ConfigPath, Encoding.UTF8);
-                int brace, end;
-                if (!FindSectionBlock(text, section, out brace, out end))
+                try
                 {
-                    string full = AppendSectionBlock(text, section, key, rawValue);
-                    if (full == null) return false;
-                    File.WriteAllText(ConfigPath, full, Encoding.UTF8);
+                    if (!File.Exists(ConfigPath))
+                    {
+                        try { Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)); } catch { }
+                        File.WriteAllText(ConfigPath, "{\r\n}\r\n", new UTF8Encoding(false));
+                    }
+                    string text = File.ReadAllText(ConfigPath, Encoding.UTF8);
+                    int brace, end;
+                    if (!FindSectionBlock(text, section, out brace, out end))
+                    {
+                        string full = AppendSectionBlock(text, section, key, rawValue);
+                        if (full == null) return false;
+                        File.WriteAllText(ConfigPath, full, Encoding.UTF8);
+                        return true;
+                    }
+                    string block = text.Substring(brace, end - brace);
+                    // ⚠ 判据用 Regex.IsMatch（"键在不在"），**不能**用"替换前后文本有没有变化"。
+                    //   旧写法 `nb == block` 有个静默陷阱：当写入值与现有值**完全相同**时，替换成功但结果
+                    //   与原文一字不差 → 被误判成"键不在本节" → InsertKeyBlock 又插一个同名键。
+                    //   后果是配置文件里同一个键出现两次（JavaScriptSerializer 不报错、静默取其一），
+                    //   每保存一次就多一条，越积越脏。任何"值没变也照写"的路径（连续保存、换主题重建后的回填）
+                    //   都会踩到 —— 2026-09-20 加分辨率档位时发现。
+                    string nb;
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(block, pat))
+                    {
+                        // 键不在本节 → 补写一个。老安装的 config.json 不会有新增的键，而安装包对该文件用的是
+                        // onlyifdoesntexist（升级不覆盖用户那份），所以"新键写不进去"是必然会发生的事。
+                        nb = InsertKeyBlock(block, key, rawValue);
+                        if (nb == null) return false;
+                    }
+                    else
+                    {
+                        // 必须用 ${1} 而不是 $1：替换串 "$1"+rawValue 在 rawValue 是数字时会拼成 "$10"/"$11"/"$12"，
+                        // .NET 会把它当成"第 10/11/12 号捕获组"，而本模式只有 1 个组 —— 无效组号会原样写出字面量 $10。
+                        // 结果就是整数键被写成 "$10,"，整份 JSON 解析失败、全部配置静默回默认（2026-09 两次事故的根因）。
+                        nb = System.Text.RegularExpressions.Regex.Replace(block, pat, "${1}" + rawValue.Replace("$", "$$"));
+                    }
+                    if (nb == block) return true;      // 值本来就是它：不必重写文件（幂等，且避免无谓的整份重写）
+                    string outText = text.Substring(0, brace) + nb + text.Substring(end);
+                    new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(outText);
+                    File.WriteAllText(ConfigPath, outText, Encoding.UTF8);
                     return true;
                 }
-                string block = text.Substring(brace, end - brace);
-                // ⚠ 判据用 Regex.IsMatch（"键在不在"），**不能**用"替换前后文本有没有变化"。
-                //   旧写法 `nb == block` 有个静默陷阱：当写入值与现有值**完全相同**时，替换成功但结果
-                //   与原文一字不差 → 被误判成"键不在本节" → InsertKeyBlock 又插一个同名键。
-                //   后果是配置文件里同一个键出现两次（JavaScriptSerializer 不报错、静默取其一），
-                //   每保存一次就多一条，越积越脏。任何"值没变也照写"的路径（连续保存、换主题重建后的回填）
-                //   都会踩到 —— 2026-09-20 加分辨率档位时发现。
-                string nb;
-                if (!System.Text.RegularExpressions.Regex.IsMatch(block, pat))
+                catch (Exception ex)
                 {
-                    // 键不在本节 → 补写一个。老安装的 config.json 不会有新增的键，而安装包对该文件用的是
-                    // onlyifdoesntexist（升级不覆盖用户那份），所以"新键写不进去"是必然会发生的事。
-                    nb = InsertKeyBlock(block, key, rawValue);
-                    if (nb == null) return false;
-                }
-                else
-                {
-                    // 必须用 ${1} 而不是 $1：替换串 "$1"+rawValue 在 rawValue 是数字时会拼成 "$10"/"$11"/"$12"，
-                    // .NET 会把它当成"第 10/11/12 号捕获组"，而本模式只有 1 个组 —— 无效组号会原样写出字面量 $10。
-                    // 结果就是整数键被写成 "$10,"，整份 JSON 解析失败、全部配置静默回默认（2026-09 两次事故的根因）。
-                    nb = System.Text.RegularExpressions.Regex.Replace(block, pat, "${1}" + rawValue.Replace("$", "$$"));
-                }
-                if (nb == block) return true;      // 值本来就是它：不必重写文件（幂等，且避免无谓的整份重写）
-                string outText = text.Substring(0, brace) + nb + text.Substring(end);
-                new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(outText);
-                File.WriteAllText(ConfigPath, outText, Encoding.UTF8);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Log("config 写回失败 [" + section + "." + key + "]: " + ex.Message);
-                // ★ 只读目录兜底：主 config.json 被 ACL 锁成只读（本机的 %ProgramData% 就是）
-                //   → 落一份 config.local.json 当覆盖层，之后所有写入都走它；下次启动优先读它。
-                //   不加这一层，"主题/开关改完重启就丢"永远无解。
-                bool onOverlay = configPathCache != null &&
-                                 configPathCache.EndsWith("config.local.json", StringComparison.OrdinalIgnoreCase);
-                if (!onOverlay)
-                {
-                    try
+                    Log("config 写回失败 [" + section + "." + key + "]: " + ex.Message);
+                    // ★ 只读目录兜底：仅当主 config.json 被 ACL 拒绝访问或只读属性锁死时，
+                    //   才落一份 config.local.json 当覆盖层，避免偶发 IO 共享冲突误分裂出两份配置。
+                    bool onOverlay = configPathCache != null &&
+                                     configPathCache.EndsWith("config.local.json", StringComparison.OrdinalIgnoreCase);
+                    bool aclOrRo = ex is UnauthorizedAccessException;
+                    if (!aclOrRo)
                     {
-                        string alt = Path.Combine(DataDir, "config.local.json");
-                        string cur = File.ReadAllText(ConfigPath, Encoding.UTF8);
-                        File.WriteAllText(alt, Config.RepairJson(cur), new UTF8Encoding(false));   // 顺手修掉历史坏写
-                        configPathCache = alt;
-                        Log("已改用可写的覆盖配置：" + alt + "（设置从现在起不会丢）");
-                        return WriteConfigKey(section, key, pat, rawValue);                  // 重试一次
+                        try { if (File.Exists(ConfigPath) && new FileInfo(ConfigPath).IsReadOnly) aclOrRo = true; }
+                        catch { }
                     }
-                    catch (Exception ex2) { Log("覆盖配置也写不了：" + ex2.Message + "（建议在「设置」里换数据目录）"); }
+                    if (!onOverlay && aclOrRo)
+                    {
+                        try
+                        {
+                            string alt = Path.Combine(DataDir, "config.local.json");
+                            string cur = File.ReadAllText(ConfigPath, Encoding.UTF8);
+                            File.WriteAllText(alt, Config.RepairJson(cur), new UTF8Encoding(false));   // 顺手修掉历史坏写
+                            configPathCache = alt;
+                            Log("已改用可写的覆盖配置：" + alt + "（设置从现在起不会丢）");
+                            return WriteConfigKey(section, key, pat, rawValue);                  // 重试一次
+                        }
+                        catch (Exception ex2) { Log("覆盖配置也写不了：" + ex2.Message + "（建议在「设置」里换数据目录）"); }
+                    }
+                    return false;
                 }
-                return false;
             }
         }
 
         public static bool SetConfigBool(string section, string key, bool value)
         {
-            return WriteConfigKey(section, key, "(\"" + key + "\"\\s*:\\s*)(true|false)", value ? "true" : "false");
+            return WriteConfigKey(section, key, "(\"" + Regex.Escape(key) + "\"\\s*:\\s*)(true|false)", value ? "true" : "false");
         }
 
         public static bool SetConfigStr(string section, string key, string value)
         {
-            return WriteConfigKey(section, key, "(\"" + key + "\"\\s*:\\s*)\"[^\"]*\"",
-                "\"" + value.Replace("\\", "\\\\") + "\"");
+            return WriteConfigKey(section, key,
+                "(\"" + Regex.Escape(key) + "\"\\s*:\\s*)\"(?:\\\\.|[^\"\\\\])*\"",
+                "\"" + EscapeJsonStr(value) + "\"");
         }
 
         public static bool SetConfigInt(string section, string key, int value)
         {
-            return WriteConfigKey(section, key, "(\"" + key + "\"\\s*:\\s*)(-?\\d+)", value.ToString());
+            return WriteConfigKey(section, key, "(\"" + Regex.Escape(key) + "\"\\s*:\\s*)(-?\\d+)", value.ToString());
         }
 
         // 字符串数组（如 dlssg.extraRoots）：生成 JSON 数组字面量写入
         public static bool SetConfigList(string section, string key, System.Collections.Generic.List<string> values)
         {
             var sb = new System.Text.StringBuilder("[");
-            for (int i = 0; i < values.Count; i++)
+            if (values != null)
             {
-                if (i > 0) sb.Append(", ");
-                sb.Append("\"").Append(values[i].Replace("\\", "\\\\")).Append("\"");
+                for (int i = 0; i < values.Count; i++)
+                {
+                    if (i > 0) sb.Append(", ");
+                    sb.Append("\"").Append(EscapeJsonStr(values[i])).Append("\"");
+                }
             }
             sb.Append("]");
-            return WriteConfigKey(section, key, "(\"" + key + "\"\\s*:\\s*)\\[[^\\]]*\\]", sb.ToString());
+            return WriteConfigKey(section, key, "(\"" + Regex.Escape(key) + "\"\\s*:\\s*)\\[(?:\"(?:\\\\.|[^\"\\\\])*\"|[^\\]])*\\]", sb.ToString());
         }
 
         // ---- 写回游戏分辨率规则（v3.8.0）----
@@ -5638,17 +5819,17 @@ namespace Fluxion
                     if (r == null || r.Proc == null || r.Proc.Length == 0) continue;
                     if (!first) sb.Append(", ");
                     first = false;
-                    sb.Append("{ \"proc\": \"").Append(r.Proc.Replace("\\", "\\\\")).Append("\", ");
+                    sb.Append("{ \"proc\": \"").Append(EscapeJsonStr(r.Proc)).Append("\", ");
                     sb.Append("\"w\": ").Append(r.W).Append(", ");
                     sb.Append("\"h\": ").Append(r.H).Append(", ");
                     sb.Append("\"hz\": ").Append(r.Hz).Append(", ");
                     sb.Append("\"detach\": ").Append(r.Detach ? "true" : "false");
                     if (r.Preset != null && r.Preset.Length > 0)
-                        sb.Append(", \"preset\": \"").Append(r.Preset.Replace("\\", "\\\\")).Append("\"");
+                        sb.Append(", \"preset\": \"").Append(EscapeJsonStr(r.Preset)).Append("\"");
                     // 进游戏时要在设备管理器层面禁用的显示器型号（v3.9.0）。空 = 不写这一项，
                     //   老配置读回来是空 → 行为与升级前完全一致。
                     if (r.OffMons != null && r.OffMons.Trim().Length > 0)
-                        sb.Append(", \"offMons\": \"").Append(r.OffMons.Trim().Replace("\\", "\\\\")).Append("\"");
+                        sb.Append(", \"offMons\": \"").Append(EscapeJsonStr(r.OffMons.Trim())).Append("\"");
                     sb.Append(" }");
                 }
             }
@@ -6751,8 +6932,10 @@ namespace Fluxion
 
             string min = GetPowerCfgSetting("SUB_PROCESSOR", "PROCTHROTTLEMIN");
             string max = GetPowerCfgSetting("SUB_PROCESSOR", "PROCTHROTTLEMAX");
-            bool procOk = min == Cfg.MinProc.ToString() && max == Cfg.MaxProc.ToString();
-            list.Add(new StatusItem { Item = "处理器最小/最大状态", Current = min + "% / " + max + "%", Expected = Cfg.MinProc + "% / " + Cfg.MaxProc + "%",
+            int wantMinProc = (Cfg.AdaptiveEnable && IsLaptop && Cfg.MinProc >= 100) ? 50 : Cfg.MinProc;
+            bool procOk = (min == wantMinProc.ToString() || min == Cfg.MinProc.ToString()) && max == Cfg.MaxProc.ToString();
+            list.Add(new StatusItem { Item = "处理器最小/最大状态", Current = min + "% / " + max + "%",
+                Expected = wantMinProc + "% / " + Cfg.MaxProc + "%" + (wantMinProc != Cfg.MinProc ? "（笔记本自适应）" : ""),
                 Status = procOk ? "✅ 已应用" : "⚠️ 未应用" });
 
             // 最大状态单独再给一行（v3.6.0 补全）：上面那行双击只会落到"最小状态"（那是另一个旋钮），
@@ -6779,8 +6962,12 @@ namespace Fluxion
 
             string mmPath = "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile";
             object nti = ReadReg(mmPath, "NetworkThrottlingIndex");
-            bool ntiOk = (nti is int && (int)nti == -1);
-            list.Add(new StatusItem { Item = "网络流量节流", Current = ntiOk ? "已禁用" : (nti == null ? "未设置" : "值 " + nti), Expected = "禁用(0xFFFFFFFF)",
+            int wantNti = Cfg.NetThrottle;
+            bool ntiOk = (nti is int && (int)nti == wantNti);
+            string wantNtiTxt = wantNti < 0 ? "禁用(0xFFFFFFFF)" : ("值 " + wantNti);
+            list.Add(new StatusItem { Item = "网络流量节流",
+                Current = (nti is int && (int)nti == -1) ? "已禁用" : (nti == null ? "未设置" : "值 " + nti),
+                Expected = wantNtiTxt,
                 Status = ntiOk ? "✅ 已应用" : (nti == null ? "🟡 未设置" : "⚠️ 未应用") });
 
             object sr = ReadReg(mmPath, "SystemResponsiveness");
@@ -6823,9 +7010,14 @@ namespace Fluxion
                 Status = wpsOk ? "✅ 已应用" : (wps == null ? "🟡 未设置" : "⚠️ 未应用") });
 
             object hw = ReadReg("HKLM:\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", "HwSchMode");
-            bool hwOk = (hw is int && (int)hw == 2);
-            list.Add(new StatusItem { Item = "硬件加速GPU计划(HAGS)", Current = hwOk ? "开启" : (hw == null ? "未设置(默认关)" : "关闭"), Expected = "开启(2，重启生效)",
-                Status = hwOk ? "✅ 已应用" : "⚠️ 未应用" });
+            bool hwOn = (hw is int && (int)hw == 2);
+            bool hwOff = (hw == null || (hw is int && (int)hw == 1));
+            bool hwCapSkip = Cfg.AdaptiveEnable && !HagsCapable;
+            bool hwOk = hwCapSkip ? true : (Cfg.HagsOn ? hwOn : hwOff);
+            list.Add(new StatusItem { Item = "硬件加速GPU计划(HAGS)",
+                Current = hwOn ? "开启" : (hw == null ? "未设置(默认关)" : "关闭"),
+                Expected = hwCapSkip ? "当前显卡/系统不支持（自动跳过）" : (Cfg.HagsOn ? "开启(2，重启生效)" : "关闭(1，重启生效)"),
+                Status = hwCapSkip ? "🟡 不支持" : (hwOk ? "✅ 已应用" : "⚠️ 未应用") });
 
             // ---- 2026-09-19 补：两个社区视频的建议纳入核验 ----
             // ① 系统虚拟化（视频《自己的配置明明不错，但还是帧数上不去》第 1 步）。
@@ -6875,7 +7067,7 @@ namespace Fluxion
             bool ampere = !string.IsNullOrEmpty(GpuName)
                           && (GpuName.IndexOf("RTX 30", StringComparison.OrdinalIgnoreCase) >= 0
                               || GpuName.IndexOf("RTX 20", StringComparison.OrdinalIgnoreCase) >= 0);
-            if (hwOk && ampere && FpsList().Count > 0)
+            if (hwOn && ampere && FpsList().Count > 0)
                 list.Add(new StatusItem
                 {
                     Item = "HAGS × 竞技游戏(A/B 建议)",
@@ -6925,12 +7117,16 @@ namespace Fluxion
                     Expected = "只读核验（驱动按游戏预设，勿全局强开）",
                     Status = "✅ 已读取"
                 });
+                int wantBg = Cfg.NvBgFpsLimit > 0 ? Cfg.NvBgFpsLimit : 0;
+                bool bgOk = wantBg == 0
+                    ? (nvdb.FrlBackground.IndexOf("无记录") >= 0 || nvdb.FrlBackground.IndexOf("未限") >= 0 || nvdb.FrlBackground.IndexOf("0）") >= 0)
+                    : nvdb.FrlBackground.StartsWith(wantBg + " FPS", StringComparison.Ordinal);
                 list.Add(new StatusItem
                 {
                     Item = "驱动·帧率上限(后台)",
                     Current = nvdb.FrlBackground,
-                    Expected = "无记录或 0（不限制）",
-                    Status = "✅ 已读取"
+                    Expected = wantBg > 0 ? (wantBg + " FPS（本工具设定）") : "无记录或 0（不限制）",
+                    Status = bgOk ? "✅ 已应用" : (wantBg > 0 ? "⚠️ 未应用" : "✅ 已读取")
                 });
 
                 // v3.6.0：把这两个值单独拉出来 —— 它们是「能给出具体操作」的典型，
@@ -7093,13 +7289,17 @@ namespace Fluxion
                 string hetName = het == "0" ? "所有处理器" : het == "1" ? "高性能处理器(P核)"
                                : het == "2" ? "首选高性能处理器" : het == "3" ? "高效处理器"
                                : het == "4" ? "首选高效处理器" : het == "5" ? "自动" : null;
-                bool hetOk = het == "1";
+                int wantHet = Math.Max(0, Math.Min(5, Cfg.HeteroPolicy));
+                string wantHetName = wantHet == 0 ? "所有处理器(0)" : wantHet == 1 ? "高性能处理器(P核)(1)"
+                                   : wantHet == 2 ? "首选高性能处理器(2)" : wantHet == 3 ? "高效处理器(3)"
+                                   : wantHet == 4 ? "首选高效处理器(4)" : "自动(" + wantHet + ")";
+                bool hetOk = !Cfg.HeteroPolicyEnable || het == wantHet.ToString();
                 list.Add(new StatusItem
                 {
                     Item = "异类线程调度策略(混合架构)",
                     Current = het == "?" ? "?" : (hetName ?? ("值 " + het)),
-                    Expected = "高性能处理器(P核)(1)",
-                    Status = hetOk ? "✅ 已应用" : "⚠️ 未应用"
+                    Expected = Cfg.HeteroPolicyEnable ? wantHetName : "已停用（保持系统当前值）",
+                    Status = !Cfg.HeteroPolicyEnable ? "🟡 已停用" : (hetOk ? "✅ 已应用" : "⚠️ 未应用")
                 });
             }
             else
@@ -7116,20 +7316,57 @@ namespace Fluxion
                 Status = vbs.IndexOf("未启用") >= 0 ? "✅ 无需处理" : "🟡 见说明"
             });
 
-            bool srcOk = Dlssg.SourceReady();
+            string r040, rNvbr;
+            bool has040 = Dlssg040.Ready(out r040);
+            bool has030 = Dlssg030.PackActual().Found;
+            bool hasNvbr = MfgBridge.Ready(out rNvbr);
+            bool hasOpti = Directory.Exists(XeMfg.PackDir("wuwa")) || Directory.Exists(XeMfg.PackDir("zzz"));
+            bool srcOk = has040 || has030 || hasNvbr || hasOpti || Dlssg.SourceReady();
+            var packTags = new List<string>();
+            if (has040) packTags.Add(Dlssg040.Ver);
+            if (has030) packTags.Add(Dlssg030.Ver);
+            if (hasNvbr) packTags.Add("Bridge");
+            if (hasOpti) packTags.Add("OptiScaler");
+            if (packTags.Count == 0 && srcOk) packTags.Add("0.2.x");
             list.Add(new StatusItem
             {
                 Item = "帧生成运行时(DLSSG)",
-                Current = srcOk ? "已就绪" : "未下载",
+                Current = srcOk ? ("已就绪（" + string.Join(" / ", packTags.ToArray()) + "）") : "未下载",
                 Expected = "已就绪（不玩 3A 可忽略）",
                 Status = srcOk ? "✅ 已就绪" : "🟡 未下载"
             });
-            int fgInst = Dlssg.LoadState().Count;
+            int fgInst = 0;
+            try
+            {
+                var seenDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (Dlssg.Library != null && Dlssg.Library.Count > 0)
+                {
+                    foreach (var g in Dlssg.Library)
+                    {
+                        if (g == null || string.IsNullOrEmpty(g.Dir) || !seenDirs.Add(g.Dir)) continue;
+                        if (Plan.Current(g.Dir) != Plan.None) fgInst++;
+                    }
+                }
+                else
+                {
+                    foreach (var kv in MetaStore.Load())
+                    {
+                        string k = kv.Key;
+                        if (string.IsNullOrEmpty(k)) continue;
+                        string d = k.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? Path.GetDirectoryName(k) : k;
+                        if (string.IsNullOrEmpty(d) || !Directory.Exists(d) || !seenDirs.Add(d)) continue;
+                        if (Plan.Current(d) != Plan.None) fgInst++;
+                    }
+                }
+                int legacyCnt = Dlssg.LoadState().Count;
+                if (legacyCnt > fgInst) fgInst = legacyCnt;
+            }
+            catch { fgInst = Dlssg.LoadState().Count; }
             list.Add(new StatusItem
             {
                 Item = "帧生成已接入游戏",
                 Current = fgInst + " 个",
-                Expected = "按需（仅单机 3A）",
+                Expected = "按需（3A / 二游）",
                 Status = fgInst > 0 ? "✅ 已接入" : "🟡 未接入"
             });
 
@@ -7416,6 +7653,19 @@ namespace Fluxion
         {
             try
             {
+                var ms = new Native.MEMORYSTATUSEX();
+                ms.dwLength = (uint)Marshal.SizeOf(typeof(Native.MEMORYSTATUSEX));
+                if (Native.GlobalMemoryStatusEx(ref ms) && ms.ullTotalPhys > 0)
+                {
+                    int pct = (int)Math.Round((ms.ullTotalPhys - ms.ullAvailPhys) * 100.0 / ms.ullTotalPhys);
+                    if (pct < 0) pct = 0;
+                    if (pct > 100) pct = 100;
+                    return pct;
+                }
+            }
+            catch { }
+            try
+            {
                 using (var mo = new ManagementObjectSearcher("SELECT TotalVisibleMemorySize,FreePhysicalMemory FROM Win32_OperatingSystem"))
                 {
                     foreach (var o in mo.Get())
@@ -7429,7 +7679,7 @@ namespace Fluxion
             catch { }
             return -1;
         }
-        // GPU 信息缓存（2 秒）：避免 UpdateSys 里 GetGpuPct/GetGpuTemp 各启动一次 nvidia-smi.exe 子进程阻塞 UI 线程
+        // GPU 信息缓存（2 秒）：优先走进程内 NVAPI（零子进程开销），仅当 NVAPI 不可用时回退 nvidia-smi
         static string[] gpuInfoCache = null;
         static DateTime gpuInfoTime = DateTime.MinValue;
         static string[] GetGpuInfo()
@@ -7438,6 +7688,13 @@ namespace Fluxion
                 return gpuInfoCache;
             gpuInfoCache = new string[] { "-1", "-1" };
             if (!HasNvidia) { gpuInfoTime = DateTime.Now; return gpuInfoCache; }   // 非 N 卡不反复拉起 nvidia-smi
+            int nvUtil, nvTemp;
+            if (NvDrs.TryReadGpuStats(out nvUtil, out nvTemp))
+            {
+                gpuInfoCache = new string[] { nvUtil.ToString(), nvTemp.ToString() };
+                gpuInfoTime = DateTime.Now;
+                return gpuInfoCache;
+            }
             try
             {
                 string o = RunCmd("nvidia-smi", "--query-gpu=utilization.gpu,temperature.gpu,memory.used --format=csv,noheader,nounits");
@@ -7452,8 +7709,10 @@ namespace Fluxion
         public static int GetGpuTemp() { try { return Convert.ToInt32(GetGpuInfo()[1]); } catch { return -1; } }
         static int cpuTempCache = -1;
         static DateTime cpuTempTime = DateTime.MinValue;
+        static bool cpuTempUnsupported = false;
         public static int GetCpuTemp()
         {
+            if (cpuTempUnsupported) return -1;
             if ((DateTime.Now - cpuTempTime).TotalSeconds < 2) return cpuTempCache;
             cpuTempCache = -1;
             try
@@ -7468,53 +7727,74 @@ namespace Fluxion
                     }
                 }
             }
+            catch (ManagementException mex)
+            {
+                if (mex.ErrorCode == ManagementStatus.NotSupported
+                    || mex.ErrorCode == ManagementStatus.InvalidClass
+                    || mex.ErrorCode == ManagementStatus.InvalidNamespace
+                    || mex.ErrorCode == ManagementStatus.AccessDenied)
+                    cpuTempUnsupported = true;
+            }
             catch { }
             cpuTempTime = DateTime.Now;
             return cpuTempCache;
         }
 
-        // 进程快照缓存（2 秒）：IsGameRunning/GetRemoteState 共 13 次 GetProcessesByName → 改为一次 GetProcesses + 内存过滤
-        static List<Process> procSnapshot = null;
+        // 进程快照缓存（2 秒）：抽取进程名 HashSet 并立即 Dispose 全部 Process 内核句柄包装，杜绝句柄积压
+        static HashSet<string> procNameSnapshot = null;
         static DateTime procSnapshotTime = DateTime.MinValue;
-        static List<Process> GetProcSnapshot()
+        static HashSet<string> GetProcSnapshot()
         {
-            if (procSnapshot != null && (DateTime.Now - procSnapshotTime).TotalSeconds < 2)
-                return procSnapshot;
+            if (procNameSnapshot != null && (DateTime.Now - procSnapshotTime).TotalSeconds < 2)
+                return procNameSnapshot;
             try
             {
-                var fresh = new List<Process>(Process.GetProcesses());
+                var raw = Process.GetProcesses();
+                var fresh = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var p in raw)
+                {
+                    if (p == null) continue;
+                    try { fresh.Add(p.ProcessName); } catch { }
+                    try { p.Dispose(); } catch { }
+                }
                 if (fresh.Count > 0)
                 {
-                    procSnapshot = fresh;
+                    procNameSnapshot = fresh;
                     procSnapshotTime = DateTime.Now;
                     return fresh;
                 }
                 // 空结果 = 枚举失败而不是真没进程：**不缓存也不交给调用方**。
-                //   缓存它会让之后 2 秒内所有判定"看不见任何进程"→ 游戏联动误判"游戏已退出"
-                //   → 分辨率/远控/电源全部还原，3 秒后又重新触发一轮（2026-09-27 日志实测一局抖 4 次）。
-                return procSnapshot != null ? procSnapshot : fresh;
+                return procNameSnapshot != null ? procNameSnapshot : fresh;
             }
             catch
             {
                 // 枚举异常同理：退回上一次快照（顶多旧 2 秒），绝不返回空表
-                return procSnapshot != null ? procSnapshot : new List<Process>();
+                return procNameSnapshot != null ? procNameSnapshot : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             }
         }
         public static bool ProcExists(string name)
         {
-            foreach (var p in GetProcSnapshot())
-                try { if (p.ProcessName.Equals(name, StringComparison.OrdinalIgnoreCase)) return true; } catch { }
-            return false;
+            if (string.IsNullOrEmpty(name)) return false;
+            return GetProcSnapshot().Contains(name);
         }
-        // 绕过快照缓存的全新枚举：联动退出防抖用。快照链路偶发"看不见在跑的游戏"
-        //（枚举瞬时失败 / 全屏游戏把 UI 消息泵饿死导致 tick 迟到），复核一次就能纠正误报。
+        // 绕过快照缓存的全新枚举：联动退出防抖用，枚举完毕立即释放句柄。
         public static bool ProcExistsFresh(string name)
         {
             if (name == null || name.Length == 0) return false;
             try
             {
-                foreach (var p in Process.GetProcesses())
-                    try { if (p.ProcessName.Equals(name, StringComparison.OrdinalIgnoreCase)) return true; } catch { }
+                var raw = Process.GetProcesses();
+                bool hit = false;
+                foreach (var p in raw)
+                {
+                    if (p == null) continue;
+                    if (!hit)
+                    {
+                        try { if (p.ProcessName.Equals(name, StringComparison.OrdinalIgnoreCase)) hit = true; } catch { }
+                    }
+                    try { p.Dispose(); } catch { }
+                }
+                return hit;
             }
             catch { }
             return false;

@@ -3006,6 +3006,766 @@ class StyleProbe
         f.Close();
     }
 
+    // ==================== hoveraudit —— 悬停几何、弹层圆角、长页滚动与模态窗全量视觉审计 ====================
+    delegate bool EnumThreadWndProc(IntPtr hWnd, IntPtr lParam);
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern bool EnumThreadWindows(uint dwThreadId, EnumThreadWndProc lpfn, IntPtr lParam);
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    static extern uint GetCurrentThreadId();
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern bool IsWindowVisible(IntPtr hWnd);
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern IntPtr GetWindowDC(IntPtr hWnd);
+
+    static Form auditHostForm;
+    static int auditSavedCount;
+    static int auditReflMiss;
+    static List<string> auditLog;
+
+    static void AuditNote(string msg)
+    {
+        Console.WriteLine(msg);
+        if (auditLog != null) auditLog.Add(msg);
+    }
+
+    static bool IsBmpAllBlack(Bitmap b)
+    {
+        if (b == null || b.Width <= 0 || b.Height <= 0) return true;
+        int[] xs = new int[] { b.Width / 2, b.Width / 4, (b.Width * 3) / 4 };
+        int[] ys = new int[] { b.Height / 2, b.Height / 4, (b.Height * 3) / 4 };
+        for (int yi = 0; yi < ys.Length; yi++)
+        {
+            for (int xi = 0; xi < xs.Length; xi++)
+            {
+                Color c = b.GetPixel(Math.Max(0, Math.Min(b.Width - 1, xs[xi])), Math.Max(0, Math.Min(b.Height - 1, ys[yi])));
+                if (c.R != 0 || c.G != 0 || c.B != 0) return false;
+            }
+        }
+        return true;
+    }
+
+    static Bitmap GrabDropDownBmp(ToolStripDropDown dd)
+    {
+        int dw = Math.Max(1, dd.Width), dh = Math.Max(1, dd.Height);
+        Bitmap db = new Bitmap(dw, dh);
+        using (Graphics dg = Graphics.FromImage(db))
+        {
+            IntPtr wdc = GetWindowDC(dd.Handle);
+            if (wdc != IntPtr.Zero)
+            {
+                IntPtr dst = dg.GetHdc();
+                try { BitBlt(dst, 0, 0, dw, dh, wdc, 0, 0, 0x00CC0020); }
+                finally { dg.ReleaseHdc(dst); ReleaseDC(dd.Handle, wdc); }
+            }
+        }
+        if (IsBmpAllBlack(db))
+        {
+            using (Graphics dg = Graphics.FromImage(db))
+            {
+                IntPtr dst = dg.GetHdc();
+                try { PrintWindow(dd.Handle, dst, 2u); }
+                finally { dg.ReleaseHdc(dst); }
+            }
+        }
+        if (IsBmpAllBlack(db))
+        {
+            using (Graphics dg = Graphics.FromImage(db))
+            {
+                IntPtr dst = dg.GetHdc();
+                try { PrintWindow(dd.Handle, dst, 0u); }
+                finally { dg.ReleaseHdc(dst); }
+            }
+        }
+        if (IsBmpAllBlack(db))
+        {
+            try { dd.DrawToBitmap(db, new Rectangle(0, 0, dw, dh)); } catch { }
+        }
+        return db;
+    }
+
+    static void GrabScreenRect(Rectangle sr, string file)
+    {
+        int w = Math.Max(1, sr.Width), h = Math.Max(1, sr.Height);
+        using (Bitmap bmp = new Bitmap(w, h))
+        {
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                g.Clear(Theme.Bg);
+                if (auditHostForm != null && !auditHostForm.IsDisposed && auditHostForm.Visible && auditHostForm.IsHandleCreated)
+                {
+                    Rectangle crForm = auditHostForm.RectangleToScreen(auditHostForm.ClientRectangle);
+                    using (Bitmap fb = GrabBmp(auditHostForm))
+                    {
+                        g.DrawImageUnscaled(fb, crForm.X - sr.X, crForm.Y - sr.Y);
+                    }
+                }
+                ToolStripDropDown dd = FindOpenDropDown();
+                if (dd != null && dd.Visible && dd.IsHandleCreated)
+                {
+                    using (Bitmap db = GrabDropDownBmp(dd))
+                    {
+                        Rectangle dr = new Rectangle(dd.Bounds.X - sr.X, dd.Bounds.Y - sr.Y, db.Width, db.Height);
+                        Region old = g.Clip;
+                        try
+                        {
+                            using (System.Drawing.Drawing2D.GraphicsPath gp = Theme.Round(new Rectangle(dr.X, dr.Y, Math.Max(1, dr.Width - 1), Math.Max(1, dr.Height - 1)), Theme.S(8)))
+                            {
+                                g.SetClip(gp);
+                                g.DrawImageUnscaled(db, dr.X, dr.Y);
+                            }
+                        }
+                        finally { g.Clip = old; old.Dispose(); }
+                        System.Drawing.Drawing2D.SmoothingMode oldSm = g.SmoothingMode;
+                        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                        Theme.EdgeRound(g, new Rectangle(dr.X, dr.Y, Math.Max(1, dr.Width - 1), Math.Max(1, dr.Height - 1)), Theme.S(8), Theme.CardEdge, 1f);
+                        g.SmoothingMode = oldSm;
+                    }
+                }
+            }
+            bmp.Save(Path.Combine(OUT, file), ImageFormat.Png);
+        }
+        auditSavedCount++;
+        AuditNote("[hoveraudit] saved " + file + " (" + w + "x" + h + ")");
+    }
+
+    static ToolStripDropDown FindOpenDropDown()
+    {
+        ToolStripDropDown found = null;
+        EnumThreadWindows(GetCurrentThreadId(), delegate(IntPtr h, IntPtr lp)
+        {
+            if (!IsWindowVisible(h)) return true;
+            Control c = Control.FromHandle(h);
+            ToolStripDropDown dd = c as ToolStripDropDown;
+            if (dd != null && dd.Visible) { found = dd; return false; }
+            return true;
+        }, IntPtr.Zero);
+        return found;
+    }
+
+    static void SnapAnim(object ctl, string fieldName, double val)
+    {
+        if (ctl == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS SnapAnim target null for " + fieldName); return; }
+        FieldInfo fi = ctl.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+        if (fi == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS field " + ctl.GetType().Name + "." + fieldName); return; }
+        object anim = fi.GetValue(ctl);
+        if (anim == null) return;
+        MethodInfo sm = anim.GetType().GetMethod("Snap", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        if (sm == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS Anim.Snap"); return; }
+        sm.Invoke(anim, new object[] { val });
+        Control c = ctl as Control;
+        if (c != null) { c.Invalidate(); c.Update(); }
+    }
+
+    static void SetPrivField(object obj, string name, object val)
+    {
+        if (obj == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS SetPrivField target null for " + name); return; }
+        FieldInfo fi = obj.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+        if (fi == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS field " + obj.GetType().Name + "." + name); return; }
+        fi.SetValue(obj, val);
+        Control c = obj as Control;
+        if (c != null) { c.Invalidate(); c.Update(); }
+    }
+
+    static object GetPrivField(object obj, string name)
+    {
+        if (obj == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS GetPrivField target null for " + name); return null; }
+        FieldInfo fi = obj.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+        if (fi == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS field " + obj.GetType().Name + "." + name); return null; }
+        return fi.GetValue(obj);
+    }
+
+    static void CaptureBlockingDialog(MainForm f, string methodName, Type[] paramTypes, object[] invokeArgs, string outPng, int scrollBottomAfter)
+    {
+        MethodInfo mi = paramTypes == null
+            ? typeof(MainForm).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)
+            : typeof(MainForm).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance, null, paramTypes, null);
+        if (mi == null)
+        {
+            auditReflMiss++;
+            AuditNote("[hoveraudit] MISS method MainForm." + methodName);
+            return;
+        }
+        System.Windows.Forms.Timer t = new System.Windows.Forms.Timer();
+        t.Interval = 450;
+        t.Tick += delegate(object s, EventArgs e)
+        {
+            t.Stop();
+            Form dlg = null;
+            foreach (Form fm in Application.OpenForms)
+            {
+                if (!ReferenceEquals(fm, f) && fm.Visible && fm.GetType().Name != "TipForm")
+                {
+                    dlg = fm;
+                    break;
+                }
+            }
+            if (dlg != null)
+            {
+                try
+                {
+                    dlg.Location = new Point(40, 40);
+                    Pump(8);
+                    using (Bitmap b = GrabBmp(dlg))
+                        b.Save(Path.Combine(OUT, outPng), ImageFormat.Png);
+                    auditSavedCount++;
+                    AuditNote("[hoveraudit] saved " + outPng + " (" + dlg.ClientSize.Width + "x" + dlg.ClientSize.Height + ")");
+                    if (scrollBottomAfter > 0)
+                    {
+                        Pg pg = FindPg(dlg);
+                        if (pg != null)
+                        {
+                            pg.SetScrollY(scrollBottomAfter);
+                            Pump(8);
+                            string botPng = outPng.Replace(".png", "_bot.png");
+                            using (Bitmap b2 = GrabBmp(dlg))
+                                b2.Save(Path.Combine(OUT, botPng), ImageFormat.Png);
+                            auditSavedCount++;
+                            AuditNote("[hoveraudit] saved " + botPng);
+                        }
+                    }
+                }
+                catch (Exception ex) { AuditNote("[hoveraudit] dlg shot err (" + methodName + "): " + ex.Message); }
+                try { dlg.Close(); } catch { }
+            }
+            else
+            {
+                AuditNote("[hoveraudit] WARN no visible dialog found for " + methodName);
+            }
+        };
+        t.Start();
+        try
+        {
+            mi.Invoke(f, invokeArgs);
+        }
+        catch (Exception ex) { AuditNote("[hoveraudit] invoke " + methodName + " err: " + ex.Message); }
+        t.Dispose();
+        Pump(6);
+    }
+
+    static void HoverAudit(string mode, string scope)
+    {
+        auditSavedCount = 0;
+        auditReflMiss = 0;
+        auditLog = new List<string>();
+
+        bool all = string.IsNullOrEmpty(scope) || scope == "all";
+        var cfg = Config.Load(Program.ConfigPath);
+        cfg.UiTheme = mode;
+        cfg.UiMotion = "off";
+        Program.Cfg = cfg;
+        Theme.SetMode(mode);
+        Motion.Mode = "off";
+
+        var f = new MainForm(cfg, false);
+        f.StartPosition = FormStartPosition.Manual;
+        f.Location = new Point(20, 20);
+        f.Size = new Size(1180, 820);
+        f.Show();
+        auditHostForm = f;
+        Pump(70);
+
+        var gs = GetPrivField(f, "games") as List<DlssgGame>;
+        if (gs != null && gs.Count == 0)
+        {
+            gs.Add(G("鸣潮", "ww"));
+            MethodInfo fl = typeof(MainForm).GetMethod("FillGameList", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (fl == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS MainForm.FillGameList"); }
+            else fl.Invoke(f, null);
+            Pump(10);
+        }
+        Pg[] pages = GetPrivField(f, "pages") as Pg[];
+
+        MethodInfo miSelectGame = typeof(MainForm).GetMethod("SelectGame", BindingFlags.NonPublic | BindingFlags.Instance,
+            null, new Type[] { typeof(DlssgGame), typeof(bool) }, null);
+        if (miSelectGame == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS MainForm.SelectGame(DlssgGame,bool)"); }
+
+        MethodInfo miShowLibView = typeof(MainForm).GetMethod("ShowLibView", BindingFlags.NonPublic | BindingFlags.Instance,
+            null, new Type[] { typeof(bool) }, null);
+        if (miShowLibView == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS MainForm.ShowLibView(bool)"); }
+
+        // 1) RoundCombo 展开 + 悬停项（设置页 cbTheme / cbProfile / cbScene）
+        if (all || scope == "combo")
+        {
+            Switch(f, 5); Pump(12);
+            if (pages != null && pages.Length > 5 && pages[5] != null) { pages[5].SetScrollY(0); Pump(6); }
+            RoundCombo[] combos = new RoundCombo[] {
+                GetPrivField(f, "cbTheme") as RoundCombo,
+                GetPrivField(f, "cbProfile") as RoundCombo,
+                GetPrivField(f, "cbScene") as RoundCombo
+            };
+            string[] tags = new string[] { "cbTheme", "cbProfile", "cbScene" };
+            MethodInfo sd = typeof(RoundCombo).GetMethod("ShowDrop", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (sd == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS RoundCombo.ShowDrop"); }
+            for (int k = 0; k < combos.Length; k++)
+            {
+                RoundCombo cb = combos[k];
+                if (cb == null || !cb.Visible) continue;
+                if (pages != null && pages.Length > 5 && pages[5] != null)
+                {
+                    pages[5].SetScrollY(0); Pump(4);
+                    Rectangle srCb = cb.RectangleToScreen(cb.ClientRectangle);
+                    Rectangle srFm = f.RectangleToScreen(f.ClientRectangle);
+                    if (srCb.Bottom > srFm.Bottom - 180)
+                    {
+                        pages[5].SetScrollY(Math.Max(0, srCb.Bottom - (srFm.Bottom - 220)));
+                        Pump(6);
+                    }
+                }
+                bool origEnabled = cb.Enabled;
+                int origSel = cb.SelectedIndex;
+                List<string> origItems = null;
+                if (tags[k] == "cbProfile")
+                {
+                    cb.Enabled = true;
+                    if (cb.Items.Count <= 1)
+                    {
+                        origItems = new List<string>();
+                        for (int ii = 0; ii < cb.Items.Count; ii++) origItems.Add(cb.Items[ii]);
+                        cb.Items.Clear();
+                        cb.Items.AddRange(new object[] { "自动", "FPS竞技", "网游MMO", "3A大作", "二游" });
+                    }
+                    if (origSel < 0) SetPrivField(cb, "sel", 0);
+                    cb.Invalidate(); cb.Update();
+                }
+                SetPrivField(cb, "hover", true);
+                Pump(3);
+                GrabScreenRect(Rectangle.Inflate(cb.RectangleToScreen(cb.ClientRectangle), 16, 12),
+                    "audit_" + mode + "_" + tags[k] + "_hover.png");
+                if (sd != null) sd.Invoke(cb, null);
+                Pump(8);
+                ToolStripDropDown dd = GetPrivField(cb, "openMenu") as ToolStripDropDown;
+                if (dd == null) dd = FindOpenDropDown();
+                if (dd != null && dd.Items.Count > 0)
+                {
+                    int pick = dd.Items.Count > 1 ? 1 : 0;
+                    dd.Items[pick].Select();
+                    dd.Invalidate(); dd.Update();
+                    Pump(5);
+                    Rectangle u = Rectangle.Union(cb.RectangleToScreen(cb.ClientRectangle), dd.Bounds);
+                    u.Inflate(24, 24);
+                    GrabScreenRect(u, "audit_" + mode + "_" + tags[k] + "_open.png");
+                }
+                RoundCombo.CloseOpenPopup();
+                SetPrivField(cb, "hover", false);
+                if (tags[k] == "cbProfile")
+                {
+                    if (origItems != null)
+                    {
+                        cb.Items.Clear();
+                        for (int ii = 0; ii < origItems.Count; ii++) cb.Items.Add(origItems[ii]);
+                    }
+                    SetPrivField(cb, "sel", origSel);
+                    cb.Enabled = origEnabled;
+                    cb.Invalidate(); cb.Update();
+                }
+                Pump(4);
+            }
+            if (pages != null && pages.Length > 5 && pages[5] != null) { pages[5].SetScrollY(0); Pump(4); }
+        }
+
+        // 2) ContextMenuStrip（侧栏 ··· 菜单 ShowLibMenu(Control) & 游戏右键菜单 ShowRowMenu(Point)）
+        if (all || scope == "menu")
+        {
+            Switch(f, 2); Pump(12);
+            if (miShowLibView != null) { miShowLibView.Invoke(f, new object[] { true }); Pump(8); }
+
+            Control btnSideMore = GetPrivField(f, "btnSideMore") as Control;
+            MethodInfo libMenu = typeof(MainForm).GetMethod("ShowLibMenu", BindingFlags.NonPublic | BindingFlags.Instance,
+                null, new Type[] { typeof(Control) }, null);
+            if (libMenu == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS MainForm.ShowLibMenu(Control)"); }
+            else
+            {
+                Control anchor = btnSideMore != null ? btnSideMore : (Control)f;
+                libMenu.Invoke(f, new object[] { anchor });
+                Pump(8);
+                ToolStripDropDown dd = FindOpenDropDown();
+                if (dd != null)
+                {
+                    for (int i = 0; i < dd.Items.Count; i++)
+                        if (dd.Items[i] is ToolStripMenuItem && dd.Items[i].Enabled) { dd.Items[i].Select(); break; }
+                    dd.Invalidate(); dd.Update(); Pump(5);
+                    Rectangle uLib = btnSideMore != null
+                        ? Rectangle.Union(btnSideMore.RectangleToScreen(btnSideMore.ClientRectangle), dd.Bounds)
+                        : dd.Bounds;
+                    uLib.Inflate(20, 20);
+                    GrabScreenRect(uLib, "audit_" + mode + "_menu_lib.png");
+                    dd.Close(); Pump(4);
+                }
+            }
+
+            if (gs != null && gs.Count > 0 && miSelectGame != null)
+            {
+                miSelectGame.Invoke(f, new object[] { gs[0], false });
+                Pump(6);
+                Point pt = f.PointToScreen(new Point(420, 200));
+                MethodInfo rowMenu = typeof(MainForm).GetMethod("ShowRowMenu", BindingFlags.NonPublic | BindingFlags.Instance,
+                    null, new Type[] { typeof(Point) }, null);
+                if (rowMenu == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS MainForm.ShowRowMenu(Point)"); }
+                else
+                {
+                    rowMenu.Invoke(f, new object[] { pt });
+                    Pump(8);
+                    ToolStripDropDown dd2 = FindOpenDropDown();
+                    if (dd2 != null)
+                    {
+                        int selIdx = -1;
+                        for (int i = 1; i < dd2.Items.Count; i++)
+                            if (dd2.Items[i] is ToolStripMenuItem && dd2.Items[i].Enabled) { selIdx = i; break; }
+                        if (selIdx < 0 && dd2.Items.Count > 0) selIdx = 0;
+                        if (selIdx >= 0) dd2.Items[selIdx].Select();
+                        dd2.Invalidate(); dd2.Update(); Pump(5);
+                        GrabScreenRect(Rectangle.Inflate(dd2.Bounds, 20, 20), "audit_" + mode + "_menu_row.png");
+                        dd2.Close(); Pump(4);
+                    }
+                }
+            }
+        }
+
+        // 3) 各核心自绘控件悬停态（NavMenu / SideGameList / CoverTile / WinBtn / FilterChips / FlatBtn / lvOpt 表格行）
+        if (all || scope == "hovers")
+        {
+            Switch(f, 2); Pump(12);
+            if (miShowLibView != null) { miShowLibView.Invoke(f, new object[] { true }); Pump(10); }
+
+            Control nav = GetPrivField(f, "navMenu") as Control;
+            Control sideList = GetPrivField(f, "sideList") as Control;
+            if (nav != null) SetPrivField(nav, "hot", 1);
+            if (sideList != null) SetPrivField(sideList, "hot", 0);
+            Pump(4);
+            if (nav != null)
+            {
+                Rectangle rSide = f.RectangleToScreen(new Rectangle(0, 0, Theme.S(264), f.ClientSize.Height));
+                GrabScreenRect(rSide, "audit_" + mode + "_hover_sidebar.png");
+                SetPrivField(nav, "hot", -1);
+                if (sideList != null) SetPrivField(sideList, "hot", -1);
+            }
+
+            // CoverTile 悬停态（验证无顶部负坐标裁切、无底部幽灵双描边）
+            Control libGrid = GetPrivField(f, "libGrid") as Control;
+            if (libGrid != null)
+            {
+                foreach (Control tc in libGrid.Controls)
+                {
+                    if (tc is CoverTile && tc.Visible)
+                    {
+                        SetPrivField(tc, "hot", true);
+                        SnapAnim(tc, "aHover", 1.0);
+                        Pump(4);
+                        Theme.Tip.HideNow();
+                        GrabScreenRect(Rectangle.Inflate(tc.RectangleToScreen(tc.ClientRectangle), 18, 18),
+                            "audit_" + mode + "_hover_tile.png");
+                        SetPrivField(tc, "hot", false);
+                        SnapAnim(tc, "aHover", 0.0);
+                        break;
+                    }
+                }
+            }
+
+            // WinBtn（最小化 / 最大化 / 关闭悬停红底）与 FilterChips
+            List<Control> allCtls = AllControls(f);
+            foreach (Control c in allCtls)
+            {
+                if (c is WinBtn && c.Visible)
+                {
+                    SnapAnim(c, "aHov", 1.0);
+                    Pump(3);
+                    GrabScreenRect(Rectangle.Inflate(c.RectangleToScreen(c.ClientRectangle), 18, 8),
+                        "audit_" + mode + "_hover_winbtn_" + c.Left + ".png");
+                    SnapAnim(c, "aHov", 0.0);
+                }
+                else if (c.GetType().Name == "FilterChips" && c.Visible)
+                {
+                    SetPrivField(c, "hot", 1);
+                    Pump(3);
+                    GrabScreenRect(Rectangle.Inflate(c.RectangleToScreen(c.ClientRectangle), 12, 10),
+                        "audit_" + mode + "_hover_chips.png");
+                    SetPrivField(c, "hot", -1);
+                }
+            }
+
+            // FlatBtn 悬停态（切到仪表盘抓快捷动作按钮）
+            Switch(f, 0); Pump(10);
+            if (pages != null && pages.Length > 0 && pages[0] != null)
+            {
+                int btnSaved = 0;
+                foreach (Control c in AllControls(pages[0]))
+                {
+                    FlatBtn fb = c as FlatBtn;
+                    if (fb != null && fb.Visible && btnSaved < 2)
+                    {
+                        SnapAnim(fb, "aHov", 1.0);
+                        Pump(3);
+                        GrabScreenRect(Rectangle.Inflate(fb.RectangleToScreen(fb.ClientRectangle), 16, 12),
+                            "audit_" + mode + "_hover_flatbtn_" + btnSaved + ".png");
+                        SnapAnim(fb, "aHov", 0.0);
+                        btnSaved++;
+                    }
+                }
+            }
+
+            // lvOpt（性能优化明细表）行悬停态 + 表头与单元格 X 对齐与状态圆点对齐验证
+            Switch(f, 1); Pump(15);
+            ListView lvOpt = GetPrivField(f, "lvOpt") as ListView;
+            if (lvOpt != null && lvOpt.Items.Count > 0)
+            {
+                Sec sOpt = FindSec(lvOpt);
+                if (sOpt != null && pages != null && pages.Length > 1 && pages[1] != null)
+                {
+                    pages[1].SetScrollY(Math.Max(0, sOpt.Top - Theme.S(16)));
+                    Pump(10);
+                }
+                lvOpt.SelectedIndices.Clear();
+                int hovIdx = -1;
+                for (int ri = 1; ri < Math.Min(lvOpt.Items.Count, 8); ri++)
+                {
+                    if (lvOpt.Items[ri].Text != null && lvOpt.Items[ri].Text.EndsWith("  ⚙", StringComparison.Ordinal))
+                    {
+                        hovIdx = ri;
+                        break;
+                    }
+                }
+                if (hovIdx < 0) hovIdx = lvOpt.Items.Count > 2 ? 2 : 0;
+                if (hovIdx > 0) lvOpt.Items[0].Selected = true;
+
+                Rectangle ir = lvOpt.GetItemRect(hovIdx);
+                Point ptRow = new Point(ir.Left + Theme.S(48), ir.Top + ir.Height / 2);
+                MethodInfo omm = typeof(Control).GetMethod("OnMouseMove", BindingFlags.NonPublic | BindingFlags.Instance);
+                MethodInfo oml = typeof(Control).GetMethod("OnMouseLeave", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (omm == null || oml == null)
+                {
+                    auditReflMiss++;
+                    AuditNote("[hoveraudit] MISS Control.OnMouseMove/OnMouseLeave");
+                }
+                else
+                {
+                    omm.Invoke(lvOpt, new object[] { new MouseEventArgs(MouseButtons.None, 0, ptRow.X, ptRow.Y, 0) });
+                    Theme.Tip.HideNow();
+                    lvOpt.Invalidate(); lvOpt.Update();
+                    if (lvOpt.Parent != null) { lvOpt.Parent.Invalidate(); lvOpt.Parent.Update(); }
+                    Pump(5);
+                    Theme.Tip.HideNow();
+
+                    Control tbl = lvOpt.Parent != null ? lvOpt.Parent : (Control)lvOpt;
+                    Rectangle rTbl = tbl.RectangleToScreen(tbl.ClientRectangle);
+                    Rectangle rClip = Rectangle.Intersect(Rectangle.Inflate(rTbl, 12, 12), f.RectangleToScreen(f.ClientRectangle));
+                    if (rClip.Width > 10 && rClip.Height > 10)
+                        GrabScreenRect(rClip, "audit_" + mode + "_hover_lvopt.png");
+
+                    lvOpt.SelectedIndices.Clear();
+                    oml.Invoke(lvOpt, new object[] { EventArgs.Empty });
+                    Theme.Tip.HideNow();
+                }
+                if (pages != null && pages.Length > 1 && pages[1] != null) { pages[1].SetScrollY(0); Pump(4); }
+            }
+        }
+
+        // 4) 长页面顶段/中段/底段滚动截图（设置页、说明页、性能优化页）
+        if ((all || scope == "scrolls") && pages != null)
+        {
+            Switch(f, 5); Pump(12);
+            pages[5].SetScrollY(0); Pump(8); Grab(f, "audit_" + mode + "_set_top.png"); auditSavedCount++;
+            pages[5].SetScrollY(680); Pump(8); Grab(f, "audit_" + mode + "_set_mid.png"); auditSavedCount++;
+            pages[5].SetScrollY(9999); Pump(8); Grab(f, "audit_" + mode + "_set_bot.png"); auditSavedCount++;
+
+            Switch(f, 4); Pump(12);
+            pages[4].SetScrollY(0); Pump(8); Grab(f, "audit_" + mode + "_help_top.png"); auditSavedCount++;
+            pages[4].SetScrollY(650); Pump(8); Grab(f, "audit_" + mode + "_help_mid.png"); auditSavedCount++;
+            pages[4].SetScrollY(9999); Pump(8); Grab(f, "audit_" + mode + "_help_bot.png"); auditSavedCount++;
+
+            Switch(f, 1); Pump(12);
+            pages[1].SetScrollY(0); Pump(8); Grab(f, "audit_" + mode + "_opt_top.png"); auditSavedCount++;
+            pages[1].SetScrollY(9999); Pump(8); Grab(f, "audit_" + mode + "_opt_bot.png"); auditSavedCount++;
+        }
+
+        // 5) 游戏详情三标签页（概览 / 参数 / 诊断）+ TabBar(Segmented) 悬停
+        if ((all || scope == "detail") && gs != null && gs.Count > 0 && pages != null && miSelectGame != null)
+        {
+            miSelectGame.Invoke(f, new object[] { gs[0], true });
+            Pump(15);
+
+            TabBar tabsFg = GetPrivField(f, "tabsFg") as TabBar;
+            Segmented seg = tabsFg == null ? null : (GetPrivField(tabsFg, "seg") as Segmented);
+            if (tabsFg != null && seg != null)
+            {
+                SetPrivField(seg, "hoverPage", 1);
+                Pump(3);
+                GrabScreenRect(Rectangle.Inflate(tabsFg.RectangleToScreen(tabsFg.ClientRectangle), 12, 10),
+                    "audit_" + mode + "_hover_tabbar.png");
+                SetPrivField(seg, "hoverPage", -1);
+            }
+
+            MethodInfo applyVis = typeof(MainForm).GetMethod("ApplyDetailVis", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (applyVis == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS MainForm.ApplyDetailVis"); }
+            string[] tnames = new string[] { "overview", "params", "diag" };
+            for (int ti = 0; ti < 3; ti++)
+            {
+                SetPrivField(f, "curDetailTab", ti);
+                if (tabsFg != null) tabsFg.Selected = ti;
+                if (seg != null) seg.SetSelected(ti);
+                if (applyVis != null) applyVis.Invoke(f, null);
+                pages[2].SetScrollY(0);
+                pages[2].Reflow();
+                Pump(10);
+                Grab(f, "audit_" + mode + "_detail_" + tnames[ti] + "_top.png"); auditSavedCount++;
+                pages[2].SetScrollY(620);
+                Pump(10);
+                Grab(f, "audit_" + mode + "_detail_" + tnames[ti] + "_bot.png"); auditSavedCount++;
+            }
+        }
+
+        // 6) 核心模态对话框真弹截图
+        if (all || scope == "dialogs")
+        {
+            // 非阻塞工厂型对话框：MainForm.BuildOptimizeDialog（internal static）
+            MethodInfo miOpt = typeof(MainForm).GetMethod("BuildOptimizeDialog", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
+            if (miOpt == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS MainForm.BuildOptimizeDialog"); }
+            else
+            {
+                object[] optArgs = new object[] { Program.Steps(), null, null };
+                Form dOpt = (Form)miOpt.Invoke(null, optArgs);
+                dOpt.StartPosition = FormStartPosition.Manual; dOpt.Location = new Point(40, 40);
+                dOpt.Show(); Pump(15);
+                Grab(dOpt, "audit_" + mode + "_dlg_optimize_top.png"); auditSavedCount++;
+                Pg pgOpt = FindPg(dOpt);
+                if (pgOpt != null) { pgOpt.SetScrollY(9999); Pump(8); Grab(dOpt, "audit_" + mode + "_dlg_optimize_bot.png"); auditSavedCount++; }
+                dOpt.Close(); Pump(4);
+            }
+
+            ChangeDataDirDialog dDir = new ChangeDataDirDialog(f);
+            dDir.StartPosition = FormStartPosition.Manual; dDir.Location = new Point(40, 40);
+            dDir.Show(); Pump(12);
+            Grab(dDir, "audit_" + mode + "_dlg_datadir.png"); auditSavedCount++;
+            dDir.Close(); Pump(4);
+
+            MethodInfo miClose = typeof(MainForm).GetMethod("BuildCloseDialog", BindingFlags.NonPublic | BindingFlags.Instance);
+            if (miClose == null) { auditReflMiss++; AuditNote("[hoveraudit] MISS MainForm.BuildCloseDialog"); }
+            else
+            {
+                Form dCls = (Form)miClose.Invoke(f, new object[] { null, null });
+                dCls.StartPosition = FormStartPosition.Manual; dCls.Location = new Point(40, 40);
+                dCls.Show(); Pump(12);
+                Grab(dCls, "audit_" + mode + "_dlg_close.png"); auditSavedCount++;
+                dCls.Close(); Pump(4);
+            }
+
+            // ShowDialog 阻塞型对话框（Timer 自动抓图并关闭）
+            CaptureBlockingDialog(f, "ShowCustomDialog", Type.EmptyTypes, new object[0], "audit_" + mode + "_dlg_custom.png", 9999);
+            CaptureBlockingDialog(f, "ShowKnobDialog", new Type[] { typeof(string) }, new object[] { null }, "audit_" + mode + "_dlg_knob.png", 9999);
+            CaptureBlockingDialog(f, "DoUpstreamSettings", Type.EmptyTypes, new object[0], "audit_" + mode + "_dlg_upstream.png", 0);
+            CaptureBlockingDialog(f, "ShowIgnoredDialog", Type.EmptyTypes, new object[0], "audit_" + mode + "_dlg_ignored.png", 0);
+            CaptureBlockingDialog(f, "ShowJunkDialog", Type.EmptyTypes, new object[0], "audit_" + mode + "_dlg_junk.png", 0);
+
+            List<string> sampleFiles = new List<string>();
+            sampleFiles.Add(@"D:\Games\Wuthering Waves\Wuthering Waves Game\Client\Binaries\Win64\Client-Win64-Shipping.exe");
+            sampleFiles.Add(@"D:\Games\Cyberpunk 2077\bin\x64\Cyberpunk2077.exe");
+            Func<string, string> fmtFn = delegate(string pth) { return Path.GetFileName(pth) + "  —  " + Path.GetDirectoryName(pth); };
+            Action<string> pickFn = delegate(string pth) { };
+            CaptureBlockingDialog(f, "ShowSimplePickList",
+                new Type[] { typeof(string), typeof(List<string>), typeof(Func<string, string>), typeof(Action<string>) },
+                new object[] { "选择游戏主程序（共 2 个候选）", sampleFiles, fmtFn, pickFn },
+                "audit_" + mode + "_dlg_picklist.png", 0);
+
+            if (gs != null && gs.Count > 0 && miSelectGame != null)
+            {
+                miSelectGame.Invoke(f, new object[] { gs[0], false });
+                Pump(8);
+                CaptureBlockingDialog(f, "ShowLaunchConfigDialog", Type.EmptyTypes, new object[0], "audit_" + mode + "_dlg_launchcfg.png", 0);
+                CaptureBlockingDialog(f, "ShowFgConfigDialog", Type.EmptyTypes, new object[0], "audit_" + mode + "_dlg_fgcfg.png", 0);
+            }
+        }
+
+        auditHostForm = null;
+        f.Close();
+        Pump(8);
+        AuditNote("[hoveraudit] DONE mode=" + mode + " scope=" + scope + " saved=" + auditSavedCount + " reflMiss=" + auditReflMiss);
+        try { File.WriteAllLines(Path.Combine(OUT, "audit_" + mode + "_report.txt"), auditLog.ToArray(), new System.Text.UTF8Encoding(false)); } catch { }
+    }
+
+    // optscroll: P_OPT at top / mid-scroll / bottom / knob-filtered in Light & Dark
+    static void OptScroll(string mode)
+    {
+        string[] themes = (mode == "light" || mode == "dark") ? new string[] { mode } : new string[] { "light", "dark" };
+        for (int ti = 0; ti < themes.Length; ti++)
+        {
+            string th = themes[ti];
+            Theme.SetMode(th);
+            var cfg = Config.Load(Program.ConfigPath);
+            cfg.UiTheme = th;
+            var f = new MainForm(cfg, false);
+            f.StartPosition = FormStartPosition.Manual;
+            f.Location = new Point(0, 0);
+            f.Size = new Size(1180, 800);
+            f.Show();
+            try
+            {
+                for (int i = 0; i < 20; i++) { Application.DoEvents(); Thread.Sleep(40); }
+                MethodInfo miSw = typeof(MainForm).GetMethod("Switch", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (miSw != null) miSw.Invoke(f, new object[] { 1 });
+
+                FieldInfo fLv = typeof(MainForm).GetField("lvOpt", BindingFlags.NonPublic | BindingFlags.Instance);
+                ListView lv = fLv == null ? null : fLv.GetValue(f) as ListView;
+                if (lv != null)
+                {
+                    for (int w = 0; w < 100 && lv.Items.Count < 50; w++) { Application.DoEvents(); Thread.Sleep(60); }
+                }
+                for (int i = 0; i < 20; i++) { Application.DoEvents(); Thread.Sleep(30); }
+
+                FieldInfo pf = typeof(MainForm).GetField("pages", BindingFlags.NonPublic | BindingFlags.Instance);
+                Pg[] pages = pf == null ? null : pf.GetValue(f) as Pg[];
+                Pg pg = (pages != null && pages.Length > 1) ? pages[1] : null;
+                FieldInfo sfb = typeof(Pg).GetField("sb", BindingFlags.NonPublic | BindingFlags.Instance);
+                FlatScroll sb = (pg != null && sfb != null) ? (sfb.GetValue(pg) as FlatScroll) : null;
+
+                // 1) top: ScrollY = 0
+                if (pg != null) pg.SetScrollY(0);
+                for (int i = 0; i < 12; i++) { Application.DoEvents(); Thread.Sleep(25); }
+                Grab(f, "optscroll_" + th + "_top.png");
+
+                // 2) mid-scroll: around row 25 via Pg.SetScrollY
+                if (pg != null && lv != null && lv.Items.Count > 25)
+                {
+                    Rectangle r25 = lv.GetItemRect(25);
+                    Point inPg = pg.PointToClient(lv.PointToScreen(r25.Location));
+                    pg.SetScrollY(Math.Max(0, pg.ScrollY + inPg.Y - Theme.S(72)));
+                }
+                else if (pg != null && sb != null)
+                {
+                    pg.SetScrollY(sb.MaxValue / 2);
+                }
+                for (int i = 0; i < 12; i++) { Application.DoEvents(); Thread.Sleep(25); }
+                Grab(f, "optscroll_" + th + "_mid.png");
+
+                // 3) bottom: ScrollY = MaxValue (row 52 + s2.Body + 漂移检测 + 显示器设备)
+                if (pg != null && sb != null) pg.SetScrollY(sb.MaxValue);
+                for (int i = 0; i < 12; i++) { Application.DoEvents(); Thread.Sleep(25); }
+                Grab(f, "optscroll_" + th + "_bottom.png");
+
+                // 4) knob-chip filtered: set optChips.SelectedId = "knob"
+                FieldInfo fChips = typeof(MainForm).GetField("optChips", BindingFlags.NonPublic | BindingFlags.Instance);
+                FilterChips chips = fChips != null ? (fChips.GetValue(f) as FilterChips) : null;
+                FieldInfo fFid = typeof(MainForm).GetField("optFilterId", BindingFlags.NonPublic | BindingFlags.Instance);
+                MethodInfo miApply = typeof(MainForm).GetMethod("ApplyOptFilter", BindingFlags.NonPublic | BindingFlags.Instance);
+                if (chips != null)
+                {
+                    chips.SelectedId = "knob";
+                    chips.Invalidate();
+                    if (fFid != null) fFid.SetValue(f, "knob");
+                    if (miApply != null) miApply.Invoke(f, null);
+                }
+                if (pg != null) pg.SetScrollY(0);
+                for (int i = 0; i < 15; i++) { Application.DoEvents(); Thread.Sleep(30); }
+                Grab(f, "optscroll_" + th + "_knob.png");
+
+                Console.WriteLine("[optscroll] " + th + " done, lvOpt=" + (lv != null ? lv.Items.Count.ToString() : "null"));
+            }
+            finally
+            {
+                try { f.Close(); } catch { }
+                try { f.Dispose(); } catch { }
+            }
+        }
+    }
+
     static void Main(string[] args)
     {
         //  崩溃取证（2026-10-24）：UI 线程异常默认弹系统对话框，winexe 下看起来就是"卡住"。
@@ -3030,6 +3790,7 @@ class StyleProbe
         try
         {
             if (what == "showcase") Showcase(mode);
+            else if (what == "optscroll") OptScroll(mode);
             else if (what == "closedlg") CloseDlg(mode);
             else if (what == "emptywall") EmptyWall(mode);
             else if (what == "scanbar") ScanBar(mode);
@@ -3046,6 +3807,7 @@ class StyleProbe
             else if (what == "fgcfg") FgCfgShot(mode);
             else if (what == "bgtrim") BgTrimProbe(mode);
             else if (what == "hover") HoverShot(mode);
+            else if (what == "hoveraudit") HoverAudit(mode, args.Length > 2 ? args[2] : "all");
             else if (what == "secdump") SecDump(mode, args.Length > 2 ? args[2] : "鸣潮",
                                                args.Length > 3 ? int.Parse(args[3]) : -1);
             else if (what == "wiredump") WireDump(mode);

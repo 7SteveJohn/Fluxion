@@ -885,9 +885,9 @@ namespace Fluxion
                 if (g == null || g.Dir == null || g.Dir.Length == 0) continue;
                 try
                 {
-                    // 装的是哪一代就重新部署哪一代：0.4.x 的游戏不能因为一次资源包更新被降回 0.3.x
+                    // 装的是哪一代就重新部署哪一代：0.4.x / 方案 B 的游戏不能因为一次资源包更新被降回 0.3.x
                     if (Dlssg030.IsInstalled(g.Dir) || Dlssg030.GenericInstalled(g.Dir)
-                        || Dlssg040.Installed(g.Dir)) r.Add(g);
+                        || Dlssg040.Installed(g.Dir) || MfgBridge.Installed(g.Dir)) r.Add(g);
                 }
                 catch { }
             }
@@ -895,7 +895,7 @@ namespace Fluxion
         }
 
         // 把新资源重抄到每个目标。必须走 force —— 入口已在我们这套时 SwitchTo 默认会短路成
-        //  "无需切换"，那样资源包更新了游戏里还是旧的。
+        //  "无需切换"，那样资源包更新了游戏里还是旧的；同时保留当前已生效的入口文件名。
         public static string DeployTo(List<DlssgGame> targets, Action<string> log)
         {
             if (targets == null || targets.Count == 0) return "没有需要重新部署的游戏（都还是原生状态）";
@@ -903,11 +903,21 @@ namespace Fluxion
             foreach (DlssgGame g in targets)
             {
                 string r;
-                // 目标取决于这个目录现在装的是谁：别让一次资源包更新把装了 0.4.x 的游戏打回 0.3.x
+                // 目标取决于这个目录现在装的是谁：别让一次资源包更新把装了 0.4.x / 方案 B 的游戏打回 0.3.x
                 string tgt = Plan.Current(g.Dir);
+                string targetPlan = (tgt == Plan.D040 || tgt == Plan.Nvbr) ? tgt : Plan.D030;
+                string curEntry = null;
                 try
                 {
-                    r = Plan.SwitchTo(g.Dir, tgt == Plan.D040 ? Plan.D040 : Plan.D030, true);
+                    if (targetPlan == Plan.D040) curEntry = Dlssg040.InstalledEntry(g.Dir);
+                    else if (targetPlan == Plan.Nvbr) curEntry = MfgBridge.InstalledEntry(g.Dir);
+                    else
+                    {
+                        foreach (Plan.EntryHit eh in Plan.InspectEntries(g.Dir))
+                            if (eh != null && eh.Owner == Plan.D030 && eh.Name.Length > 0) { curEntry = eh.Name; break; }
+                    }
+                    if (curEntry != null && curEntry.Length == 0) curEntry = null;
+                    r = Plan.SwitchTo(g.Dir, targetPlan, true, curEntry);
                 }
                 catch (Exception ex) { r = "异常：" + ex.GetType().Name + "：" + ex.Message; }
                 if (r.IndexOf("已切换到", StringComparison.Ordinal) >= 0) ok++; else bad++;
@@ -1021,8 +1031,7 @@ namespace Fluxion
         {
             return new KnowNote[] {
                 new KnowNote { Id = "zzz-spoof", Topic = "绝区零帧生成菜单与显卡名伪装", Until = "0.3.2",
-                    Text = "0.3.2 及以前不做显卡名伪装（2026-09-16 实测）：撤掉方案 A 之后，设置里那个「帧生成」"
-                         + "选项很可能一起消失，属于预期行为，不是装坏了" },
+                    Text = "0.3.2 及以前版本无需显卡名伪装：DX12 模式下可直接显示 DLSS 与帧生成选项，额外伪装反而可能触发异常" },
                 new KnowNote { Id = "zzz-spoof", Topic = "绝区零帧生成菜单与显卡名伪装", Since = "0.3.3",
                     Text = "0.3.3 起代理会自己改写游戏 / Streamline 看到的显卡架构（对外报 RTX 50），"
                          + "理论上可能让菜单里出现帧生成选项 —— 本工具未实测，仍不要导 .reg" },
@@ -1397,6 +1406,7 @@ namespace Fluxion
             pr["entries"] = DefEntries();
             var signs = new Dictionary<string, object>();
             signs["upstream"] = DefThumbUp;
+            signs["upstream2"] = DefThumbUp2;
             signs["nvidia"] = DefThumbNv;
             pr["signs"] = signs;
             var top = new Dictionary<string, object>();
@@ -1468,6 +1478,7 @@ namespace Fluxion
             var all = new List<JunkItem>();
             // 路径从各自的公开属性取 —— 在这里再写一遍 "_backup" 就是第四份判据了
             ScanBucket(all, "dlssg030-pack", Dlssg030.BackupRoot);
+            ScanBucket(all, "dlssg040-pack", Dlssg040.BackupRoot);
             ScanBucket(all, "xess-pack", XeMfg.BackupRoot);
             ScanBucket(all, "xess-pack", XeMfg.RemovedRoot);
             Mark(all);

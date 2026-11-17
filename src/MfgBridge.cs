@@ -225,7 +225,7 @@ namespace Fluxion
             {
                 string p = Path.Combine(gameDir, e);
                 if (!File.Exists(p) || !IsMine(p)) continue;
-                string dst = p + ".parked." + Kind;
+                string dst = p + ".parked." + Plan.Nvbr;
                 try
                 {
                     if (File.Exists(dst)) File.Delete(dst);
@@ -241,7 +241,7 @@ namespace Fluxion
             return n;
         }
 
-        // 彻底卸载（真删）
+        // 彻底卸载（真删，含已停放的 .parked.nvbr / .parked.mfgbridge 归档件）
         public static string Uninstall(string gameDir)
         {
             if (gameDir == null) return "目录为空";
@@ -253,10 +253,22 @@ namespace Fluxion
                 string p = Path.Combine(gameDir, e);
                 try { if (File.Exists(p) && IsMine(p)) { File.Delete(p); n++; } }
                 catch (Exception ex) { failed.Add(e + "：" + ex.Message); }
+                foreach (string suf in new string[] { ".parked." + Plan.Nvbr, ".parked." + Kind })
+                {
+                    string pk = p + suf;
+                    try { if (File.Exists(pk)) { File.Delete(pk); n++; } }
+                    catch (Exception ex) { failed.Add(Path.GetFileName(pk) + "：" + ex.Message); }
+                }
             }
             string ini = Path.Combine(gameDir, IniName);
             try { if (File.Exists(ini)) { File.Delete(ini); n++; } }
             catch (Exception ex) { failed.Add(IniName + "：" + ex.Message); }
+            foreach (string suf in new string[] { ".parked." + Plan.Nvbr, ".parked." + Kind })
+            {
+                string iniPk = ini + suf;
+                try { if (File.Exists(iniPk)) { File.Delete(iniPk); n++; } }
+                catch (Exception ex) { failed.Add(Path.GetFileName(iniPk) + "：" + ex.Message); }
+            }
 
             string r = "已删除方案 B 的 " + n + " 个文件（含 " + IniName + "）";
             if (failed.Count > 0)
@@ -292,7 +304,7 @@ namespace Fluxion
                 else if (it.Name == IniName) { it.Role = "ini"; }
                 else it.Role = "other";
             }
-            p.Notes.Add("部署时这个文件会被**改名**成你选的入口名（默认 version.dll）再放进游戏目录");
+            p.Notes.Add("部署时该文件将改名为所选入口名（默认 version.dll）放入游戏目录；不覆盖原厂 nvngx_dlssg.dll。");
             return true;
         }
 
@@ -333,6 +345,8 @@ namespace Fluxion
         // 只改一个键，其余原样 —— 出厂 ini 是完整发布配置（7 KB），整份重写会丢一堆键
         public static string SetIni(string gameDir, string section, string key, string val)
         {
+            gameDir = SecondGame.ResolveDir(gameDir);
+            if (string.IsNullOrEmpty(gameDir)) return "目录无效";
             string p = Path.Combine(gameDir, IniName);
             if (!File.Exists(p)) return "找不到 " + IniName + "（方案 B 未部署？）";
             try
@@ -358,7 +372,10 @@ namespace Fluxion
                     bool hit = false;
                     for (int i = secAt + 1; i < secEnd; i++)
                     {
-                        if (lines[i].TrimStart().StartsWith(key, StringComparison.OrdinalIgnoreCase))
+                        string t = lines[i].TrimStart();
+                        if (t.StartsWith(";", StringComparison.Ordinal) || t.StartsWith("#", StringComparison.Ordinal)) continue;
+                        int eq = t.IndexOf('=');
+                        if (eq > 0 && t.Substring(0, eq).Trim().Equals(key, StringComparison.OrdinalIgnoreCase))
                         {
                             lines[i] = key + "=" + val;
                             hit = true;

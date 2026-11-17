@@ -855,12 +855,11 @@ namespace Fluxion
             return a + "\n" + b;
         }
 
-        // 「方案 A」区块正文：按选中的游戏给不同的话，不再把某一个游戏名写死在标题里。
-        //  2026-10-19 一律一句：这里是操作区不是说明书，细节在「说明」页。
+        // 「方案 A」区块正文：按选中的游戏与硬件架构给针对性说明，不再硬编码二游专属文案。
         public static string OptiNote(DlssgGame g)
         {
             if (g == null)
-                return "OptiScaler 注入：帧生成 + DLSS 5 神经渲染二合一。";
+                return "OptiScaler 注入：跨平台帧生成（XeSS-FG / FSR 3.1）与超分辨率中间件。";
             string kind = XeMfg.Detect(g.Dir);
             if (kind == "zzz")
                 return "绝区零：只跑 DLSS 帧生成（官方限 40 系）才用它，选项靠「显卡名伪装」出现。";
@@ -871,7 +870,12 @@ namespace Fluxion
                 string nr = NrHint(g.Dir);
                 return nr;
             }
-            return "只对绝区零 / 鸣潮有意义；其它游戏用 0.3.x 通用模式。";
+            string tier = GpuTier();
+            if (tier == "gtx" || tier == "non-nvidia" || tier == "nvidia-other")
+                return "跨平台补帧方案：接管游戏 DLSS 调用并转译为 XeSS-FG 或 FSR 3.1 帧生成。";
+            if (tier == "ada" || tier == "blackwell")
+                return "进阶增强方案：通过 OptiScaler 接入 XeSS-FG 多倍补帧与超分预设调校。";
+            return "跨平台通用中间件（XeSS-FG / FSR 3.1 转译）；N 卡单机亦可优先选用 DLSS " + Dlssg040.Ver + "。";
         }
 
         // ---------- 显卡代际门禁（分享给别人时，对方的卡各不相同）----------
@@ -954,7 +958,7 @@ namespace Fluxion
                 r.Verdict = "推荐";
                 r.Bad = false;
                 r.Why = cardType + " 缺少 NVIDIA 光流加速器，无法运行专有 DLSS-G，但完全支持跨平台帧生成！\n"
-                      + "本工具推荐通过【方案 A（OptiScaler）】接管 DLSS 调用，转接为 XeSS-FG 或 FSR 3.1 帧生成；"
+                      + "本工具推荐通过「方案 A（OptiScaler）」接管 DLSS 调用，转接为 XeSS-FG 或 FSR 3.1 帧生成；"
                       + (hasNativeFsr ? "\n另外：当前游戏已检测到自带 FSR 3 组件，亦可直接在游戏设置里开启原生 FSR3。" : "\n注入方案 A 后，在游戏画质菜单中开启 DLSS / 帧生成即可生效。");
                 r.Note = RefreshHint();
                 r.Btn = "一键应用（方案 A · OptiScaler）";
@@ -1129,7 +1133,7 @@ namespace Fluxion
                 r.Why = "游戏内置 DLSS 帧生成组件，补上 SM86 内核即可。";
                 r.Note = JoinNote(
                     "前置：游戏以 DX12 模式启动，并在游戏内打开 NVIDIA Reflex，帧生成开关才会出现\n"
-                    + "通用模式默认用 version.dll 入口；内核反作弊可能按【文件名】拦掉它 —— 到下方 0.3.x 区块点「换入口重试」，优先试 dxgi.dll / d3d12.dll",
+                    + "通用模式默认用 version.dll 入口；内核反作弊可能按「文件名」拦掉它 —— 到下方 0.3.x 区块点「换入口重试」，优先试 dxgi.dll / d3d12.dll",
                     RefreshHint());
                 r.Btn = "一键应用（0.3.5）";
                 r.Action = "030";
@@ -1159,9 +1163,10 @@ namespace Fluxion
                     r.Verdict = "推荐";
                     r.Why = "游戏支持 DLSS 帧生成，推荐使用新版 " + Dlssg040.Ver
                           + "（支持倍率调节与内核优化）。";
-                    r.Note = JoinNote(
+                    string drvWarn = DriverR580Warn();
+                    r.Note = JoinNote(drvWarn, JoinNote(
                         "倍率设置：可在下方参数设置中指定 MaxGeneratedFrames 调整最大生成帧",
-                        RefreshHint());
+                        RefreshHint()));
                     r.Btn = "一键应用（" + Dlssg040.Ver + "）";
                     r.Action = "040";
                     return r;
@@ -1195,7 +1200,7 @@ namespace Fluxion
                 r.Stars = "★★★★☆";
                 r.Verdict = "推荐";
                 r.Why = "检测到 DLSS 帧生成组件，推荐使用新版 " + Dlssg040.Ver + "。";
-                r.Note = JoinNote("可在下方参数设置中配置最大生成帧数 (MaxGeneratedFrames)", RefreshHint());
+                r.Note = JoinNote(DriverR580Warn(), JoinNote("可在下方参数设置中配置最大生成帧数 (MaxGeneratedFrames)", RefreshHint()));
                 r.Btn = "一键应用（" + Dlssg040.Ver + "）";
                 r.Action = "040";
                 return r;
@@ -1210,6 +1215,19 @@ namespace Fluxion
             r.Btn = "一键应用（0.3.5）";
             r.Action = "030";
             return r;
+        }
+
+        static string DriverR580Warn()
+        {
+            try
+            {
+                string drv = Program.DriverVerNow();
+                double dv;
+                if (drv.Length > 0 && double.TryParse(drv, NumberStyles.Float, CultureInfo.InvariantCulture, out dv) && dv > 0 && dv < 580)
+                    return "⚠ 当前驱动 " + drv + "：0.4.1 要求驱动 ≥ R580，旧驱动请先升级或手动切换为 0.3.5 方案";
+            }
+            catch { }
+            return "";
         }
 
         // 按显示器分辨率与刷新率动态提供倍率甜点与优化提示。
@@ -1357,12 +1375,12 @@ namespace Fluxion
             var sb = new StringBuilder();
             if (gacha)
             {
-                sb.Append("【内核反作弊 / 封号风险 —— 请先看这段】\n\n");
+                sb.Append("「内核反作弊 / 封号风险」\n\n");
                 sb.Append("· 这类游戏带内核级反作弊（mhyprot / HoYoKProtect / ACE 等），注入第三方 DLL\n");
                 sb.Append("  属于明确的封号高危行为；社区已记录过反作弊直接拦截代理 DLL 加载的案例。\n");
                 sb.Append("· 被封的是你的账号，工具无法撤销，也帮不上忙。要不要冒这个险只能你自己定。\n");
                 if (PreferD3d12 && D3d12Feasible(g))
-                    sb.Append("· 技术上：这类游戏会按【文件名】拦掉 version.dll / winmm.dll 等常规入口\n"
+                    sb.Append("· 技术上：这类游戏会按「文件名」拦掉 version.dll / winmm.dll 等常规入口\n"
                             + "  （上游 issue #111 实测原话），本工具已自动改用 d3d12.dll 入口 —— 它是 DX12\n"
                             + "  游戏必须加载的系统库，拦不掉。这只解决「装得进去」，不解决封号风险。\n");
                 else if (PreferD3d12)
@@ -1371,13 +1389,13 @@ namespace Fluxion
             }
             if (!g.HasFrameGen)
             {
-                sb.Append("【本游戏不支持 DLSS 帧生成 —— 装了也不会生效】\n\n");
+                sb.Append("「本游戏不支持 DLSS 帧生成 —— 装了也不会生效」\n\n");
                 sb.Append("· 目录里没有 nvngx_dlssg.dll / sl.dlss_g.dll，代理没有可接管的调用，等于空转。\n");
                 sb.Append("· 只有游戏自带的 FSR 帧生成这条路（如果它有）。\n\n");
             }
             else if (fg == false)
             {
-                sb.Append("【这是社区补内核方案，非 NVIDIA 官方支持】\n\n");
+                sb.Append("「这是社区补内核方案，非 NVIDIA 官方支持」\n\n");
                 sb.Append("· 本机 " + GpuName() + " 不在官方 DLSS 帧生成支持列表里。本工具靠 dlssg_for_sm86 给\n");
                 sb.Append("  Ampere 补 SM86 内核 + 内嵌 DLSS-G 运行时，跑的是 NVIDIA 原生帧生成管线（不是 FSR）。\n");
                 sb.Append("· 能生效，但属于非官方路径：个别游戏会出现选项不出现 / 崩溃 / 画面异常；\n");
@@ -2009,7 +2027,7 @@ namespace Fluxion
         }
 
         //  版本比较：a 比 b 新返回 >0。段数不齐按 0 补（"310.7" vs "310.7.0.0"）。
-        static int VerCmp(string a, string b)
+        public static int VerCmp(string a, string b)
         {
             string[] x = (a ?? "").Split('.'), y = (b ?? "").Split('.');
             for (int i = 0; i < 4; i++)
@@ -2022,6 +2040,38 @@ namespace Fluxion
             return 0;
         }
 
+        internal static string FileVerOf(string path) { return FileVer(path); }
+        internal static string FindDllPath(string dir, string name, int depth)
+        {
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return null;
+            string hit = FindPath(dir, name, depth);
+            if (hit != null) return hit;
+            string rdir = SecondGame.ResolveDir(dir);
+            if (!string.IsNullOrEmpty(rdir) && !Eq(rdir, dir))
+            {
+                hit = FindPath(rdir, name, depth);
+                if (hit != null) return hit;
+            }
+            // UE 打包游戏的 DLSS 运行库常位于 <游戏根>\Engine\Plugins\Runtime\Nvidia\...
+            try
+            {
+                var d = new DirectoryInfo(dir);
+                for (int i = 0; i < 5 && d != null; i++)
+                {
+                    string plug = Path.Combine(Path.Combine(d.FullName, "Engine"), "Plugins");
+                    if (Directory.Exists(plug))
+                    {
+                        hit = FindPath(plug, name, 6);
+                        if (hit != null) return hit;
+                        break;
+                    }
+                    d = d.Parent;
+                }
+            }
+            catch { }
+            return null;
+        }
+
         //  这个游戏目录里自带的 DLSS 运行库版本（只读）。
         //  为什么值得做：DLSS Swapper 那类工具的核心价值就是"让我看见每个游戏的库版本"——
         //  同一个游戏补丁前是 310.6、补丁后可能被覆盖回旧版，而界面上完全看不出来。
@@ -2029,69 +2079,66 @@ namespace Fluxion
         //  结果按目录缓存 10 秒：切页/刷新会频繁调它，每次两层目录遍历 + 读版本太重。
         static readonly Dictionary<string, string> libVerCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         static readonly Dictionary<string, int> libVerAt = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        static readonly object libVerLock = new object();
+
+        public static void ClearLibVerCache()
+        {
+            lock (libVerLock)
+            {
+                libVerCache.Clear();
+                libVerAt.Clear();
+            }
+        }
 
         public static string LibVersions(string dir)
         {
             if (string.IsNullOrEmpty(dir)) return "";
             int now = Environment.TickCount;
-            int at;
-            if (libVerAt.TryGetValue(dir, out at) && unchecked(now - at) >= 0 && now - at < 10000)
+            lock (libVerLock)
             {
-                string cached;
-                if (libVerCache.TryGetValue(dir, out cached)) return cached;
+                int at;
+                if (libVerAt.TryGetValue(dir, out at) && unchecked(now - at) >= 0 && now - at < 10000)
+                {
+                    string cached;
+                    if (libVerCache.TryGetValue(dir, out cached)) return cached;
+                }
             }
 
-            string sr = FindPath(dir, "nvngx_dlss.dll", 2);
-            string fg = FindPath(dir, "nvngx_dlssg.dll", 2);
+            string sr = FindDllPath(dir, "nvngx_dlss.dll", 2);
+            string fg = FindDllPath(dir, "nvngx_dlssg.dll", 2);
             string vsr = sr == null ? "" : FileVer(sr);
             string vfg = fg == null ? "" : FileVer(fg);
 
-            //  ⚠ 2026-10-20 修：原来只比 `Dlssg040.PackRoot\sr\nvngx_dlss.dll`，而现役 040 包里
-            //    **根本没有 sr 目录**（只有 alternatives/ · dlssg_sm86/ · version.dll）⇒ File.Exists
-            //    恒为假、packSr 恒为空 ⇒ 下面那句"可升级"**永远不显示**，不报错也没人看得出来
-            //    （本机实测：绝区零自带 310.6，包内其实有 310.9.1，却一直没提示）。
-            //    改成在包内**真实存在的几个位置**里挑版本最高的那份当基准，并记住它从哪来。
-            string packSr = "";
-            string[] packCands = new string[] {
-                Path.Combine("dlssg040-pack", "dlssg_sm86", "sr", "nvngx_dlss.dll"),
-                Path.Combine("dlssg040-pack", "sr", "nvngx_dlss.dll"),
-                Path.Combine("dlssg030-pack", "asi", "nvngx_dlss.dll"),
-                Path.Combine("dlssg030-pack", "common", "nvngx_dlss.dll"),
-                Path.Combine("xess-pack", "wuwa", "OptiScaler", "streamline", "nvngx_dlss.dll"),
-                Path.Combine("manual-pack", "dlss4-4.5", "nvngx_dlss.dll"),   // 网盘原件（手动资源区，2026-11-01）
-            };
-            foreach (string rel in packCands)
-            {
-                try
-                {
-                    string p = Path.Combine(Program.DataDir, rel);
-                    if (!File.Exists(p)) continue;
-                    string v = FileVer(p);
-                    if (v.Length > 0 && (packSr.Length == 0 || VerCmp(v, packSr) > 0))
-                        packSr = v;
-                }
-                catch { }
-            }
+            string packSrPath;
+            string packSr = DlssRuntime.BestPackDll("nvngx_dlss.dll", out packSrPath);
+            string packFgPath;
+            string packFg = DlssRuntime.BestPackDll("nvngx_dlssg.dll", out packFgPath);
 
             var sb = new StringBuilder();
-            //  ★ 2026-10-31 人话化：文件名（nvngx_dlss / nvngx_dlssg）换成"超分 / 帧生成"，
-            //    把"是什么"说在前，路径只在可升级时才出现（那才需要人去找文件）。
             sb.Append("DLSS 组件：");
             if (sr == null) sb.Append("超分未找到");
             else
             {
                 sb.Append("超分 ").Append(vsr.Length > 0 ? vsr : "版本未知");
                 if (packSr.Length > 0 && vsr.Length > 0 && VerCmp(packSr, vsr) > 0)
-                    //  2026-11-01：卡片上不再显示包内路径（用户原话"参数说明太极客化"——普通人不会去手替换）：
-                    //  只留版本号。真要手动替换，入口在「说明」页的「手动资源」一节。
                     sb.Append("（包内有更新的 ").Append(packSr).Append(" 可升级）");
             }
             sb.Append("　·　");
-            sb.Append(fg == null ? "帧生成未找到" : ("帧生成 " + (vfg.Length > 0 ? vfg : "版本未知")));
+            if (fg == null) sb.Append("帧生成未找到");
+            else
+            {
+                sb.Append("帧生成 ").Append(vfg.Length > 0 ? vfg : "版本未知");
+                if (packFg.Length > 0 && vfg.Length > 0 && VerCmp(packFg, vfg) > 0)
+                    sb.Append("（包内有更新的 ").Append(packFg).Append(" 可升级）");
+            }
 
             string r = sb.ToString();
-            libVerCache[dir] = r;
-            libVerAt[dir] = now;
+            lock (libVerLock)
+            {
+                if (libVerCache.Count >= 256) { libVerCache.Clear(); libVerAt.Clear(); }
+                libVerCache[dir] = r;
+                libVerAt[dir] = now;
+            }
             return r;
         }
 
@@ -2692,7 +2739,17 @@ namespace Fluxion
             var v = new LogVerdict();
             try
             {
-                string lg = Path.Combine(gameExeDir, LogFolderName);
+                string baseDir = gameExeDir ?? "";
+                string lg = Path.Combine(baseDir, LogFolderName);
+                if (!Directory.Exists(lg) && baseDir.Length > 0)
+                {
+                    string rdir = SecondGame.ResolveDir(baseDir);
+                    if (!string.IsNullOrEmpty(rdir) && !Eq(rdir, baseDir))
+                    {
+                        string altLg = Path.Combine(rdir, LogFolderName);
+                        if (Directory.Exists(altLg)) lg = altLg;
+                    }
+                }
                 if (!Directory.Exists(lg)) { v.Message = "尚无日志目录（代理未激活或从未运行过）"; return v; }
                 v.HasLogDir = true;
                 var files = new List<string>(Directory.GetFiles(lg, "*.jsonl", SearchOption.AllDirectories));
@@ -2743,6 +2800,11 @@ namespace Fluxion
         {
             try
             {
+                if (g == null || string.IsNullOrEmpty(g.Exe)) return "游戏未运行";
+                string rdir = SecondGame.ResolveDir(g.Dir);
+                string entryName = (g.Entry != null && g.Entry.Length > 0) ? g.Entry : "version.dll";
+                string p1 = Path.Combine(g.Dir ?? "", entryName);
+                string p2 = (!string.IsNullOrEmpty(rdir) && !Eq(rdir, g.Dir)) ? Path.Combine(rdir, entryName) : "";
                 var ps = Process.GetProcesses();
                 foreach (var p in ps)
                 {
@@ -2752,7 +2814,7 @@ namespace Fluxion
                         foreach (ProcessModule m in p.Modules)
                         {
                             if (m.FileName == null) continue;
-                            if (Eq(m.FileName, Path.Combine(g.Dir, g.Entry.Length > 0 ? g.Entry : "version.dll")))
+                            if (Eq(m.FileName, p1) || (p2.Length > 0 && Eq(m.FileName, p2)))
                                 return "代理已在游戏进程中（已加载）";
                         }
                         return "游戏在运行，但代理未加载";
@@ -2933,16 +2995,27 @@ namespace Fluxion
         {
             try
             {
-                // d3d12 组的两个小文件也要试锁：游戏加载 d3d12.dll 后覆盖必然失败
+                if (string.IsNullOrEmpty(dir)) return false;
+                var dirs = new List<string>();
+                dirs.Add(dir);
+                string rdir = SecondGame.ResolveDir(dir);
+                if (!string.IsNullOrEmpty(rdir) && !Eq(rdir, dir)) dirs.Add(rdir);
+
                 var names = new List<string>(EntryNames);
                 names.Add(D3d12Entry);
                 names.Add(D3d12Orig);
-                foreach (var en in names)
+                foreach (string me in MfgBridge.Entries)
+                    if (!Contain(names, me)) names.Add(me);
+
+                foreach (string checkDir in dirs)
                 {
-                    string p = Path.Combine(dir, en);
-                    if (!File.Exists(p)) continue;
-                    try { using (var fs = new FileStream(p, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { } }
-                    catch { return true; }
+                    foreach (var en in names)
+                    {
+                        string p = Path.Combine(checkDir, en);
+                        if (!File.Exists(p)) continue;
+                        try { using (var fs = new FileStream(p, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { } }
+                        catch { return true; }
+                    }
                 }
             }
             catch { }
@@ -2973,6 +3046,249 @@ namespace Fluxion
                 foreach (var b in hash) sb.Append(b.ToString("X2"));
                 return sb.ToString();
             }
+        }
+    }
+
+    // ============================================================================
+    //  DLSS 运行库版本巡检与无损热替换（nvngx_dlss.dll / nvngx_dlssg.dll）
+    //  ----------------------------------------------------------------------------
+    //  · 自动定位游戏目录（穿透启动器壳目录与 UE Engine\Plugins）中的原厂 DLSS 超分与帧生成 DLL
+    //  · 与本地资源包（0.4.x / 0.3.x / OptiScaler / manual-pack / dlss-repo）比对最高可用版本
+    //  · 升级前校验数字签名白名单（NVIDIA 官方或上游可信签名），首次替换前永久保留 .fluxion-orig.bak 原厂备份
+    // ============================================================================
+    public static class DlssRuntime
+    {
+        public const string OrigBakSuffix = ".fluxion-orig.bak";
+
+        public class Slot
+        {
+            public string Kind = "";          // "sr" / "fg"
+            public string DllName = "";       // nvngx_dlss.dll / nvngx_dlssg.dll
+            public string Label = "";
+            public string GameDllPath = "";
+            public string GameVer = "";
+            public string BackupPath = "";
+            public string BackupVer = "";
+            public string PackDllPath = "";
+            public string PackVer = "";
+
+            public bool HasGameDll { get { return !string.IsNullOrEmpty(GameDllPath) && File.Exists(GameDllPath); } }
+            public bool HasBackup { get { return !string.IsNullOrEmpty(BackupPath) && File.Exists(BackupPath); } }
+            public bool CanUpgrade
+            {
+                get
+                {
+                    if (!HasGameDll) return false;
+                    if (string.IsNullOrEmpty(PackDllPath) || !File.Exists(PackDllPath) || PackVer.Length == 0) return false;
+                    if (GameVer.Length == 0) return true;
+                    return Dlssg.VerCmp(PackVer, GameVer) > 0;
+                }
+            }
+        }
+
+        static List<string> CandidatePackPaths(string dllName)
+        {
+            var list = new List<string>();
+            if (string.IsNullOrEmpty(dllName)) return list;
+            string root = Program.DataDir;
+            if (string.IsNullOrEmpty(root)) return list;
+
+            if (dllName.Equals("nvngx_dlss.dll", StringComparison.OrdinalIgnoreCase))
+            {
+                list.Add(Path.Combine(root, @"dlssg040-pack\dlssg_sm86\sr\nvngx_dlss.dll"));
+                list.Add(Path.Combine(root, @"dlssg040-pack\sr\nvngx_dlss.dll"));
+            }
+            else if (dllName.Equals("nvngx_dlssg.dll", StringComparison.OrdinalIgnoreCase))
+            {
+                list.Add(Path.Combine(root, @"dlssg040-pack\dlssg_sm86\runtime\nvngx_dlssg.dll"));
+            }
+
+            list.Add(Path.Combine(root, @"dlssg030-pack\asi\" + dllName));
+            list.Add(Path.Combine(root, @"dlssg030-pack\common\" + dllName));
+            list.Add(Path.Combine(root, @"xess-pack\wuwa\OptiScaler\streamline\" + dllName));
+            list.Add(Path.Combine(root, @"manual-pack\dlss4-4.5\" + dllName));
+
+            string repoDir = Path.Combine(root, "dlss-repo");
+            list.Add(Path.Combine(repoDir, dllName));
+            try
+            {
+                if (Directory.Exists(repoDir))
+                {
+                    foreach (string sub in Directory.GetDirectories(repoDir))
+                        list.Add(Path.Combine(sub, dllName));
+                }
+            }
+            catch { }
+            return list;
+        }
+
+        public static string BestPackDll(string dllName, out string fullPath)
+        {
+            fullPath = "";
+            string bestVer = "";
+            foreach (string cand in CandidatePackPaths(dllName))
+            {
+                try
+                {
+                    if (!File.Exists(cand)) continue;
+                    string v = Dlssg.FileVerOf(cand);
+                    if (v.Length == 0) continue;
+                    if (bestVer.Length == 0 || Dlssg.VerCmp(v, bestVer) > 0)
+                    {
+                        bestVer = v;
+                        fullPath = cand;
+                    }
+                }
+                catch { }
+            }
+            return bestVer;
+        }
+
+        static Slot InspectOne(string gameDir, string kind, string dllName, string label)
+        {
+            var s = new Slot();
+            s.Kind = kind;
+            s.DllName = dllName;
+            s.Label = label;
+
+            string packPath;
+            s.PackVer = BestPackDll(dllName, out packPath);
+            s.PackDllPath = packPath;
+
+            if (string.IsNullOrEmpty(gameDir) || !Directory.Exists(gameDir)) return s;
+            string gp = Dlssg.FindDllPath(gameDir, dllName, 3);
+            if (gp == null)
+            {
+                string bakFound = Dlssg.FindDllPath(gameDir, dllName + OrigBakSuffix, 3);
+                if (bakFound != null && bakFound.Length > OrigBakSuffix.Length)
+                    gp = bakFound.Substring(0, bakFound.Length - OrigBakSuffix.Length);
+            }
+            if (gp != null)
+            {
+                s.GameDllPath = gp;
+                if (File.Exists(gp)) s.GameVer = Dlssg.FileVerOf(gp);
+                s.BackupPath = gp + OrigBakSuffix;
+                if (File.Exists(s.BackupPath)) s.BackupVer = Dlssg.FileVerOf(s.BackupPath);
+            }
+            return s;
+        }
+
+        public static List<Slot> Inspect(string gameDir)
+        {
+            var list = new List<Slot>();
+            list.Add(InspectOne(gameDir, "sr", "nvngx_dlss.dll", "DLSS 超分运行库 (SR)"));
+            list.Add(InspectOne(gameDir, "fg", "nvngx_dlssg.dll", "DLSS 帧生成运行库 (FG)"));
+            return list;
+        }
+
+        static bool MatchesKind(Slot s, string kindFilter)
+        {
+            if (string.IsNullOrEmpty(kindFilter) || kindFilter.Equals("all", StringComparison.OrdinalIgnoreCase))
+                return true;
+            return s.Kind.Equals(kindFilter, StringComparison.OrdinalIgnoreCase);
+        }
+
+        static bool IsFileBusy(string path)
+        {
+            try
+            {
+                if (!File.Exists(path)) return false;
+                using (var fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
+                return false;
+            }
+            catch { return true; }
+        }
+
+        public static string Upgrade(string gameDir, string kindFilter)
+        {
+            if (string.IsNullOrEmpty(gameDir) || !Directory.Exists(gameDir))
+                return "升级中止：游戏目录不存在。";
+            if (Dlssg.IsLauncherDir(gameDir))
+                return "升级中止：当前指向启动器容器目录，请选择游戏本体目录。";
+
+            List<Slot> slots = Inspect(gameDir);
+            var done = new List<string>();
+            var skipped = new List<string>();
+            foreach (Slot s in slots)
+            {
+                if (!MatchesKind(s, kindFilter)) continue;
+                if (!s.HasGameDll)
+                {
+                    skipped.Add(s.DllName + "（游戏目录未找到该组件）");
+                    continue;
+                }
+                if (!s.CanUpgrade)
+                {
+                    skipped.Add(s.DllName + "（当前 " + (s.GameVer.Length > 0 ? s.GameVer : "未知")
+                        + (s.PackVer.Length > 0 ? " 已不低于包内 " + s.PackVer : "，本地资源包暂无可用新版本") + "）");
+                    continue;
+                }
+                if (IsFileBusy(s.GameDllPath))
+                    return "升级中止：" + s.DllName + " 正被游戏或启动器占用，请完全退出游戏后重试。";
+
+                CertInfo ci = ProxySign.Of(s.PackDllPath);
+                if (ci.Verdict != "nvidia" && ci.Verdict != "upstream")
+                    return "升级中止：包内 " + s.DllName + " 数字签名校验未通过（" + ci.Verdict + "），已拒绝覆盖游戏原厂文件。";
+
+                try
+                {
+                    // 仅在原厂备份尚不存在时落盘备份，避免二次升级冲掉真正的出厂版本
+                    if (!File.Exists(s.BackupPath))
+                        File.Copy(s.GameDllPath, s.BackupPath, false);
+                    File.Copy(s.PackDllPath, s.GameDllPath, true);
+                    done.Add(s.DllName + "（" + (s.GameVer.Length > 0 ? s.GameVer : "未知") + " → " + s.PackVer + "）");
+                }
+                catch (Exception ex)
+                {
+                    return "升级失败（" + s.DllName + "）：" + ex.Message;
+                }
+            }
+
+            Dlssg.ClearLibVerCache();
+            if (done.Count == 0)
+                return "无需升级：" + (skipped.Count > 0 ? string.Join("；", skipped.ToArray()) : "没有可升级的 DLSS 组件。");
+            var sb = new StringBuilder();
+            sb.Append("已升级 ").Append(done.Count).Append(" 项 DLSS 运行库：").Append(string.Join("、", done.ToArray()));
+            sb.Append("\n  原厂文件已保留为 *" + OrigBakSuffix + "，随时可一键无损还原。");
+            if (skipped.Count > 0)
+                sb.Append("\n  其余跳过：").Append(string.Join("；", skipped.ToArray()));
+            return sb.ToString();
+        }
+
+        public static string Restore(string gameDir, string kindFilter)
+        {
+            if (string.IsNullOrEmpty(gameDir) || !Directory.Exists(gameDir))
+                return "还原中止：游戏目录不存在。";
+
+            List<Slot> slots = Inspect(gameDir);
+            var restored = new List<string>();
+            foreach (Slot s in slots)
+            {
+                if (!MatchesKind(s, kindFilter)) continue;
+                if (!s.HasBackup) continue;
+                if (File.Exists(s.GameDllPath) && IsFileBusy(s.GameDllPath))
+                    return "还原中止：" + s.DllName + " 正被游戏或启动器占用，请完全退出游戏后重试。";
+
+                try
+                {
+                    long expectLen = new FileInfo(s.BackupPath).Length;
+                    File.Copy(s.BackupPath, s.GameDllPath, true);
+                    long actualLen = new FileInfo(s.GameDllPath).Length;
+                    if (actualLen != expectLen)
+                        return "还原校验异常：" + s.DllName + " 写入长度不匹配，已保留备份文件。";
+                    File.Delete(s.BackupPath);
+                    restored.Add(s.DllName + (s.BackupVer.Length > 0 ? "（已回到原厂 " + s.BackupVer + "）" : "（已回到原厂备份）"));
+                }
+                catch (Exception ex)
+                {
+                    return "还原失败（" + s.DllName + "）：" + ex.Message;
+                }
+            }
+
+            Dlssg.ClearLibVerCache();
+            if (restored.Count == 0)
+                return "没有找到可还原的原厂备份（*" + OrigBakSuffix + "）。";
+            return "已无损还原 " + restored.Count + " 项原厂运行库：" + string.Join("、", restored.ToArray());
         }
     }
 
@@ -3103,44 +3419,57 @@ namespace Fluxion
             none.Dir = gameDir == null ? "" : gameDir;
             if (none.Dir.Length == 0 || !Directory.Exists(none.Dir)) return none;
 
+            var roots = new List<string>();
+            roots.Add(none.Dir);
+            try
+            {
+                string rdir = SecondGame.ResolveDir(none.Dir);
+                if (!string.IsNullOrEmpty(rdir) && !rdir.Equals(none.Dir, StringComparison.OrdinalIgnoreCase) && Directory.Exists(rdir))
+                    roots.Add(rdir);
+            }
+            catch { }
+
             FgResult latest = null, prev = null;
             string latestPath = null;
             try
             {
-                foreach (string rel in LogDirs)
+                foreach (string baseDir in roots)
                 {
-                    string d = Path.Combine(none.Dir, rel);
-                    if (!Directory.Exists(d)) continue;
-                    string[] files;
-                    try { files = Directory.GetFiles(d, "*.jsonl"); }
-                    catch { continue; }
-
-                    foreach (string f in files)
+                    foreach (string rel in LogDirs)
                     {
-                        long len;
-                        DateTime t;
-                        try { len = new FileInfo(f).Length; t = File.GetLastWriteTime(f); }
+                        string d = Path.Combine(baseDir, rel);
+                        if (!Directory.Exists(d)) continue;
+                        string[] files;
+                        try { files = Directory.GetFiles(d, "*.jsonl"); }
                         catch { continue; }
 
-                        if (latest == null || t > latest.When)
+                        foreach (string f in files)
                         {
-                            latest = new FgResult();
-                            latest.Dir = none.Dir;
-                            latest.File = Path.GetFileName(f);
-                            latest.When = t;
-                            latest.Bytes = len;
-                            latestPath = f;
-                        }
-                        if (len > 0 && (prev == null || t > prev.When))
-                        {
-                            ParsedLog pl = ParseLog(f, len, t);
-                            var p = new FgResult();
-                            p.Dir = none.Dir;
-                            p.File = Path.GetFileName(f);
-                            p.When = t;
-                            p.Bytes = len;
-                            p.MaxGen = pl.MaxGen; p.GenCount = pl.GenCount; p.Note = pl.Note;
-                            prev = p;
+                            long len;
+                            DateTime t;
+                            try { len = new FileInfo(f).Length; t = File.GetLastWriteTime(f); }
+                            catch { continue; }
+
+                            if (latest == null || t > latest.When)
+                            {
+                                latest = new FgResult();
+                                latest.Dir = none.Dir;
+                                latest.File = Path.GetFileName(f);
+                                latest.When = t;
+                                latest.Bytes = len;
+                                latestPath = f;
+                            }
+                            if (len > 0 && (prev == null || t > prev.When))
+                            {
+                                ParsedLog pl = ParseLog(f, len, t);
+                                var p = new FgResult();
+                                p.Dir = none.Dir;
+                                p.File = Path.GetFileName(f);
+                                p.When = t;
+                                p.Bytes = len;
+                                p.MaxGen = pl.MaxGen; p.GenCount = pl.GenCount; p.Note = pl.Note;
+                                prev = p;
+                            }
                         }
                     }
                 }
@@ -3180,6 +3509,7 @@ namespace Fluxion
         //    于 Summary 变成「最近生效：某游戏 · 实际 1X」、封面卡变成「实测 1X」——
         //    把"代理加载了但压根没跑帧生成"谎报成生效。fg_probe 第 2/4 节一直红着，就是这条。
         class ParsedLog { public int MaxGen = -1, GenCount = -1; public string Note = ""; }
+        static readonly object parsedLogLock = new object();
         static readonly System.Collections.Generic.Dictionary<string, ParsedLog> parsedLogCache =
             new System.Collections.Generic.Dictionary<string, ParsedLog>(StringComparer.OrdinalIgnoreCase);
 
@@ -3187,7 +3517,10 @@ namespace Fluxion
         {
             string key = path + "|" + len + "|" + t.Ticks;
             ParsedLog pl;
-            if (parsedLogCache.TryGetValue(key, out pl)) return pl;
+            lock (parsedLogLock)
+            {
+                if (parsedLogCache.TryGetValue(key, out pl)) return pl;
+            }
             pl = new ParsedLog();
             try
             {
@@ -3214,8 +3547,11 @@ namespace Fluxion
                 }
             }
             catch { }
-            if (parsedLogCache.Count >= 256) parsedLogCache.Clear();
-            parsedLogCache[key] = pl;
+            lock (parsedLogLock)
+            {
+                if (parsedLogCache.Count >= 256) parsedLogCache.Clear();
+                parsedLogCache[key] = pl;
+            }
             return pl;
         }
 
@@ -3482,7 +3818,7 @@ namespace Fluxion
             if (g == null || g.Dir == null || g.Exe == null) return false;
             string kind;
             if (EqHead(g.Exe, "ZenlessZoneZero.exe")) kind = "zzz";
-            else if (EqHead(g.Exe, "Client-Win64-Shipping.exe")) kind = "wuwa";
+            else if (EqHead(g.Exe, "Client-Win64-Shipping.exe") && !XeMfg.IsNonWuwaUe(g.Title, g.Dir)) kind = "wuwa";
             else return false;
             return CheckAt(kind, g.Dir);
         }
@@ -3501,7 +3837,7 @@ namespace Fluxion
         {
             if (g == null || g.Exe == null) return "";
             if (EqHead(g.Exe, "ZenlessZoneZero.exe") && CheckAt("zzz", g.Dir)) return "DLSS MFG " + Ver + "（d3d12）";
-            if (EqHead(g.Exe, "Client-Win64-Shipping.exe") && CheckAt("wuwa", g.Dir)) return "DLSS MFG " + Ver + "（dxgi）";
+            if (EqHead(g.Exe, "Client-Win64-Shipping.exe") && !XeMfg.IsNonWuwaUe(g.Title, g.Dir) && CheckAt("wuwa", g.Dir)) return "DLSS MFG " + Ver + "（dxgi）";
             // 通用（3A 单机）：按目录里有没有我们的代理判断。卡片也要显示出来，
             //  否则"装没装成功"在列表里看不出来（这是反复重装的动机之一）
             if (GenericInstalled(g.Dir)) return "DLSS MFG 0.3.x（通用）";
@@ -3568,7 +3904,7 @@ namespace Fluxion
                         ? "（GTX / AMD / Intel：推荐方案 A · OptiScaler 跨平台补帧）"
                         : "（RTX 20/30 系：原生支持 DLSS-G SM75/SM86 内核注入）")));
             sb.AppendLine("· 系统版本：" + Program.WindowsBuild() + "（作者提示：系统版本太老也可能不生效）");
-            sb.AppendLine("· 绝区零专属结论（2026-09-16 深度实测）：方案A 的代理从未被绝区零加载过 ——"
+            sb.AppendLine("· 绝区零提示：方案A 的代理从未被绝区零加载过 ——"
                         + "未签名 DLL 被反作弊拦掉（隔离实验证明 dll 本身可加载，游戏进程内从未加载）。"
                         + "绝区零唯一可行的注入路径是作者的自带签名版 d3d12.dll（0.3.x），"
                         + "且必须先做注册表显卡名伪装（0.3.x 不做伪装，游戏看到非 40/50 系显卡就不会显示帧生成选项）。");
@@ -4043,7 +4379,10 @@ namespace Fluxion
                 bool hit = false;
                 for (int i = 0; i < lines.Count; i++)
                 {
-                    if (lines[i].TrimStart().StartsWith("MaxGeneratedFrames", StringComparison.OrdinalIgnoreCase))
+                    string t = lines[i].TrimStart();
+                    if (t.StartsWith(";", StringComparison.Ordinal) || t.StartsWith("#", StringComparison.Ordinal)) continue;
+                    int eq = t.IndexOf('=');
+                    if (eq > 0 && t.Substring(0, eq).Trim().Equals("MaxGeneratedFrames", StringComparison.OrdinalIgnoreCase))
                     {
                         lines[i] = "MaxGeneratedFrames=" + frames;
                         hit = true;
@@ -4168,7 +4507,8 @@ namespace Fluxion
                 if (n.EndsWith(".parked." + Opti, StringComparison.OrdinalIgnoreCase)) return Opti;
                 if (n.EndsWith(".parked." + D030, StringComparison.OrdinalIgnoreCase)) return D030;
                 if (n.EndsWith(".parked." + D040, StringComparison.OrdinalIgnoreCase)) return D040;
-                if (n.EndsWith(".parked." + Nvbr, StringComparison.OrdinalIgnoreCase)) return Nvbr;
+                if (n.EndsWith(".parked." + Nvbr, StringComparison.OrdinalIgnoreCase)
+                    || n.EndsWith(".parked." + MfgBridge.Kind, StringComparison.OrdinalIgnoreCase)) return Nvbr;
                 if (n.EndsWith(".parked." + Legacy, StringComparison.OrdinalIgnoreCase)) return Legacy;
                 long len = new FileInfo(path).Length;
                 //  只在体积可能判成某个方案时才去取签名 —— 游戏自带的同名小 dll
@@ -4244,6 +4584,16 @@ namespace Fluxion
                     if (owner.Length == 0 || owner == keep) continue;
                     hit.Add(nm + "（" + PlanName(owner) + "）");
                 }
+                if (keep != Nvbr)
+                {
+                    foreach (string me in MfgBridge.Entries)
+                    {
+                        if (IsEntryName(me)) continue;
+                        string mf = Path.Combine(dir, me);
+                        if (File.Exists(mf) && MfgBridge.IsMine(mf))
+                            hit.Add(me + "（" + PlanName(Nvbr) + "）");
+                    }
+                }
             }
             catch { }
             return hit;
@@ -4309,6 +4659,18 @@ namespace Fluxion
                     }
                     hit.Add(h);
                 }
+                foreach (string me in MfgBridge.Entries)
+                {
+                    if (IsEntryName(me)) continue;
+                    string mf = Path.Combine(dir, me);
+                    if (!File.Exists(mf) || !MfgBridge.IsMine(mf)) continue;
+                    EntryHit mh = new EntryHit();
+                    mh.Name = me;
+                    mh.Owner = Nvbr;
+                    mh.Main = cur == Nvbr;
+                    try { mh.Size = new FileInfo(mf).Length; } catch { }
+                    hit.Add(mh);
+                }
             }
             catch { }
             return hit;
@@ -4331,6 +4693,7 @@ namespace Fluxion
                         || nm.EndsWith(".parked." + D030, StringComparison.OrdinalIgnoreCase)
                         || nm.EndsWith(".parked." + D040, StringComparison.OrdinalIgnoreCase)
                         || nm.EndsWith(".parked." + Nvbr, StringComparison.OrdinalIgnoreCase)
+                        || nm.EndsWith(".parked." + MfgBridge.Kind, StringComparison.OrdinalIgnoreCase)
                         || nm.EndsWith(".parked." + Legacy, StringComparison.OrdinalIgnoreCase)) n++;
                 }
             }
@@ -4390,6 +4753,16 @@ namespace Fluxion
                     if (owner.Length == 0 || owner == keep) continue;
                     ParkOne(f, owner, false, parked, failed);
                 }
+                if (keep != Nvbr)
+                {
+                    foreach (string me in MfgBridge.Entries)
+                    {
+                        if (IsEntryName(me)) continue;
+                        string mf = Path.Combine(dir, me);
+                        if (File.Exists(mf) && MfgBridge.IsMine(mf))
+                            ParkOne(mf, Nvbr, false, parked, failed);
+                    }
+                }
             }
             catch { }
             return parked;
@@ -4424,6 +4797,11 @@ namespace Fluxion
                     string f = Path.Combine(dir, nm);
                     if (File.Exists(f) && OwnerOf(f) == cur)
                         return "　已装代理：" + PlanName(cur) + "（入口 " + nm + "）";
+                }
+                if (cur == Nvbr)
+                {
+                    string me = MfgBridge.InstalledEntry(dir);
+                    if (me.Length > 0) return "　已装代理：" + PlanName(cur) + "（入口 " + me + "）";
                 }
                 return "　已装代理：" + PlanName(cur);
             }
@@ -4528,6 +4906,23 @@ namespace Fluxion
                 if (owner.Length == 0) continue;                        // 非代理：不碰
                 if (nm.Equals(entry, StringComparison.OrdinalIgnoreCase) && owner == keep) continue;
                 ParkOne(f, owner, false, parked, failed);
+                if (owner == Opti && keep != Opti && (keep == None || !nm.Equals(entry, StringComparison.OrdinalIgnoreCase)))
+                {
+                    string bak = f + DlssRuntime.OrigBakSuffix;
+                    if (!File.Exists(f) && File.Exists(bak))
+                    {
+                        try { File.Copy(bak, f, false); } catch { }
+                    }
+                }
+            }
+            // 方案 B 支持 cryptsp / xinput9_1_0 / iphlpapi 等不在 Catalog.EntryNames 中的冷门入口
+            foreach (string me in MfgBridge.Entries)
+            {
+                if (IsEntryName(me)) continue;
+                string mf = Path.Combine(dir, me);
+                if (!File.Exists(mf) || !MfgBridge.IsMine(mf)) continue;
+                if (me.Equals(entry, StringComparison.OrdinalIgnoreCase) && keep == Nvbr) continue;
+                ParkOne(mf, Nvbr, false, parked, failed);
             }
             // 配套组件：只停"别家"那套的；keep 那套的留原位，切回来时由 UnparkComponents 复原。
             foreach (string plan in new string[] { Opti, D030, D040, Nvbr })
@@ -4539,7 +4934,18 @@ namespace Fluxion
                 {
                     if (IsEntryName(nm)) continue;                      // 入口由上面那一轮处理
                     string p = Path.Combine(dir, nm);
-                    if (File.Exists(p)) ParkOne(p, plan, false, parked, failed);
+                    if (File.Exists(p))
+                    {
+                        ParkOne(p, plan, false, parked, failed);
+                        if (plan == Opti && keep != Opti)
+                        {
+                            string bak = p + DlssRuntime.OrigBakSuffix;
+                            if (!File.Exists(p) && File.Exists(bak))
+                            {
+                                try { File.Copy(bak, p, false); } catch { }
+                            }
+                        }
+                    }
                 }
                 foreach (string nm in cds)
                 {
@@ -4570,6 +4976,15 @@ namespace Fluxion
             {
                 if (IsEntryName(nm)) continue;                          // 入口由调用方自己复原
                 string live = Path.Combine(dir, nm), pk = live + ".parked." + plan;
+                if (plan == Nvbr && !File.Exists(pk))
+                {
+                    string pkLegacy = live + ".parked." + MfgBridge.Kind;
+                    if (File.Exists(pkLegacy)) pk = pkLegacy;
+                }
+                if (plan == Opti && File.Exists(live) && File.Exists(pk) && File.Exists(live + DlssRuntime.OrigBakSuffix))
+                {
+                    try { File.Delete(live); } catch { }
+                }
                 if (File.Exists(live) || !File.Exists(pk)) continue;
                 try { File.Move(pk, live); back.Add(nm); }
                 catch (Exception ex) { if (failed != null) failed.Add(nm + " 复原失败：" + ex.Message); }
@@ -4598,8 +5013,9 @@ namespace Fluxion
                 }
                 if (target == Nvbr)
                 {
-                    bool e5 = MfgBridge.InstalledEntry(dir).Length > 0;
-                    return e5;
+                    return (File.Exists(cur) && MfgBridge.IsMine(cur))
+                        || File.Exists(cur + ".parked." + Nvbr)
+                        || File.Exists(cur + ".parked." + MfgBridge.Kind);
                 }
                 if (target == D040)
                 {
@@ -4681,6 +5097,16 @@ namespace Fluxion
                 bool ok = !force && FilesPresent(dir, entry, target);
                 string cur = Path.Combine(dir, entry);
                 string pk = cur + ".parked." + target;
+                if (target == Nvbr && !File.Exists(pk))
+                {
+                    string pkLegacy = cur + ".parked." + MfgBridge.Kind;
+                    if (File.Exists(pkLegacy)) pk = pkLegacy;
+                }
+                if (!force && target == Opti && File.Exists(cur) && OwnerOf(cur).Length == 0
+                    && File.Exists(cur + DlssRuntime.OrigBakSuffix) && File.Exists(pk))
+                {
+                    try { File.Delete(cur); } catch { }
+                }
                 if (!force && !File.Exists(cur) && File.Exists(pk))
                 {
                     try
@@ -4772,7 +5198,7 @@ namespace Fluxion
         }
 
         public static string PackRoot { get { return Path.Combine(Program.DataDir, "xess-pack"); } }
-        static string PackDir(string kind) { return Path.Combine(PackRoot, kind); }
+        public static string PackDir(string kind) { return Path.Combine(PackRoot, kind); }
         static string BackupDir(string kind) { return Path.Combine(BackupRoot, kind); }
         // public：见 Dlssg030.BackupRoot 的说明 —— Junk 扫描要复用，不留第二份 "_backup"
         public static string BackupRoot { get { return Path.Combine(PackRoot, "_backup"); } }
@@ -4969,12 +5395,34 @@ namespace Fluxion
             return null;
         }
 
+        static readonly string[] NonWuwaUeMarkers = new string[] {
+            "snowbreak", "尘白", "tower of fantasy", "hotta", "幻塔",
+            "strinova", "calabiyau", "卡拉彼丘", "nikki", "无限暖暖",
+            "endfield", "终末地", "marvelrivals", "marvel rivals", "漫威争锋"
+        };
+
+        // 区分鸣潮与同样使用 Client-Win64-Shipping.exe 的其他虚幻引擎网游（尘白禁区 / 幻塔 / 卡拉彼丘 / 无限暖暖等）。
+        //  保持对无特征测试沙盒目录返回 false，兼容探针中仅放空壳 Client-Win64-Shipping.exe 的回归用例。
+        public static bool IsNonWuwaUe(string title, string dir)
+        {
+            string s = ((title ?? "") + " " + (dir ?? "")).ToLowerInvariant();
+            if (s.Trim().Length == 0) return false;
+            if (s.IndexOf("wuthering", StringComparison.Ordinal) >= 0
+                || s.IndexOf("鸣潮", StringComparison.Ordinal) >= 0
+                || s.IndexOf("kuro", StringComparison.Ordinal) >= 0)
+                return false;
+            foreach (string m in NonWuwaUeMarkers)
+                if (s.IndexOf(m, StringComparison.Ordinal) >= 0) return true;
+            return false;
+        }
+
         // 识别游戏类型
         //  Detect 每次都对两个 exe 名各做一次深度 3 全子树递归，而一次帧生成页刷新会对同一目录
         //  重复调 10+ 次（RefreshFgSummary / PatrolLine / BuildRec 各自调），全部变成反复列目录
         //  （2026-09-30 体检）。结果只随"游戏装没装"变化，加一个短 TTL 记忆化：同目录 15 秒内
         //  直接复用；游戏更新/卸载造成的误判最多活 15 秒，下次刷新自动纠正。
         class DetEntry { public string Kind; public int At; }
+        static readonly object detLock = new object();
         static readonly System.Collections.Generic.Dictionary<string, DetEntry> detCache =
             new System.Collections.Generic.Dictionary<string, DetEntry>(StringComparer.OrdinalIgnoreCase);
         const int DetTtlMs = 15000;
@@ -4983,18 +5431,25 @@ namespace Fluxion
         {
             if (gameDir == null || gameDir.Length == 0) return "";
             string key = gameDir.TrimEnd('\\', '/').ToLowerInvariant();
-            DetEntry e;
             int now = Environment.TickCount;
-            if (detCache.TryGetValue(key, out e) && e != null && unchecked(now - e.At) < DetTtlMs)
-                return e.Kind;
+            lock (detLock)
+            {
+                DetEntry e;
+                if (detCache.TryGetValue(key, out e) && e != null && unchecked(now - e.At) < DetTtlMs)
+                    return e.Kind;
+            }
             string kind = "";
             try
             {
                 if (FindExeDir(gameDir, "ZenlessZoneZero.exe", 3) != null) kind = "zzz";
-                else if (FindExeDir(gameDir, "Client-Win64-Shipping.exe", 3) != null) kind = "wuwa";
+                else if (!IsNonWuwaUe("", gameDir) && FindExeDir(gameDir, "Client-Win64-Shipping.exe", 3) != null) kind = "wuwa";
             }
             catch { }
-            detCache[key] = new DetEntry { Kind = kind, At = now };
+            lock (detLock)
+            {
+                if (detCache.Count >= 256) detCache.Clear();
+                detCache[key] = new DetEntry { Kind = kind, At = now };
+            }
             return kind;
         }
 
@@ -5049,7 +5504,7 @@ namespace Fluxion
             if (g.Exe != null)
             {
                 if (EqHead(g.Exe, "ZenlessZoneZero.exe")) return CheckAt("zzz", g.Dir);
-                if (EqHead(g.Exe, "Client-Win64-Shipping.exe")) return CheckAt("wuwa", g.Dir);
+                if (EqHead(g.Exe, "Client-Win64-Shipping.exe") && !IsNonWuwaUe(g.Title, g.Dir)) return CheckAt("wuwa", g.Dir);
             }
             return IsInstalled(g.Dir);
         }
@@ -5074,7 +5529,7 @@ namespace Fluxion
             if (g == null || g.Dir == null) return "";
             if (g.Exe != null && EqHead(g.Exe, "ZenlessZoneZero.exe") && CheckAt("zzz", g.Dir))
                 return "方案 A 注入（d3d12）";
-            if (g.Exe != null && EqHead(g.Exe, "Client-Win64-Shipping.exe") && CheckAt("wuwa", g.Dir))
+            if (g.Exe != null && EqHead(g.Exe, "Client-Win64-Shipping.exe") && !IsNonWuwaUe(g.Title, g.Dir) && CheckAt("wuwa", g.Dir))
                 return "方案 A 注入（dxgi）";
             if (IsInstalled(g.Dir))
                 return "方案 A 注入（OptiScaler）";
@@ -5097,6 +5552,18 @@ namespace Fluxion
             return "未部署（方案 A · OptiScaler 跨平台补帧）";
         }
 
+        static void BackupOrigIfNonMine(string df)
+        {
+            try
+            {
+                if (!File.Exists(df)) return;
+                if (Plan.OwnerOf(df).Length > 0) return;
+                string bak = df + DlssRuntime.OrigBakSuffix;
+                if (!File.Exists(bak)) File.Copy(df, bak, false);
+            }
+            catch { }
+        }
+
         public static string InstallGeneric(string targetDir, string entryName = null, bool force = false)
         {
             if (string.IsNullOrEmpty(targetDir) || !Directory.Exists(targetDir))
@@ -5113,11 +5580,15 @@ namespace Fluxion
             if (!File.Exists(srcProxy))
                 return "资源包缺失核心代理 DLL（dxgi.dll / d3d12.dll）";
 
+            bool optiExisted = File.Exists(Path.Combine(targetDir, "OptiScaler.ini"))
+                            || File.Exists(Path.Combine(targetDir, "OptiScaler.ini.parked." + Plan.Opti));
+
             List<string> failed = new List<string>();
             Plan.ParkOthers(targetDir, "", Plan.Opti, entry, failed);
 
             int copied = 0, kept = 0;
             string dstProxy = Path.Combine(targetDir, entry);
+            BackupOrigIfNonMine(dstProxy);
             File.Copy(srcProxy, dstProxy, true);
             copied++;
 
@@ -5136,6 +5607,7 @@ namespace Fluxion
                 if (File.Exists(sf))
                 {
                     string df = Path.Combine(targetDir, f);
+                    if (!optiExisted) BackupOrigIfNonMine(df);
                     File.Copy(sf, df, true);
                     copied++;
                 }
