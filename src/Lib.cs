@@ -32,6 +32,8 @@ namespace Fluxion
         public string Name = "";         // 重命名（空 = 用扫描到的官方名）
         public string Platform = "";
         public string AppId = "";
+        public string PlatformId = "";   // 平台原生 ID（WeGame rail game_id / Epic AppName / 米哈游 GameBiz）
+        public string LaunchMode = "auto"; // 启动方式：auto / direct / platform
         public bool Favorite;
         public bool Private;
         public bool Hidden;
@@ -147,6 +149,9 @@ namespace Fluxion
                     m.Name = S(d, "name");
                     m.Platform = S(d, "platform");
                     m.AppId = S(d, "appid");
+                    m.PlatformId = S(d, "platformId");
+                    string lmode = S(d, "launchMode");
+                    m.LaunchMode = string.IsNullOrEmpty(lmode) ? "auto" : lmode;
                     m.Favorite = B(d, "favorite");
                     m.Private = B(d, "private");
                     m.Hidden = B(d, "hidden");
@@ -177,6 +182,8 @@ namespace Fluxion
                         var m = kv.Value;
                         var d = new Dictionary<string, object>();
                         d["name"] = m.Name; d["platform"] = m.Platform; d["appid"] = m.AppId;
+                        if (m.PlatformId != null && m.PlatformId.Length > 0) d["platformId"] = m.PlatformId;
+                        if (m.LaunchMode != null && m.LaunchMode.Length > 0 && m.LaunchMode != "auto") d["launchMode"] = m.LaunchMode;
                         d["favorite"] = m.Favorite; d["private"] = m.Private; d["hidden"] = m.Hidden;
                         d["lastPlayed"] = m.LastPlayed;
                         d["launchArgs"] = m.LaunchArgs;
@@ -287,28 +294,45 @@ namespace Fluxion
 
     public static class SteamLib
     {
+        static readonly Regex SteamNonGameRe = new Regex(
+            @"(^steamworks\b|^proton\b|^steam linux runtime|\bdedicated server$|\bsoundtrack$|original soundtrack|\bost$|原声带$|音乐集$)",
+            RegexOptions.IgnoreCase);
+
+        public static bool IsNonGameSteamApp(string appid, string name)
+        {
+            if (string.IsNullOrEmpty(appid) || string.IsNullOrEmpty(name)) return true;
+            if (appid == "228980" || appid == "228983" || appid == "1070560" || appid == "1391110" || appid == "1628350")
+                return true;
+            return SteamNonGameRe.IsMatch(name.Trim());
+        }
+
         public static List<SteamApp> Scan()
         {
             var apps = new List<SteamApp>();
             try
             {
                 string steam = RegS(Registry.CurrentUser, @"Software\Valve\Steam", "SteamPath");
+                if (steam.Length == 0 || !Directory.Exists(steam))
+                    steam = RegS(Registry.LocalMachine, @"SOFTWARE\WOW6432Node\Valve\Steam", "InstallPath");
                 if (steam.Length == 0 || !Directory.Exists(steam)) steam = @"C:\Program Files (x86)\Steam";
-                // SteamPath 可能是正斜杠写法，归一后再拼路径（理由见 Lib.BackSlashes）。
-                //  其它库的路径来自 libraryfolders.vdf，本来就是反斜杠 ——
-                //  所以只有**主库**（Steam 安装目录）里的游戏中招。
                 steam = Lib.BackSlashes(steam);
-                if (!Directory.Exists(steam)) return apps;
 
                 var libs = new List<string>();
-                libs.Add(steam);
-                string vdf = Path.Combine(steam, "steamapps", "libraryfolders.vdf");
-                if (File.Exists(vdf))
+                if (Directory.Exists(steam)) libs.Add(steam);
+                string vdf = Directory.Exists(steam) ? Path.Combine(steam, "steamapps", "libraryfolders.vdf") : "";
+                if (vdf.Length > 0 && File.Exists(vdf))
+                {
                     foreach (Match m in Regex.Matches(ReadText(vdf), "\"path\"\\s+\"([^\"]+)\""))
                     {
-                        string p = m.Groups[1].Value.Replace("\\\\", "\\");
+                        string p = Lib.BackSlashes(m.Groups[1].Value.Replace("\\\\", "\\"));
                         if (p.Length > 0 && !libs.Contains(p)) libs.Add(p);
                     }
+                }
+                foreach (string drv in PlatformScan.FixedDriveRoots())
+                {
+                    string sl = Path.Combine(drv, "SteamLibrary");
+                    if (Directory.Exists(sl) && !libs.Contains(sl)) libs.Add(sl);
+                }
 
                 var seenApp = new List<string>();
                 foreach (string lib in libs)
@@ -326,20 +350,13 @@ namespace Fluxion
                             string appid = Vdf(t, "appid");
                             string name = Vdf(t, "name");
                             string idir = Vdf(t, "installdir");
-                            //  ★ Steam 条目一律收录（2026-10-23 用户："Steam下载的一律收录就行"）：
-                            //    Valve 自己的清单里写的是"这个 app 装在哪"，名字是官方名，
-                            //    拿它去比对我们的"非游戏"词表是拿猜测覆盖事实 —— 因此不再按名字过滤。
-                            //    只留一条例外：**Steamworks 公共运行库**（appid 228980）是 VC++/DirectX
-                            //    运行库包，既不是游戏也不是软件，收进来只会多一条噪音条目。
-                            //    （旧代码里写的是 228983，那是另一个 id，228980 靠 steamworks 词条挡住的）
-                            if (appid.Length == 0 || name.Length == 0) continue;
-                            if (appid == "228980" || appid == "228983") continue;
+                            if (IsNonGameSteamApp(appid, name)) continue;
                             if (seenApp.Contains(appid)) continue;
                             seenApp.Add(appid);
                             var a = new SteamApp();
                             a.AppId = appid; a.Name = name; a.InstallDir = idir;
                             string d = idir.Length > 0 ? Path.Combine(sa, "common", idir) : lib;
-                            a.Dir = Directory.Exists(d) ? d : "";
+                            a.Dir = Directory.Exists(d) ? Lib.BackSlashes(d) : "";
                             apps.Add(a);
                         }
                         catch { }
@@ -553,6 +570,25 @@ namespace Fluxion
             return best;
         }
 
+        public static List<string> FixedDriveRoots()
+        {
+            var res = new List<string>();
+            try
+            {
+                foreach (DriveInfo di in DriveInfo.GetDrives())
+                {
+                    try
+                    {
+                        if (di.DriveType == DriveType.Fixed && di.IsReady)
+                            res.Add(Lib.BackSlashes(di.RootDirectory.FullName));
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+            return res;
+        }
+
         // ---------- Epic ----------
         public static List<DlssgGame> Epic()
         {
@@ -570,14 +606,16 @@ namespace Fluxion
                         var d = ser.Deserialize<Dictionary<string, object>>(File.ReadAllText(f, Encoding.UTF8));
                         if (d == null) continue;
                         string name = K(d, "DisplayName");
-                        string loc = K(d, "InstallLocation");
+                        string loc = Lib.BackSlashes(K(d, "InstallLocation"));
                         string rel = K(d, "LaunchExecutable");
+                        string appName = K(d, "AppName");
                         if (name.Length == 0 || loc.Length == 0 || !Directory.Exists(loc)) continue;
                         if (NonGame(name)) continue;
                         var g = new DlssgGame();
                         g.Dir = loc;
                         g.Title = name;
                         g.Platform = "epic";
+                        g.PlatformId = appName;
                         if (rel.Length > 0)
                         {
                             string exe = Path.Combine(loc, rel.Replace('/', '\\'));
@@ -585,6 +623,401 @@ namespace Fluxion
                         }
                         if (g.Exe.Length == 0) g.Exe = Path.GetFileName(FindExe(loc, null, name));
                         outl.Add(g);
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+            return outl;
+        }
+
+        // ---------- WeGame / 腾讯游戏 ----------
+        static readonly string[] WeGameSkipDirs = new string[] {
+            "common_apps", "downloading", "rail_user_data", "temp", "patch", "wegame", "apps", "dependency_shared"
+        };
+
+        public static string ReadRailId(string dir)
+        {
+            if (string.IsNullOrEmpty(dir)) return "";
+            try
+            {
+                string rgi = Path.Combine(dir, @"rail_files\rail_game_identify.json");
+                if (File.Exists(rgi))
+                {
+                    Match jm = Regex.Match(File.ReadAllText(rgi, Encoding.UTF8), @"""game_id""\s*:\s*(\d+)");
+                    if (jm.Success) return jm.Groups[1].Value;
+                }
+                string dn = Path.GetFileName(dir.TrimEnd('\\', '/'));
+                Match dm = Regex.Match(dn ?? "", @"\((\d{4,10})\)\s*$");
+                if (dm.Success) return dm.Groups[1].Value;
+            }
+            catch { }
+            return "";
+        }
+
+        public static string CleanWeGameTitle(string raw, string railId)
+        {
+            string id = railId == null ? "" : railId.Trim();
+            if (id == "2001918") return "三角洲行动";
+            if (id == "2001715") return "无畏契约";
+            if (id == "26") return "英雄联盟";
+            string s = raw == null ? "" : raw.Trim();
+            s = Regex.Replace(s, @"\s*\(\d{4,10}\)\s*$", "").Trim();
+            string low = s.ToLowerInvariant();
+            if (low.Contains("无畏契约") || low.Contains("valorant")) return "无畏契约";
+            if (low.Contains("deltaforce") || low.Contains("delta force") || low.Contains("三角洲")) return "三角洲行动";
+            if (low.Contains("英雄联盟") || low == "lol" || low.Contains("league of legends")) return "英雄联盟";
+            if (low.Contains("穿越火线") || low.Contains("crossfire")) return "穿越火线";
+            if (low.Contains("地下城与勇士") || low == "dnf") return "地下城与勇士";
+            if (low.Contains("wuthering") || low.Contains("鸣潮")) return "鸣潮";
+            if (low.Contains("逆战")) return "逆战";
+            if (low.Contains("卡拉彼丘") || low.Contains("calabiyau") || low.Contains("strinova")) return "卡拉彼丘";
+            return s;
+        }
+
+        public static string PickWeGameExe(string dir, string title)
+        {
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return "";
+            try
+            {
+                string[] knownRel = new string[] {
+                    @"ACLOS\aclos-launcher.exe",
+                    @"DeltaForceClient.exe",
+                    @"LeagueClient\LeagueClient.exe",
+                    @"Wuthering Waves Game\Client\Binaries\Win64\Client-Win64-Shipping.exe",
+                    @"Client\Binaries\Win64\Client-Win64-Shipping.exe",
+                    @"WeGameLauncher\launcher.exe",
+                    @"TCLS\client.exe"
+                };
+                foreach (string rel in knownRel)
+                {
+                    string p = Path.Combine(dir, rel);
+                    if (File.Exists(p)) return Path.GetFileName(p);
+                }
+                foreach (string rf in Directory.GetFiles(dir, "*.exe", SearchOption.TopDirectoryOnly))
+                {
+                    string fn = Path.GetFileName(rf);
+                    if (!IsHelperExe(rf) && fn.IndexOf("卸载", StringComparison.OrdinalIgnoreCase) < 0)
+                        return fn;
+                }
+                string deep = FindExe(dir, null, title);
+                if (deep.Length > 0) return Path.GetFileName(deep);
+            }
+            catch { }
+            return "";
+        }
+
+        public static List<DlssgGame> WeGame()
+        {
+            var outl = new List<DlssgGame>();
+            var candDirs = new List<string>();
+            Action<string> addCand = delegate(string p)
+            {
+                if (string.IsNullOrEmpty(p)) return;
+                string clean = Lib.BackSlashes(p.Trim().Trim('"'));
+                if (clean.Length < 4 || !Directory.Exists(clean)) return;
+                string bn = Path.GetFileName(clean.TrimEnd('\\')).ToLowerInvariant();
+                foreach (string sk in WeGameSkipDirs) if (bn == sk || bn.StartsWith(sk + "(")) return;
+                foreach (string ex in candDirs)
+                    if (string.Equals(ex.TrimEnd('\\'), clean.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)) return;
+                candDirs.Add(clean.TrimEnd('\\'));
+            };
+
+            try
+            {
+                var wgRoots = new List<string>();
+                Action<string> addRoot = delegate(string r)
+                {
+                    if (string.IsNullOrEmpty(r)) return;
+                    string cr = Lib.BackSlashes(r.Trim().Trim('"')).TrimEnd('\\');
+                    if (cr.Length > 2 && Directory.Exists(cr) && !wgRoots.Contains(cr)) wgRoots.Add(cr);
+                };
+
+                foreach (string drv in FixedDriveRoots())
+                {
+                    addRoot(Path.Combine(drv, "WeGameApps"));
+                    addRoot(Path.Combine(drv, @"Program Files (x86)\WeGameApps"));
+                    addRoot(Path.Combine(drv, @"Program Files\WeGameApps"));
+                    string rawRail = Path.Combine(drv, "rail_apps");
+                    if (Directory.Exists(rawRail))
+                    {
+                        try { foreach (string sd in Directory.GetDirectories(rawRail)) addCand(sd); } catch { }
+                    }
+                }
+
+                // WeGame 客户端注册表根 → 顺藤找同盘的 WeGameApps
+                string[] regWgPaths = new string[] {
+                    SteamLib.RegS(Registry.CurrentUser, @"Software\Tencent\WeGame", "InstallPath"),
+                    SteamLib.RegS(Registry.CurrentUser, @"Software\Tencent\WeGame", "Path"),
+                    SteamLib.RegS(Registry.LocalMachine, @"SOFTWARE\WOW6432Node\Tencent\WeGame", "InstallPath"),
+                    SteamLib.RegS(Registry.LocalMachine, @"SOFTWARE\WOW6432Node\Tencent\rail", "InstallPath")
+                };
+                foreach (string rp in regWgPaths)
+                {
+                    if (rp.Length == 0) continue;
+                    string cleanRp = Lib.BackSlashes(rp);
+                    addRoot(Path.Combine(cleanRp, "WeGameApps"));
+                    try
+                    {
+                        string pdir = Path.GetDirectoryName(cleanRp.TrimEnd('\\'));
+                        if (!string.IsNullOrEmpty(pdir)) addRoot(Path.Combine(pdir, "WeGameApps"));
+                    }
+                    catch { }
+                }
+
+                foreach (string wgr in wgRoots)
+                {
+                    string railApps = Path.Combine(wgr, "rail_apps");
+                    if (Directory.Exists(railApps))
+                    {
+                        try { foreach (string sd in Directory.GetDirectories(railApps)) addCand(sd); } catch { }
+                    }
+                    try
+                    {
+                        foreach (string sd in Directory.GetDirectories(wgr))
+                        {
+                            string bn = Path.GetFileName(sd).ToLowerInvariant();
+                            if (bn == "rail_apps") continue;
+                            bool skip = false;
+                            foreach (string sk in WeGameSkipDirs) if (bn == sk || bn.StartsWith(sk + "(")) { skip = true; break; }
+                            if (!skip) addCand(sd);
+                        }
+                    }
+                    catch { }
+                }
+
+                // 腾讯独立子键（无畏契约 / 英雄联盟 / ACLOS 等）
+                string vPath = SteamLib.RegS(Registry.CurrentUser, @"Software\Tencent\valorant.live", "InstallPath");
+                if (vPath.Length > 0) addCand(vPath);
+                string lolPath = SteamLib.RegS(Registry.CurrentUser, @"Software\Tencent\LOL", "InstallPath");
+                if (lolPath.Length > 0) addCand(lolPath);
+                string aclosPath = SteamLib.RegS(Registry.CurrentUser, @"Software\Tencent\ACLOS", "RuntimePath");
+                if (aclosPath.Length > 0)
+                {
+                    string acParent = Path.GetDirectoryName(Lib.BackSlashes(aclosPath).TrimEnd('\\'));
+                    if (!string.IsNullOrEmpty(acParent)) addCand(acParent);
+                }
+
+                foreach (string dir in candDirs)
+                {
+                    try
+                    {
+                        string railId = ReadRailId(dir);
+                        if (railId == "999998") continue; // WeGame 公共运行库
+                        string rawName = Path.GetFileName(dir);
+                        string title = CleanWeGameTitle(rawName, railId);
+                        if (title.Length == 0 || NonGame(title) || Dlssg.IsPlatformClient(title)) continue;
+                        string exe = PickWeGameExe(dir, title);
+                        if (exe.Length == 0) continue;
+                        var g = new DlssgGame();
+                        g.Dir = Lib.BackSlashes(dir);
+                        g.Title = title;
+                        g.Platform = "wegame";
+                        g.PlatformId = railId;
+                        g.Exe = exe;
+                        outl.Add(g);
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+            return outl;
+        }
+
+        // ---------- HoYoPlay / 米哈游全家桶 ----------
+        static readonly string[][] HoYoExeMap = new string[][] {
+            new string[] { "YuanShen.exe", "原神", "hk4e_cn" },
+            new string[] { "GenshinImpact.exe", "原神", "hk4e_global" },
+            new string[] { "StarRail.exe", "崩坏：星穹铁道", "hkrpg_cn" },
+            new string[] { "ZenlessZoneZero.exe", "绝区零", "nap_cn" },
+            new string[] { "BH3.exe", "崩坏3", "bh3_cn" }
+        };
+
+        public static DlssgGame ProbeHoYoDir(string dir, string bizHint)
+        {
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return null;
+            string cleanDir = Lib.BackSlashes(dir).TrimEnd('\\');
+            foreach (string[] row in HoYoExeMap)
+            {
+                string p = Path.Combine(cleanDir, row[0]);
+                if (File.Exists(p))
+                {
+                    var g = new DlssgGame();
+                    g.Dir = cleanDir;
+                    g.Exe = row[0];
+                    g.Title = row[1];
+                    g.Platform = "hoyo";
+                    g.PlatformId = !string.IsNullOrEmpty(bizHint) ? bizHint : row[2];
+                    g.Genre = "二次元";
+                    return g;
+                }
+            }
+            return null;
+        }
+
+        public static List<DlssgGame> HoYo()
+        {
+            var outl = new List<DlssgGame>();
+            var seenDirs = new List<string>();
+            Action<string, string> tryDir = delegate(string d, string biz)
+            {
+                if (string.IsNullOrEmpty(d)) return;
+                string cd = Lib.BackSlashes(d).TrimEnd('\\');
+                foreach (string s in seenDirs)
+                    if (string.Equals(s, cd, StringComparison.OrdinalIgnoreCase)) return;
+                DlssgGame g = ProbeHoYoDir(cd, biz);
+                if (g != null) { seenDirs.Add(cd); outl.Add(g); }
+            };
+
+            try
+            {
+                foreach (string hypRoot in new string[] { @"Software\miHoYo\HYP", @"Software\Cognosphere\HYP" })
+                {
+                    foreach (string ver in SubKeys(Registry.CurrentUser, hypRoot))
+                    {
+                        string vpath = hypRoot + "\\" + ver;
+                        var vvals = Values(Registry.CurrentUser, vpath);
+                        string launcherDir = Val(vvals, "installpath");
+                        if (launcherDir.Length > 0)
+                        {
+                            string gamesSub = Path.Combine(Lib.BackSlashes(launcherDir), "games");
+                            if (Directory.Exists(gamesSub))
+                            {
+                                try { foreach (string gd in Directory.GetDirectories(gamesSub)) tryDir(gd, ""); } catch { }
+                            }
+                        }
+                        foreach (string biz in SubKeys(Registry.CurrentUser, vpath))
+                        {
+                            var bvals = Values(Registry.CurrentUser, vpath + "\\" + biz);
+                            string gip = Val(bvals, "gameinstallpath");
+                            if (gip.Length > 0) tryDir(gip, biz);
+                        }
+                    }
+                }
+
+                foreach (string drv in FixedDriveRoots())
+                {
+                    foreach (string sub in new string[] {
+                        @"miHoYo Launcher\games", @"HoYoPlay\games",
+                        @"Program Files\miHoYo Launcher\games", @"Program Files\HoYoPlay\games" })
+                    {
+                        string gs = Path.Combine(drv, sub);
+                        if (Directory.Exists(gs))
+                        {
+                            try { foreach (string gd in Directory.GetDirectories(gs)) tryDir(gd, ""); } catch { }
+                        }
+                    }
+                    tryDir(Path.Combine(drv, @"Genshin Impact\Genshin Impact Game"), "hk4e_cn");
+                    tryDir(Path.Combine(drv, @"Star Rail\Game"), "hkrpg_cn");
+                    tryDir(Path.Combine(drv, @"Star Rail\Games"), "hkrpg_cn");
+                    tryDir(Path.Combine(drv, @"ZenlessZoneZero Game"), "nap_cn");
+                }
+            }
+            catch { }
+            return outl;
+        }
+
+        // ---------- Kuro / 鸣潮官方启动器 ----------
+        public static DlssgGame ProbeKuroWuwa(string baseDir)
+        {
+            if (string.IsNullOrEmpty(baseDir) || !Directory.Exists(baseDir)) return null;
+            string cb = Lib.BackSlashes(baseDir).TrimEnd('\\');
+            string[] rels = new string[] {
+                @"Wuthering Waves Game\Client\Binaries\Win64\Client-Win64-Shipping.exe",
+                @"Client\Binaries\Win64\Client-Win64-Shipping.exe",
+                @"Client-Win64-Shipping.exe"
+            };
+            foreach (string rel in rels)
+            {
+                string p = Path.Combine(cb, rel);
+                if (File.Exists(p))
+                {
+                    string win64 = Lib.BackSlashes(Path.GetDirectoryName(p));
+                    if (XeMfg.IsNonWuwaUe("", win64)) continue;
+                    var g = new DlssgGame();
+                    g.Dir = win64;
+                    g.Exe = "Client-Win64-Shipping.exe";
+                    g.Title = "鸣潮";
+                    bool isWg = win64.IndexOf("wegame", StringComparison.OrdinalIgnoreCase) >= 0
+                             || win64.IndexOf("rail_apps", StringComparison.OrdinalIgnoreCase) >= 0;
+                    g.Platform = isWg ? "wegame" : "local";
+                    g.Genre = "二次元";
+                    return g;
+                }
+            }
+            return null;
+        }
+
+        public static List<DlssgGame> Kuro()
+        {
+            var outl = new List<DlssgGame>();
+            var roots = new List<string>();
+            Action<string> addR = delegate(string r)
+            {
+                if (string.IsNullOrEmpty(r)) return;
+                string cr = Lib.BackSlashes(r.Trim().Trim('"')).TrimEnd('\\');
+                if (cr.Length > 2 && Directory.Exists(cr) && !roots.Contains(cr)) roots.Add(cr);
+            };
+            try
+            {
+                foreach (string drv in FixedDriveRoots())
+                {
+                    addR(Path.Combine(drv, "Wuthering Waves"));
+                    addR(Path.Combine(drv, "Wuthering Waves Game"));
+                    addR(Path.Combine(drv, @"Games\Wuthering Waves"));
+                    addR(Path.Combine(drv, @"Program Files\Wuthering Waves"));
+                }
+                foreach (string up in new string[] {
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\KRInstall Wuthering Waves",
+                    @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\KRInstall Wuthering Waves" })
+                {
+                    var vals = Values(Registry.LocalMachine, up);
+                    string loc = Val(vals, "installlocation");
+                    if (loc.Length > 0) addR(loc);
+                    string ico = ExeFromIcon(Val(vals, "displayicon"));
+                    if (ico.Length > 0) addR(Path.GetDirectoryName(ico));
+                }
+
+                var seen = new List<string>();
+                foreach (string r in roots)
+                {
+                    DlssgGame g = ProbeKuroWuwa(r);
+                    if (g == null) continue;
+                    bool dup = false;
+                    foreach (string s in seen)
+                        if (string.Equals(s, g.Dir, StringComparison.OrdinalIgnoreCase)) { dup = true; break; }
+                    if (!dup) { seen.Add(g.Dir); outl.Add(g); }
+                }
+            }
+            catch { }
+            return outl;
+        }
+
+        // ---------- 桌面与开始菜单游戏快捷方式扫描 ----------
+        public static List<DlssgGame> Shortcuts()
+        {
+            var outl = new List<DlssgGame>();
+            var seenDirs = new List<string>();
+            try
+            {
+                foreach (string lnk in Lib.ListDesktopShortcuts(true))
+                {
+                    try
+                    {
+                        string ext = (Path.GetExtension(lnk) ?? "").ToLowerInvariant();
+                        if (ext != ".lnk") continue;
+                        string stem = Path.GetFileNameWithoutExtension(lnk) ?? "";
+                        if (stem.Length == 0 || NonGame(stem) || IsHelper(stem) || Dlssg.IsPlatformClient(stem)) continue;
+                        string sl = stem.ToLowerInvariant();
+                        if (sl.Contains("fluxion") || sl.Contains("uninstall") || sl.Contains("卸载")
+                            || sl.Contains("助手") || sl.Contains("控制面板") || sl.Contains("此电脑")) continue;
+
+                        DlssgGame g = Lib.ResolveGameFromShortcutForScan(lnk);
+                        if (g == null || string.IsNullOrEmpty(g.Dir)) continue;
+                        bool dup = false;
+                        foreach (string sd in seenDirs)
+                            if (string.Equals(sd, g.Dir, StringComparison.OrdinalIgnoreCase)) { dup = true; break; }
+                        if (!dup) { seenDirs.Add(g.Dir); outl.Add(g); }
                     }
                     catch { }
                 }
@@ -607,7 +1040,7 @@ namespace Fluxion
                     string name = Path.GetFileName(d.TrimEnd('\\', '/'));
                     if (NonGame(name)) continue;
                     var g = new DlssgGame();
-                    g.Dir = d; g.Title = name; g.Platform = "ubisoft";
+                    g.Dir = Lib.BackSlashes(d); g.Title = name; g.Platform = "ubisoft";
                     g.Exe = Path.GetFileName(FindExe(d, null, name));
                     outl.Add(g);
                 }
@@ -625,7 +1058,7 @@ namespace Fluxion
                     if (d.Length == 0 || !Directory.Exists(d)) continue;
                     if (NonGame(sub)) continue;
                     var g = new DlssgGame();
-                    g.Dir = d; g.Title = sub; g.Platform = "ea";
+                    g.Dir = Lib.BackSlashes(d); g.Title = sub; g.Platform = "ea";
                     g.Exe = Path.GetFileName(FindExe(d, null, sub));
                     outl.Add(g);
                 }
@@ -724,6 +1157,7 @@ namespace Fluxion
             string unL = (uninst == null ? "" : uninst).ToLowerInvariant();
             if (locL.Contains("wegame") || unL.Contains("wegame") || locL.Contains("rail_apps") || locL.Contains("wegameapps")) return "wegame";
             string blob = ((name == null ? "" : name) + " " + (icon == null ? "" : icon) + " " + (uninst == null ? "" : uninst) + " " + Val(vals, "publisher")).ToLowerInvariant();
+            if (blob.Contains("mihoyo") || blob.Contains("cognosphere") || blob.Contains("hoyoplay") || blob.Contains("米哈游")) return "hoyo";
             if (blob.Contains("battle.net") || blob.Contains("blizzard") || blob.Contains("暴雪")) return "battle";
             if (blob.Contains("ubisoft")) return "ubisoft";
             if (blob.Contains("epic games")) return "epic";
@@ -992,7 +1426,8 @@ namespace Fluxion
         //  gen5 → gen6（2026-10-22）：磁贴配色从"按标题 hash"改成"取图标主色"。
         //  gen6 → gen7（2026-10-22）：顶部提亮从 118° 斜向改成垂直渐变 ——
         //        斜向那条在卡片 50% 高度处留一道水平切缝（用户截图的"磁贴瑕疵"）。
-        public static string GenFile(string id) { return Path.Combine(CoversDir, id + "_gen7.png"); }
+        //  gen7 → gen8（2026-11-18）：接入 Win32 SHIL_JUMBO 256×256 超清图标与黑曜暗色海报卡构图。
+        public static string GenFile(string id) { return Path.Combine(CoversDir, id + "_gen8.png"); }
 
         // Steam 官方封面候选路径，按「竖版优先」排列。
         //  实测（2026-09-14，用户反馈"怎么有的没有封面"）：
@@ -1095,6 +1530,7 @@ namespace Fluxion
                 if (id.Length > 0)
                 {
                     kill.Add(CardFile(id)); kill.Add(CardFilePng(id)); kill.Add(GenFile(id));
+                    kill.Add(Path.Combine(CoversDir, id + "_gen7.png"));
                     kill.Add(HeroFile(id));                       // 详情页的横幅也要一起退回自动
                 }
                 foreach (string p in kill)
@@ -1834,26 +2270,21 @@ namespace Fluxion
             r = (int)(rr * 255); g = (int)(gg * 255); b = (int)(bb * 255);
         }
 
-        // 无封面游戏的生成卡配色：一族**深色**渐变（取自游戏启动器的紫→蓝→青，但压到低明度）。
-        //  为什么不用亮色（v2.6.0 的错）：真实盒装封面基本都是暗调，亮青色拼在一起会"参差不齐"，
-        //  而且图标浮在亮底上像贴纸。压暗之后整排卡片观感一致。
+        // 无封面游戏的黑曜深色海报配色（对齐 Obsidian-Indigo 画廊级暗调，避免刺眼彩色贴纸感）
         static readonly int[][] GenPairs = new int[][] {
-            new int[] { 0x3A2E7A, 0x1B2E6B },   // 深靛 → 深蓝
-            new int[] { 0x24406E, 0x123A55 },   // 深蓝 → 深青
-            new int[] { 0x3B2A63, 0x532E7A },   // 深紫 → 紫
-            new int[] { 0x1E4A57, 0x123C4E },   // 深青 → 墨青
-            new int[] { 0x4A2A55, 0x2A2E6B },   // 深梅 → 靛
-            new int[] { 0x2B3A6B, 0x14405E } }; // 藏蓝 → 深湖
+            new int[] { 0x1E2540, 0x0F1424 },   // 黑曜靛 → 夜空深蓝
+            new int[] { 0x1A2D42, 0x0D1928 },   // 深海钴 → 墨青黑
+            new int[] { 0x282042, 0x131126 },   // 暗夜紫 → 玄黑紫
+            new int[] { 0x18333D, 0x0D1C26 },   // 寒潭青 → 幽深蓝
+            new int[] { 0x2E2038, 0x141326 },   // 暗梅紫 → 深曜石
+            new int[] { 0x1F2B46, 0x0F182A } }; // 藏青靛 → 深岩蓝
 
         static Color FromRgb(int v)
         {
             return Color.FromArgb((v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF);
         }
 
-        // 生成卡 v3：「设计感封面」而不是「渐变 + 小图标」
-        //  深色斜渐变 → 中央品牌色辉光 → 图标磁贴（大、带投影与细描边）→ 底部压暗 → 斜向高光
-        //  图标主色：跳过透明 / 近黑 / 近白 / 低饱和像素，按"饱和度 × 亮度"加权投票。
-        //  纯黑白图标（比如很多工具类）取不到彩色 → 返回 Empty，调用方回落到按标题 hash 的色板。
+        // 生成卡 v4：黑曜渐变海报底 + 中央柔光烘托 + 256×256 SHIL_JUMBO 超清图标磁贴
         static Color DominantColor(Image icon, Color fallback)
         {
             try
@@ -1881,24 +2312,77 @@ namespace Fluxion
             catch { return fallback; }
         }
 
+        // 定位游戏最高清图标源（优先米哈游官方 256px ico / WeGame 游戏 ico / 真实启动主程序）并提取 SHIL_JUMBO 256×256
+        public static Image ExtractJumboIcon(DlssgGame g, int size = 256)
+        {
+            if (g == null) return null;
+            var sources = new List<string>();
+            try
+            {
+                if (g.Platform == "hoyo" || !string.IsNullOrEmpty(g.PlatformId))
+                {
+                    string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                    string biz = string.IsNullOrEmpty(g.PlatformId) ? "" : g.PlatformId;
+                    if (biz.Length > 0)
+                    {
+                        string hypIco = Path.Combine(appData, @"miHoYo\HYP\1_1\ico\" + biz + ".ico");
+                        if (File.Exists(hypIco)) sources.Add(hypIco);
+                        string cogIco = Path.Combine(appData, @"Cognosphere\HYP\1_1\ico\" + biz + ".ico");
+                        if (File.Exists(cogIco)) sources.Add(cogIco);
+                    }
+                }
+                if (!string.IsNullOrEmpty(g.Dir) && Directory.Exists(g.Dir))
+                {
+                    string wgIco = Path.Combine(g.Dir, @"WeGameLauncher\game\game.ico");
+                    if (File.Exists(wgIco)) sources.Add(wgIco);
+                    if (!string.IsNullOrEmpty(g.Exe))
+                    {
+                        string directExe = Path.Combine(g.Dir, g.Exe);
+                        if (File.Exists(directExe)) sources.Add(directExe);
+                    }
+                    string targetExe = Lib.LaunchTargetOf(g);
+                    if (targetExe.Length > 0 && File.Exists(targetExe) && !sources.Contains(targetExe))
+                        sources.Add(targetExe);
+                    string deepExe = PlatformScan.FindExe(g.Dir, null, g.Title);
+                    if (deepExe.Length > 0 && File.Exists(deepExe) && !sources.Contains(deepExe))
+                        sources.Add(deepExe);
+                }
+            }
+            catch { }
+
+            Bitmap best = null;
+            foreach (string src in sources)
+            {
+                try
+                {
+                    Bitmap cand = GameIcon.ExtractJumbo(src, size);
+                    if (cand != null)
+                    {
+                        best = cand;
+                        break;
+                    }
+                }
+                catch { }
+            }
+            return best;
+        }
+
         public static Bitmap GradientCard(string name, int w, int h, Image icon)
         {
             byte[] dig;
             using (SHA256 sha = SHA256.Create()) dig = sha.ComputeHash(Encoding.UTF8.GetBytes(name == null ? "" : name));
             int[] pair = GenPairs[dig[0] % GenPairs.Length];
             Color c1 = FromRgb(pair[0]), c2 = FromRgb(pair[1]);
+            Color glowTint = Lighten(c1, 0.38);
 
-            //  ★ 有图标就用**图标自己的主色**（2026-10-22）：
-            //  以前配色是"按标题 hash 从色板里抽一组"，于是 5E 顶着橙绿渐变、完美世界顶着粉紫 ——
-            //  跟品牌毫无关系，用户一眼就觉得"这不是它的封面"。
-            //  主色来自官方图标，磁贴就有了品牌感（黑蓝的 5E、金红的完美）。
             if (icon != null)
             {
                 Color dom = DominantColor(icon, Color.Empty);
                 if (dom != Color.Empty)
                 {
-                    c1 = Darken(dom, 0.55);
-                    c2 = Lighten(dom, 0.18);
+                    c1 = Darken(dom, 0.66);
+                    c2 = Darken(dom, 0.84);
+                    glowTint = Lighten(dom, 0.22);
                 }
             }
 
@@ -1910,53 +2394,66 @@ namespace Fluxion
                 g.PixelOffsetMode = PixelOffsetMode.HighQuality;
                 var rect = new Rectangle(0, 0, w, h);
 
-                using (LinearGradientBrush br = new LinearGradientBrush(rect, c1, c2, 42f))
+                using (LinearGradientBrush br = new LinearGradientBrush(new Point(0, 0), new Point(w + 4, h + 4), c1, c2))
                     g.FillRectangle(br, rect);
 
-                // 中央辉光：把图标"托"起来（比 v2 更大更柔）
+                // 中央柔光：将高清 256×256 图标从黑曜底色上烘托出来
                 using (GraphicsPath gp = new GraphicsPath())
                 {
-                    int gw = (int)(w * 1.35), gh = (int)(h * 1.05);
+                    int gw = (int)(w * 1.35), gh = (int)(h * 1.06);
                     gp.AddEllipse((w - gw) / 2, (int)(h * 0.06), gw, gh);
                     using (PathGradientBrush pb = new PathGradientBrush(gp))
                     {
-                        pb.CenterColor = Color.FromArgb(96, Lighten(c2, 0.55));
+                        pb.CenterColor = Color.FromArgb(82, glowTint);
                         pb.SurroundColors = new Color[] { Color.FromArgb(0, c2) };
                         g.FillPath(pb, gp);
                     }
                 }
 
-                // 图标磁贴：尺寸更大、圆角、细描边、投影 —— 像一个真正的应用磁贴，而不是浮着的小图
-                // ⚠ 磁贴必须整体落在卡片遮罩区（底部 40%）之上：压着遮罩中线就会被切成"上下两半"
-                var tile = new Rectangle((int)(w * 0.19), (int)(h * 0.13), (int)(w * 0.62), (int)(w * 0.62));
-                using (var sh = new SolidBrush(Color.FromArgb(120, 0, 0, 0)))
+                // 图标展示底座（严格保持 x >= 0.19w，保证左缘纯背景连续通过 SeamProbe）
+                var tile = new Rectangle((int)(w * 0.20), (int)(h * 0.14), (int)(w * 0.60), (int)(w * 0.60));
+                int rad = Math.Max(8, tile.Width * 22 / 100);
+                using (var sh = new SolidBrush(Color.FromArgb(115, 0, 0, 0)))
                 {
-                    var sr = new Rectangle(tile.X + Theme.S(2), tile.Y + Theme.S(5), tile.Width, tile.Height);
-                    using (var path = Theme.Round(sr, Theme.S(18)))
+                    var sr = new Rectangle(tile.X + Theme.S(2), tile.Y + Theme.S(6), tile.Width, tile.Height);
+                    using (var path = Theme.Round(sr, rad))
                         g.FillPath(sh, path);
                 }
                 if (icon != null)
                 {
-                    using (var path = Theme.Round(tile, Theme.S(18)))
+                    using (var path = Theme.Round(tile, rad))
+                    using (var glass = new SolidBrush(Color.FromArgb(64, 14, 18, 28)))
+                        g.FillPath(glass, path);
+
+                    using (var path = Theme.Round(tile, rad))
                     {
                         var old = g.Clip;
-                        g.SetClip(path, CombineMode.Replace);
-                        g.DrawImage(icon, tile);
-                        g.Clip = old;
-                        old.Dispose();
+                        try
+                        {
+                            g.SetClip(path, CombineMode.Replace);
+                            g.DrawImage(icon, tile);
+                        }
+                        finally
+                        {
+                            g.Clip = old;
+                            old.Dispose();
+                        }
                     }
-                    using (var path = Theme.Round(tile, Theme.S(18)))
-                    using (var pen = new Pen(Color.FromArgb(64, 255, 255, 255), 1f))
+                    using (var path = Theme.Round(tile, rad))
+                    using (var pen = new Pen(Color.FromArgb(52, 255, 255, 255), 1f))
                         g.DrawPath(pen, path);
                 }
                 else
                 {
-                    using (var path = Theme.Round(tile, Theme.S(18)))
-                    using (var b = new SolidBrush(Color.FromArgb(46, 255, 255, 255)))
+                    using (var path = Theme.Round(tile, rad))
+                    using (var b = new SolidBrush(Color.FromArgb(38, 255, 255, 255)))
                         g.FillPath(b, path);
+                    using (var path = Theme.Round(tile, rad))
+                    using (var pen = new Pen(Color.FromArgb(46, 255, 255, 255), 1f))
+                        g.DrawPath(pen, path);
                     string ch = (name == null || name.Length == 0) ? "?" : name.Substring(0, 1);
-                    using (Font f = new Font("Microsoft YaHei UI", tile.Height * 0.52f, FontStyle.Bold, GraphicsUnit.Pixel))
-                    using (SolidBrush b = new SolidBrush(Color.FromArgb(210, 255, 255, 255)))
+                    using (Font f = new Font("Microsoft YaHei UI", tile.Height * 0.50f, FontStyle.Bold, GraphicsUnit.Pixel))
+                    using (SolidBrush b = new SolidBrush(Color.FromArgb(215, 255, 255, 255)))
                     using (StringFormat sf = new StringFormat())
                     {
                         sf.Alignment = StringAlignment.Center; sf.LineAlignment = StringAlignment.Center;
@@ -1964,14 +2461,10 @@ namespace Fluxion
                     }
                 }
 
-                // 顶部提亮（收边提质感）。
-                //  ⚠ 必须是"alpha 在填充矩形内部就降到 0"的渐变：以前是 118° 斜向高光，
-                //    画刷矩形 (-w,-h,2w,1.5h) 的下边缘正好落在卡片 50% 高度处，而 118° 的
-                //    梯度沿那条边还没走到 0 → 一整条水平切缝（像素实测：y=h/2 处 RGB 跳变 9~16），
-                //    用户截图里磁贴中部的"横线瑕疵"就是它。垂直渐变 + 底边 alpha=0，物理上无缝。
+                // 顶部垂直微提亮（终点延伸 +4px 避开 GDI+ 边界回绕，底边平滑归零无缝）
                 var hlRect = new Rectangle(0, 0, w, h * 2 / 5);
-                using (LinearGradientBrush hl = new LinearGradientBrush(hlRect,
-                           Color.FromArgb(22, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), 90f))
+                using (LinearGradientBrush hl = new LinearGradientBrush(new Point(0, 0), new Point(0, hlRect.Height + 4),
+                           Color.FromArgb(20, 255, 255, 255), Color.FromArgb(0, 255, 255, 255)))
                     g.FillRectangle(hl, hlRect);
             }
             return bmp;
@@ -2457,16 +2950,7 @@ namespace Fluxion
                 }
                 if (img == null)
                 {
-                    Image icon = null;
-                    try
-                    {
-                        if (g.Exe != null && g.Exe.Length > 0)
-                        {
-                            string exe = Path.Combine(g.Dir, g.Exe);
-                            if (File.Exists(exe)) icon = GameIcon.Extract(exe, 256);
-                        }
-                    }
-                    catch { }
+                    Image icon = ExtractJumboIcon(g, 256);
                     //  ★ 按 **2 倍**烘焙、并且**不圆角**存盘（2026-10-20）：
                     //    · 2 倍：磁盘缓存文件名只有 id，是跨 DPI 复用的 —— 按 1x 存进去，
                     //      150% 缩放下再读出来就是"放大"，渐变色带和首字母一起糊。
@@ -2723,7 +3207,10 @@ namespace Fluxion
         //  凡是要落进 DlssgGame.Dir 的外部路径都过这一道（2026-09-19 用户实测即此）。
         public static string BackSlashes(string p)
         {
-            return string.IsNullOrEmpty(p) ? "" : p.Replace('/', '\\');
+            if (string.IsNullOrEmpty(p)) return "";
+            string s = p.Replace('/', '\\').Trim();
+            if (s.StartsWith(@"\\?\")) s = s.Substring(4);
+            return s;
         }
 
         public static string IdOf(DlssgGame g)
@@ -2794,20 +3281,23 @@ namespace Fluxion
             List<DlssgGame> list;
             try { list = Dlssg.Scan(log); }
             catch { list = new List<DlssgGame>(); }
+            foreach (DlssgGame rawG in list)
+                if (rawG != null && rawG.Dir != null) rawG.Dir = BackSlashes(rawG.Dir);
 
-            // ② 注册表卸载项：给已有条目换成官方名（原神 / 绝区零 / 鸣潮 这类中文名）
+            // ② 注册表卸载项：给已有条目换成官方名（跳过容器启动器根如 G:\miHoYo Launcher，防止污染子游戏）
             List<PlatformScan.RegEntry> regs = new List<PlatformScan.RegEntry>();
             try { regs = PlatformScan.RegistryEntries(); } catch { }
             int renamed = 0;
             foreach (PlatformScan.RegEntry e in regs)
             {
+                if (Dlssg.IsLauncherDir(e.Dir)) continue;
                 DlssgGame hit = MatchUnique(list, e.Dir, e.Hint);
                 if (hit == null) continue;
                 if (hit.Title != e.Name && e.Name.Length > 0) { hit.Title = e.Name; renamed++; }
                 if (e.Platform != "local" && hit.Platform == "local") hit.Platform = e.Platform;
             }
 
-            // ③ Steam appmanifest：官方名（含中文）+ 全部库（补回第二个 Steam 库里的游戏）
+            // ③ Steam appmanifest：官方名 + 全部库路径 + AppId
             int added = 0;
             var steamApps = new List<SteamApp>();
             try { steamApps = SteamLib.Scan(); } catch { }
@@ -2818,14 +3308,20 @@ namespace Fluxion
                 {
                     if (a.Name.Length > 0 && hit.Title != a.Name) { hit.Title = a.Name; renamed++; }
                     hit.Platform = "steam";
-                    if (a.AppId.Length > 0) hit.AppId = a.AppId;
+                    if (a.AppId.Length > 0) { hit.AppId = a.AppId; hit.PlatformId = a.AppId; }
+                    if (string.IsNullOrEmpty(hit.Exe) || PlatformScan.IsHelperExe(hit.Exe))
+                    {
+                        string betterExe = PlatformScan.FindExe(a.Dir, null, a.Name);
+                        if (betterExe.Length > 0) hit.Exe = Path.GetFileName(betterExe);
+                    }
                     continue;
                 }
                 if (a.Dir == null || a.Dir.Length == 0) continue;
                 DlssgGame g = Dlssg.Inspect(a.Dir, false);
                 if (g == null) { g = new DlssgGame(); g.Dir = a.Dir; }
-                g.Dir = a.Dir; g.Title = a.Name; g.Platform = "steam"; g.AppId = a.AppId;
-                if (g.Exe.Length == 0)
+                g.Dir = BackSlashes(a.Dir); g.Title = a.Name; g.Platform = "steam";
+                g.AppId = a.AppId; g.PlatformId = a.AppId;
+                if (g.Exe.Length == 0 || PlatformScan.IsHelperExe(g.Exe))
                 {
                     string e2 = PlatformScan.FindExe(a.Dir, null, a.Name);
                     if (e2.Length > 0) g.Exe = Path.GetFileName(e2);
@@ -2833,36 +3329,83 @@ namespace Fluxion
                 list.Add(g); added++;
             }
 
-            // ④ Epic / 育碧 / EA
-            var groups = new List<DlssgGame>[] { Safe(PlatformScan.Epic), Safe(PlatformScan.Ubisoft), Safe(PlatformScan.EA) };
+            // ④ 全平台深度聚合：米哈游 HoYoPlay / WeGame 腾讯游戏 / 库洛鸣潮 / Epic / 育碧 / EA / 桌面快捷方式
+            var groups = new List<DlssgGame>[] {
+                Safe(PlatformScan.HoYo),
+                Safe(PlatformScan.WeGame),
+                Safe(PlatformScan.Kuro),
+                Safe(PlatformScan.Epic),
+                Safe(PlatformScan.Ubisoft),
+                Safe(PlatformScan.EA),
+                Safe(PlatformScan.Shortcuts)
+            };
             foreach (List<DlssgGame> res in groups)
+            {
                 foreach (DlssgGame g in res)
                 {
-                    if (MatchUnique(list, g.Dir, null) != null) continue;
+                    if (g == null || string.IsNullOrEmpty(g.Dir)) continue;
+                    g.Dir = BackSlashes(g.Dir);
+                    DlssgGame hit = MatchUnique(list, g.Dir, null);
+                    if (hit != null)
+                    {
+                        if (!string.IsNullOrEmpty(g.Title) && hit.Title != g.Title)
+                        {
+                            hit.Title = g.Title;
+                            renamed++;
+                        }
+                        if (!string.IsNullOrEmpty(g.Platform) && g.Platform != "local")
+                            hit.Platform = g.Platform;
+                        if (!string.IsNullOrEmpty(g.PlatformId))
+                            hit.PlatformId = g.PlatformId;
+                        if (!string.IsNullOrEmpty(g.Genre) && string.IsNullOrEmpty(hit.Genre))
+                            hit.Genre = g.Genre;
+                        // 对米哈游与 WeGame 官方扫描源，目录与启动入口以官方清单为准（纠偏子目录深探抓到的 ZFGameBrowser / TFT 子端）
+                        if (g.Platform == "hoyo" || g.Platform == "wegame")
+                        {
+                            hit.Dir = g.Dir;
+                            if (!string.IsNullOrEmpty(g.Exe)) hit.Exe = g.Exe;
+                            Fill(hit);
+                        }
+                        else if (!string.IsNullOrEmpty(g.Exe) && (string.IsNullOrEmpty(hit.Exe)
+                                 || hit.Exe.IndexOf("launcher", StringComparison.OrdinalIgnoreCase) >= 0))
+                        {
+                            hit.Exe = g.Exe;
+                        }
+                        continue;
+                    }
                     Fill(g);
                     list.Add(g); added++;
                 }
+            }
 
-            // ⑤ 启动器平台（WeGame / 暴雪 / 育碧 / EA / GOG）的注册表条目
+            // ⑤ 启动器平台（WeGame / 暴雪 / 育碧 / EA / GOG）的注册表兜底条目
             foreach (PlatformScan.RegEntry e in regs)
             {
-                if (e.Platform == "local" || e.Platform == "steam" || e.Platform == "epic") continue;
+                if (e.Platform == "local" || e.Platform == "steam" || e.Platform == "epic" || e.Platform == "hoyo") continue;
+                if (Dlssg.IsLauncherDir(e.Dir)) continue;
                 if (MatchUnique(list, e.Dir, e.Hint) != null) continue;
                 DlssgGame g = new DlssgGame();
-                g.Dir = e.Dir; g.Title = e.Name; g.Platform = e.Platform;
-                string exe = PlatformScan.FindExe(e.Dir, e.Hint, e.Name);
+                g.Dir = BackSlashes(e.Dir);
+                g.Title = e.Platform == "wegame" ? PlatformScan.CleanWeGameTitle(e.Name, PlatformScan.ReadRailId(e.Dir)) : e.Name;
+                g.Platform = e.Platform;
+                if (e.Platform == "wegame") g.PlatformId = PlatformScan.ReadRailId(e.Dir);
+                string exe = e.Platform == "wegame"
+                    ? PlatformScan.PickWeGameExe(e.Dir, g.Title)
+                    : Path.GetFileName(PlatformScan.FindExe(e.Dir, e.Hint, e.Name));
                 if (exe.Length > 0) g.Exe = Path.GetFileName(exe);
                 Fill(g);
                 list.Add(g); added++;
             }
 
-            // ⑥ 去重 + 库标记（收藏/私密/隐藏/重命名/最近游玩）+ 二次元分类
+            // ⑥ 去重 + 库标记（收藏/私密/隐藏/重命名/最近游玩/启动方式）+ 二次元分类
             Dictionary<string, GameMeta> map = MetaStore.Load();
             var final = new List<DlssgGame>();
             var seenName = new List<string>();
             foreach (DlssgGame g in list)
             {
                 if (g.Dir == null || g.Dir.Length == 0) continue;
+                g.Dir = BackSlashes(g.Dir);
+                if (Dlssg.IsLauncherDir(g.Dir)) continue;
                 string nm = PlatformScan.NormName(g.Title);
                 if (nm.Length > 0 && seenName.Contains(nm)) continue;
                 if (nm.Length > 0) seenName.Add(nm);
@@ -2878,8 +3421,12 @@ namespace Fluxion
                     g.LaunchEnv = m.LaunchEnv;
                     g.FgMax = m.FgMax; g.FgPreset = m.FgPreset ?? ""; g.FgOpt = m.FgOpt;
                     if ((g.AppId == null || g.AppId.Length == 0) && m.AppId.Length > 0) g.AppId = m.AppId;
+                    if ((g.PlatformId == null || g.PlatformId.Length == 0) && m.PlatformId != null && m.PlatformId.Length > 0)
+                        g.PlatformId = m.PlatformId;
+                    if (m.LaunchMode != null && m.LaunchMode.Length > 0) g.LaunchMode = m.LaunchMode;
                 }
                 if (g.Platform == null || g.Platform.Length == 0) g.Platform = "local";
+                if (g.LaunchMode == null || g.LaunchMode.Length == 0) g.LaunchMode = ModeAuto;
                 if (g.Genre == null || g.Genre.Length == 0)
                     if (PlatformScan.Genre2DHit(g.Title, g.Dir + " " + g.Exe)) g.Genre = "二次元";
                 final.Add(g);
@@ -2951,7 +3498,7 @@ namespace Fluxion
             return PlatformScan.FindExe(g.Dir, null, g.Title);
         }
 
-        // WeGame 安装根目录的 rail 启动器：根下"非卸载器/非助手"里最大的 exe
+        // WeGame 安装目录的独立/官方引导器：根下非卸载器最大 exe → ACLOS → WeGameLauncher → TCLS
         static string WeGameRootLauncher(string dir)
         {
             try
@@ -2971,7 +3518,17 @@ namespace Fluxion
                     }
                     catch { }
                 }
-                return best;
+                if (best.Length > 0) return best;
+                foreach (string rel in new string[] {
+                    @"ACLOS\aclos-launcher.exe",
+                    @"WeGameLauncher\launcher.exe",
+                    @"TCLS\client.exe",
+                    @"LeagueClient\LeagueClient.exe" })
+                {
+                    string sub = Path.Combine(dir, rel);
+                    if (File.Exists(sub)) return sub;
+                }
+                return "";
             }
             catch { return ""; }
         }
@@ -3389,11 +3946,974 @@ namespace Fluxion
             if (appid != null && appid.Length > 0 && appid != "-") g.AppId = appid;
         }
 
+        // ====================================================================
+        //  智能免平台直启 / 静默平台唤起引擎（v2.8.0）
+        // ====================================================================
+        public const string ModeAuto = "auto";
+        public const string ModeDirect = "direct";
+        public const string ModePlatform = "platform";
+        public static string LastLaunchStatus = "";
+
+        static readonly string[] SteamPlatformBoundAppIds = new string[] {
+            "730",     // Counter-Strike 2 (VAC)
+            "570",     // Dota 2
+            "578080",  // PUBG: BATTLEGROUNDS
+            "1172470", // Apex Legends
+            "1203220", // NARAKA: BLADEPOINT
+            "2767030", // Marvel Rivals
+            "1422450", // Deadlock
+            "359550",  // Rainbow Six Siege
+            "252490",  // Rust
+            "1085660", // Destiny 2
+            "553850",  // HELLDIVERS 2
+            "1293830", // Forza Horizon 4 (Xbox Live / Steam)
+            "1551360", // Forza Horizon 5
+            "2483190"  // Forza Horizon 6
+        };
+
+        static string NormLaunchMode(string mode)
+        {
+            if (string.IsNullOrEmpty(mode)) return ModeAuto;
+            string s = mode.Trim().ToLowerInvariant();
+            if (s == ModeDirect) return ModeDirect;
+            if (s == ModePlatform) return ModePlatform;
+            return ModeAuto;
+        }
+
+        public static string GetLaunchMode(DlssgGame g)
+        {
+            if (g == null) return ModeAuto;
+            try
+            {
+                GameMeta m;
+                if (MetaStore.Load().TryGetValue(MetaStore.KeyOf(g), out m) && m != null)
+                {
+                    string dm = NormLaunchMode(m.LaunchMode);
+                    if (dm != ModeAuto || string.IsNullOrEmpty(g.LaunchMode)) return dm;
+                }
+            }
+            catch { }
+            return NormLaunchMode(g.LaunchMode);
+        }
+
+        public static void SetLaunchMode(DlssgGame g, string mode)
+        {
+            if (g == null) return;
+            string nm = NormLaunchMode(mode);
+            GameMeta m = MetaStore.GetOrCreate(MetaStore.KeyOf(g));
+            m.LaunchMode = nm;
+            m.Platform = g.Platform;
+            if (g.AppId != null && g.AppId.Length > 0) m.AppId = g.AppId;
+            if (g.PlatformId != null && g.PlatformId.Length > 0) m.PlatformId = g.PlatformId;
+            MetaStore.Save(m);
+            g.LaunchMode = nm;
+        }
+
+        public static string PlatformIdOf(DlssgGame g)
+        {
+            if (g == null) return "";
+            if (!string.IsNullOrEmpty(g.PlatformId)) return g.PlatformId.Trim();
+            try
+            {
+                GameMeta m;
+                if (MetaStore.Load().TryGetValue(MetaStore.KeyOf(g), out m) && m != null && !string.IsNullOrEmpty(m.PlatformId))
+                    return m.PlatformId.Trim();
+            }
+            catch { }
+            if (g.Platform == "wegame" && !string.IsNullOrEmpty(g.Dir))
+                return PlatformScan.ReadRailId(g.Dir);
+            if (g.Platform == "steam" && !string.IsNullOrEmpty(g.AppId))
+                return g.AppId.Trim();
+            return "";
+        }
+
+        public static string FindSteamExe()
+        {
+            try
+            {
+                string p = SteamLib.RegS(Registry.CurrentUser, @"Software\Valve\Steam", "SteamExe");
+                p = BackSlashes(p);
+                if (p.Length > 0 && File.Exists(p)) return p;
+                string root = CoverArt.SteamRoot();
+                if (root.Length > 0)
+                {
+                    string p2 = Path.Combine(root, "steam.exe");
+                    if (File.Exists(p2)) return p2;
+                }
+            }
+            catch { }
+            return "";
+        }
+
+        public static string FindWeGameExe()
+        {
+            try
+            {
+                string[] regPaths = new string[] {
+                    SteamLib.RegS(Registry.CurrentUser, @"Software\Tencent\WeGame", "InstallPath"),
+                    SteamLib.RegS(Registry.LocalMachine, @"SOFTWARE\WOW6432Node\Tencent\WeGame", "InstallPath"),
+                    SteamLib.RegS(Registry.LocalMachine, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\WeGame", "DisplayIcon")
+                };
+                foreach (string rp in regPaths)
+                {
+                    if (string.IsNullOrEmpty(rp)) continue;
+                    string clean = BackSlashes(rp.Split(',')[0].Trim().Trim('"'));
+                    if (clean.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && File.Exists(clean)) return clean;
+                    string wg = Path.Combine(clean, "wegame.exe");
+                    if (File.Exists(wg)) return wg;
+                }
+                string def = @"C:\Program Files (x86)\WeGame\wegame.exe";
+                if (File.Exists(def)) return def;
+            }
+            catch { }
+            return "";
+        }
+
+        static bool HasPlatformChannel(DlssgGame g)
+        {
+            if (g == null) return false;
+            if (g.Platform == "steam")
+                return g.AppId != null && Regex.IsMatch(g.AppId.Trim(), @"^\d{1,12}$");
+            if (g.Platform == "epic")
+                return PlatformIdOf(g).Length > 0;
+            if (g.Platform == "wegame")
+            {
+                if (!string.IsNullOrEmpty(g.Dir) && File.Exists(Path.Combine(g.Dir, @"WeGameLauncher\launcher.exe")))
+                    return true;
+                return PlatformIdOf(g).Length > 0 && FindWeGameExe().Length > 0;
+            }
+            return false;
+        }
+
+        static bool NeedsPlatformAuthInAuto(DlssgGame g)
+        {
+            if (g == null) return false;
+            if (g.Platform == "steam")
+            {
+                string aid = g.AppId == null ? "" : g.AppId.Trim();
+                foreach (string vId in SteamPlatformBoundAppIds)
+                    if (aid == vId) return true;
+                string cat = g.RecCat;
+                if (string.IsNullOrEmpty(cat))
+                {
+                    try { cat = Dlssg.LinkCategory(g); } catch { cat = ""; }
+                }
+                if (cat == "fps") return true;
+                if (LaunchTargetOf(g).Length == 0) return true;
+                return false;
+            }
+            if (g.Platform == "wegame")
+            {
+                // 若存在独立引导器（无畏契约 ACLOS / 三角洲 DeltaForceClient），免开 WeGame 直启体验最佳；
+                // 若仅含 WeGameLauncher / TCLS（如英雄联盟国服），走静默平台票据通道以保障登录鉴权。
+                if (!string.IsNullOrEmpty(g.Dir))
+                {
+                    if (File.Exists(Path.Combine(g.Dir, @"ACLOS\aclos-launcher.exe"))) return false;
+                    if (File.Exists(Path.Combine(g.Dir, "DeltaForceClient.exe"))) return false;
+                    if (File.Exists(Path.Combine(g.Dir, @"Wuthering Waves Game\Client\Binaries\Win64\Client-Win64-Shipping.exe"))) return false;
+                    if (File.Exists(Path.Combine(g.Dir, @"WeGameLauncher\launcher.exe")) || File.Exists(Path.Combine(g.Dir, @"TCLS\client.exe")))
+                        return true;
+                }
+                return false;
+            }
+            return false;
+        }
+
+        public static string EffectiveLaunchMode(DlssgGame g)
+        {
+            if (g == null) return ModeDirect;
+            string pref = GetLaunchMode(g);
+            if (pref == ModeDirect) return ModeDirect;
+            if (pref == ModePlatform)
+                return HasPlatformChannel(g) ? ModePlatform : ModeDirect;
+
+            // auto（智能推荐）：用户显式设了环境变量或手动锁定了 exe → 强制直启保证生效
+            if (MetaStore.LaunchExeOf(g).Length > 0) return ModeDirect;
+            if (ParseEnv(EffectiveLaunchEnv(g)).Count > 0) return ModeDirect;
+
+            if (NeedsPlatformAuthInAuto(g) && HasPlatformChannel(g))
+                return ModePlatform;
+            if (LaunchTargetOf(g).Length == 0 && HasPlatformChannel(g))
+                return ModePlatform;
+            return ModeDirect;
+        }
+
+        public static string LaunchModeLabel(DlssgGame g)
+        {
+            return EffectiveLaunchMode(g) == ModePlatform ? "静默唤起" : "免平台直启";
+        }
+
+        public static string LaunchModeShort(DlssgGame g)
+        {
+            return EffectiveLaunchMode(g) == ModePlatform ? "静默" : "直启";
+        }
+
+        public static string LaunchModeName(string mode)
+        {
+            string nm = NormLaunchMode(mode);
+            if (nm == ModeDirect) return "免平台直启 EXE";
+            if (nm == ModePlatform) return "平台静默唤起";
+            return "自动推荐";
+        }
+
+        static string ExecDirectExe(DlssgGame g, string exe, string args, List<KeyValuePair<string, string>> env, bool isSteam)
+        {
+            if (env.Count == 0)
+            {
+                var psi = new ProcessStartInfo(exe);
+                if (args.Length > 0) psi.Arguments = args;
+                psi.UseShellExecute = true;
+                string wd = Path.GetDirectoryName(exe);
+                if (!string.IsNullOrEmpty(wd) && Directory.Exists(wd)) psi.WorkingDirectory = wd;
+                Process.Start(psi);
+            }
+            else
+            {
+                var psi = new ProcessStartInfo(exe);
+                if (args.Length > 0) psi.Arguments = args;
+                psi.UseShellExecute = false;
+                psi.WorkingDirectory = Path.GetDirectoryName(exe);
+                if (isSteam && g.AppId != null && g.AppId.Length > 0)
+                {
+                    try { psi.EnvironmentVariables["SteamAppId"] = g.AppId; } catch { }
+                }
+                foreach (KeyValuePair<string, string> kv in env)
+                {
+                    try { psi.EnvironmentVariables[kv.Key] = kv.Value; } catch { }
+                }
+                try
+                {
+                    Program.Log("  启动环境变量 " + env.Count + " 条："
+                        + string.Join(", ", Array.ConvertAll(env.ToArray(),
+                            delegate(KeyValuePair<string, string> kv) { return kv.Key; })));
+                }
+                catch { }
+                Process.Start(psi);
+                g.LastLaunchedWithEnv = env.Count;
+            }
+            return "";
+        }
+
+        static void TouchLastPlayed(DlssgGame g)
+        {
+            try
+            {
+                GameMeta m = MetaStore.GetOrCreate(MetaStore.KeyOf(g));
+                m.LastPlayed = MetaStore.Now();
+                m.Platform = g.Platform;
+                if (g.AppId != null && g.AppId.Length > 0) m.AppId = g.AppId;
+                if (g.PlatformId != null && g.PlatformId.Length > 0) m.PlatformId = g.PlatformId;
+                MetaStore.Save(m);
+                g.LastPlayed = m.LastPlayed;
+            }
+            catch { }
+        }
+
+        // 全平台智能启动入口：返回 "" = 成功（详情在 statusMsg / LastLaunchStatus），
+        // 返回 NeedLocate|目录 = 待指认 exe，其他非空 = 失败原因。
+        public static string LaunchGame(DlssgGame g)
+        {
+            string statusMsg;
+            return LaunchGame(g, out statusMsg);
+        }
+
+        public static string LaunchGame(DlssgGame g, out string statusMsg)
+        {
+            statusMsg = "";
+            LastLaunchStatus = "";
+            if (g == null) return "无效的游戏条目";
+            try
+            {
+                string args = EffectiveLaunchArgs(g);
+                List<KeyValuePair<string, string>> env = ParseEnv(EffectiveLaunchEnv(g));
+                string effMode = EffectiveLaunchMode(g);
+                bool isSteam = g.Platform == "steam" && g.AppId != null && Regex.IsMatch(g.AppId.Trim(), @"^\d{1,12}$");
+
+                if (effMode == ModePlatform)
+                {
+                    if (isSteam)
+                    {
+                        string appid = g.AppId.Trim();
+                        bool steamRunning = false;
+                        try { steamRunning = Program.ProcExistsFresh("steam"); } catch { }
+                        string steamExe = FindSteamExe();
+                        if (!steamRunning && steamExe.Length > 0)
+                        {
+                            // Steam 未运行时通过 -silent -applaunch 静默驻留托盘启动，不弹出商城与好友弹窗
+                            var psi = new ProcessStartInfo(steamExe);
+                            psi.Arguments = "-silent -applaunch " + appid + (args.Length > 0 ? " " + args : "");
+                            psi.UseShellExecute = true;
+                            string swd = Path.GetDirectoryName(steamExe);
+                            if (!string.IsNullOrEmpty(swd) && Directory.Exists(swd)) psi.WorkingDirectory = swd;
+                            Process.Start(psi);
+                            statusMsg = "已静默唤起 Steam 并启动：" + g.Title + " (-silent -applaunch " + appid + (args.Length > 0 ? " " + args : "") + ")";
+                            LastLaunchStatus = statusMsg;
+                            TouchLastPlayed(g);
+                            return "";
+                        }
+                        string uri = args.Length > 0
+                            ? ("steam://rungameid/" + appid + "//" + args + "/")
+                            : ("steam://rungameid/" + appid);
+                        Process.Start(uri);
+                        statusMsg = "已通过后台 Steam 静默启动：" + g.Title + " (AppID " + appid + ")";
+                        LastLaunchStatus = statusMsg;
+                        TouchLastPlayed(g);
+                        return "";
+                    }
+
+                    if (g.Platform == "epic")
+                    {
+                        string epicId = PlatformIdOf(g);
+                        if (epicId.Length > 0)
+                        {
+                            try
+                            {
+                                string epicUri = "com.epicgames.launcher://apps/" + Uri.EscapeDataString(epicId) + "?action=launch&silent=true";
+                                Process.Start(epicUri);
+                                statusMsg = "已静默唤起 Epic 并启动：" + g.Title;
+                                LastLaunchStatus = statusMsg;
+                                TouchLastPlayed(g);
+                                return "";
+                            }
+                            catch { }
+                        }
+                    }
+
+                    if (g.Platform == "wegame")
+                    {
+                        string wgStub = (!string.IsNullOrEmpty(g.Dir)) ? Path.Combine(g.Dir, @"WeGameLauncher\launcher.exe") : "";
+                        if (wgStub.Length > 0 && File.Exists(wgStub))
+                        {
+                            var psi = new ProcessStartInfo(wgStub);
+                            if (args.Length > 0) psi.Arguments = args;
+                            psi.UseShellExecute = true;
+                            psi.WorkingDirectory = Path.GetDirectoryName(wgStub);
+                            Process.Start(psi);
+                            statusMsg = "已通过 WeGame 轻量引导器启动：" + g.Title;
+                            LastLaunchStatus = statusMsg;
+                            TouchLastPlayed(g);
+                            return "";
+                        }
+                        string railId = PlatformIdOf(g);
+                        if (railId.Length > 0 && FindWeGameExe().Length > 0)
+                        {
+                            try
+                            {
+                                Process.Start("wegame://startgame/" + railId);
+                                statusMsg = "已静默唤起 WeGame 协议启动：" + g.Title + " (ID " + railId + ")";
+                                LastLaunchStatus = statusMsg;
+                                TouchLastPlayed(g);
+                                return "";
+                            }
+                            catch { }
+                        }
+                    }
+                }
+
+                // 免平台直启 EXE（或平台协议不可用时自动无缝回退）
+                string exe = LaunchTargetOf(g);
+                if (exe.Length > 0)
+                {
+                    ExecDirectExe(g, exe, args, env, isSteam);
+                    statusMsg = "已免平台直启：" + g.Title + " (" + Path.GetFileName(exe) + (args.Length > 0 ? " " + args : "") + ")";
+                    LastLaunchStatus = statusMsg;
+                    TouchLastPlayed(g);
+                    return "";
+                }
+                if (g.Dir != null && Directory.Exists(g.Dir))
+                    return NeedLocate + g.Dir;
+                return "找不到可执行文件";
+            }
+            catch (Exception ex) { return "启动失败：" + ex.Message; }
+        }
+
+        // ====================================================================
+        //  快捷方式 (.lnk / .url) 与拖入可执行文件 (.exe) 智能解析器
+        // ====================================================================
+        static ushort ReadU16(byte[] b, int o)
+        {
+            return (ushort)(b[o] | (b[o + 1] << 8));
+        }
+
+        static int ReadI32(byte[] b, int o)
+        {
+            return b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24);
+        }
+
+        static string ReadNullStrAnsi(byte[] b, int o)
+        {
+            if (o < 0 || o >= b.Length) return "";
+            int end = o;
+            while (end < b.Length && b[end] != 0) end++;
+            if (end <= o) return "";
+            try { return Encoding.Default.GetString(b, o, end - o); }
+            catch { return Encoding.UTF8.GetString(b, o, end - o); }
+        }
+
+        static string ReadNullStrUni(byte[] b, int o)
+        {
+            if (o < 0 || o + 1 >= b.Length) return "";
+            int end = o;
+            while (end + 1 < b.Length && !(b[end] == 0 && b[end + 1] == 0)) end += 2;
+            if (end <= o) return "";
+            return Encoding.Unicode.GetString(b, o, end - o);
+        }
+
+        static string ReadLnkCountedStr(byte[] b, ref int pos, bool isUni)
+        {
+            if (pos + 2 > b.Length) return "";
+            int chCount = ReadU16(b, pos);
+            pos += 2;
+            if (chCount <= 0) return "";
+            if (isUni)
+            {
+                int byteLen = chCount * 2;
+                if (pos + byteLen > b.Length) { pos = b.Length; return ""; }
+                string s = Encoding.Unicode.GetString(b, pos, byteLen);
+                pos += byteLen;
+                return s;
+            }
+            if (pos + chCount > b.Length) { pos = b.Length; return ""; }
+            string sa;
+            try { sa = Encoding.Default.GetString(b, pos, chCount); }
+            catch { sa = Encoding.UTF8.GetString(b, pos, chCount); }
+            pos += chCount;
+            return sa;
+        }
+
+        // 纯二进制解析 [MS-SHLLINK]：零 COM 开销、兼容任意 STA/MTA 后台线程
+        static bool ParseLnkBinary(string lnkPath, out string targetPath, out string arguments, out string workDir, out string iconPath)
+        {
+            targetPath = ""; arguments = ""; workDir = ""; iconPath = "";
+            try
+            {
+                byte[] raw = File.ReadAllBytes(lnkPath);
+                if (raw == null || raw.Length < 76) return false;
+                if (ReadI32(raw, 0) != 0x0000004C) return false;
+                uint flags = (uint)ReadI32(raw, 20);
+                bool hasIdList = (flags & 0x01) != 0;
+                bool hasLinkInfo = (flags & 0x02) != 0;
+                bool hasName = (flags & 0x04) != 0;
+                bool hasRel = (flags & 0x08) != 0;
+                bool hasWork = (flags & 0x10) != 0;
+                bool hasArgs = (flags & 0x20) != 0;
+                bool hasIcon = (flags & 0x40) != 0;
+                bool isUni = (flags & 0x80) != 0;
+
+                int pos = 76;
+                if (hasIdList)
+                {
+                    if (pos + 2 > raw.Length) return false;
+                    int idLen = ReadU16(raw, pos);
+                    pos += 2 + idLen;
+                }
+                if (hasLinkInfo)
+                {
+                    if (pos + 12 > raw.Length) return false;
+                    int infoStart = pos;
+                    int infoSize = ReadI32(raw, infoStart);
+                    int infoHdr = ReadI32(raw, infoStart + 4);
+                    uint infoFlags = (uint)ReadI32(raw, infoStart + 8);
+                    if ((infoFlags & 0x01) != 0 && infoStart + 24 <= raw.Length)
+                    {
+                        string baseP = "";
+                        string sufP = "";
+                        if (infoHdr >= 0x24 && infoStart + 36 <= raw.Length)
+                        {
+                            int uBaseOff = ReadI32(raw, infoStart + 28);
+                            int uSufOff = ReadI32(raw, infoStart + 32);
+                            if (uBaseOff > 0) baseP = ReadNullStrUni(raw, infoStart + uBaseOff);
+                            if (uSufOff > 0) sufP = ReadNullStrUni(raw, infoStart + uSufOff);
+                        }
+                        if (baseP.Length == 0)
+                        {
+                            int aBaseOff = ReadI32(raw, infoStart + 16);
+                            int aSufOff = ReadI32(raw, infoStart + 24);
+                            if (aBaseOff > 0) baseP = ReadNullStrAnsi(raw, infoStart + aBaseOff);
+                            if (aSufOff > 0) sufP = ReadNullStrAnsi(raw, infoStart + aSufOff);
+                        }
+                        targetPath = BackSlashes(baseP + sufP);
+                    }
+                    pos = infoStart + Math.Max(12, infoSize);
+                }
+                string relStr = "";
+                if (hasName) ReadLnkCountedStr(raw, ref pos, isUni);
+                if (hasRel) relStr = ReadLnkCountedStr(raw, ref pos, isUni);
+                if (hasWork) workDir = BackSlashes(ReadLnkCountedStr(raw, ref pos, isUni));
+                if (hasArgs) arguments = ReadLnkCountedStr(raw, ref pos, isUni).Trim();
+                if (hasIcon) iconPath = BackSlashes(ReadLnkCountedStr(raw, ref pos, isUni));
+
+                if (targetPath.Length > 0)
+                {
+                    try { targetPath = Environment.ExpandEnvironmentVariables(targetPath); } catch { }
+                }
+                if ((targetPath.Length == 0 || !File.Exists(targetPath)) && relStr.Length > 0)
+                {
+                    try
+                    {
+                        string lnkDir = Path.GetDirectoryName(lnkPath) ?? "";
+                        string cand = Path.GetFullPath(Path.Combine(lnkDir, BackSlashes(relStr)));
+                        if (File.Exists(cand)) targetPath = cand;
+                    }
+                    catch { }
+                }
+                return targetPath.Length > 0;
+            }
+            catch { return false; }
+        }
+
+        // WScript.Shell COM 兜底（处理纯 IDList / 环境变量跳转快捷方式）
+        static bool ParseLnkCom(string lnkPath, out string targetPath, out string arguments, out string workDir, out string iconPath)
+        {
+            targetPath = ""; arguments = ""; workDir = ""; iconPath = "";
+            object shell = null;
+            object sc = null;
+            try
+            {
+                Type t = Type.GetTypeFromProgID("WScript.Shell");
+                if (t == null) return false;
+                shell = Activator.CreateInstance(t);
+                sc = t.InvokeMember("CreateShortcut", System.Reflection.BindingFlags.InvokeMethod, null, shell, new object[] { lnkPath });
+                if (sc == null) return false;
+                Type st = sc.GetType();
+                object tp = st.InvokeMember("TargetPath", System.Reflection.BindingFlags.GetProperty, null, sc, null);
+                object ag = st.InvokeMember("Arguments", System.Reflection.BindingFlags.GetProperty, null, sc, null);
+                object wd = st.InvokeMember("WorkingDirectory", System.Reflection.BindingFlags.GetProperty, null, sc, null);
+                object ic = st.InvokeMember("IconLocation", System.Reflection.BindingFlags.GetProperty, null, sc, null);
+                targetPath = BackSlashes(tp == null ? "" : tp.ToString());
+                arguments = ag == null ? "" : ag.ToString().Trim();
+                workDir = BackSlashes(wd == null ? "" : wd.ToString());
+                iconPath = BackSlashes((ic == null ? "" : ic.ToString()).Split(',')[0].Trim().Trim('"'));
+                return targetPath.Length > 0;
+            }
+            catch { return false; }
+            finally
+            {
+                if (sc != null) { try { System.Runtime.InteropServices.Marshal.FinalReleaseComObject(sc); } catch { } }
+                if (shell != null) { try { System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shell); } catch { } }
+            }
+        }
+
+        public static bool ParseShortcut(string path, out string targetPath, out string arguments, out string workDir, out string iconPath)
+        {
+            targetPath = ""; arguments = ""; workDir = ""; iconPath = "";
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return false;
+            string ext = (Path.GetExtension(path) ?? "").ToLowerInvariant();
+            if (ext == ".url")
+            {
+                try
+                {
+                    foreach (string line in File.ReadAllLines(path, Encoding.UTF8))
+                    {
+                        string s = line.Trim();
+                        if (s.StartsWith("URL=", StringComparison.OrdinalIgnoreCase))
+                            targetPath = s.Substring(4).Trim();
+                        else if (s.StartsWith("IconFile=", StringComparison.OrdinalIgnoreCase))
+                            iconPath = BackSlashes(s.Substring(9).Trim().Trim('"'));
+                    }
+                    return targetPath.Length > 0;
+                }
+                catch { return false; }
+            }
+            if (ext == ".lnk")
+            {
+                bool ok = ParseLnkBinary(path, out targetPath, out arguments, out workDir, out iconPath);
+                if (!ok || targetPath.Length == 0 || !File.Exists(targetPath))
+                {
+                    string tp2, ag2, wd2, ic2;
+                    if (ParseLnkCom(path, out tp2, out ag2, out wd2, out ic2) && tp2.Length > 0)
+                    {
+                        targetPath = tp2;
+                        if (ag2.Length > 0) arguments = ag2;
+                        if (wd2.Length > 0) workDir = wd2;
+                        if (ic2.Length > 0) iconPath = ic2;
+                        ok = true;
+                    }
+                }
+                return ok;
+            }
+            return false;
+        }
+
+        public static List<string> ListDesktopShortcuts(bool includeStartMenu = false)
+        {
+            var res = new List<string>();
+            var roots = new List<string>();
+            try
+            {
+                roots.Add(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
+                roots.Add(Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory));
+                if (includeStartMenu)
+                {
+                    roots.Add(Environment.GetFolderPath(Environment.SpecialFolder.Programs));
+                    roots.Add(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms));
+                }
+            }
+            catch { }
+
+            var seen = new List<string>();
+            foreach (string r in roots)
+            {
+                if (string.IsNullOrEmpty(r) || !Directory.Exists(r)) continue;
+                CollectShortcutFiles(r, includeStartMenu ? 2 : 0, res, seen);
+            }
+            return res;
+        }
+
+        static void CollectShortcutFiles(string dir, int maxDepth, List<string> res, List<string> seen)
+        {
+            try
+            {
+                foreach (string f in Directory.GetFiles(dir))
+                {
+                    string ext = (Path.GetExtension(f) ?? "").ToLowerInvariant();
+                    if (ext != ".lnk" && ext != ".url") continue;
+                    string stem = (Path.GetFileNameWithoutExtension(f) ?? "").Trim();
+                    string sl = stem.ToLowerInvariant();
+                    if (sl.Length == 0 || sl.Contains("uninstall") || sl.Contains("卸载")
+                        || sl == "此电脑" || sl == "控制面板" || sl == "回收站" || sl == "fluxion") continue;
+                    string nf = MetaStore.Norm(f);
+                    if (seen.Contains(nf)) continue;
+                    seen.Add(nf);
+                    res.Add(BackSlashes(f));
+                }
+                if (maxDepth <= 0) return;
+                foreach (string sub in Directory.GetDirectories(dir))
+                {
+                    string bn = Path.GetFileName(sub).ToLowerInvariant();
+                    if (bn.Contains("windows") || bn.Contains("system") || bn.Contains("administrative")
+                        || bn.Contains("accessibility") || bn.Contains("腾讯软件")) continue;
+                    CollectShortcutFiles(sub, maxDepth - 1, res, seen);
+                }
+            }
+            catch { }
+        }
+
+        static string CleanShortcutStem(string path)
+        {
+            string s = (Path.GetFileNameWithoutExtension(path) ?? "").Trim();
+            s = Regex.Replace(s, @"\s*-\s*快捷方式$", "", RegexOptions.IgnoreCase);
+            s = Regex.Replace(s, @"\s*-\s*Shortcut$", "", RegexOptions.IgnoreCase);
+            if (s.StartsWith("启动") && s.Length > 2) s = s.Substring(2).Trim();
+            s = Regex.Replace(s, @"WeGame版$", "", RegexOptions.IgnoreCase).Trim();
+            return s;
+        }
+
+        static string CleanResolvedTitle(string shortcutStem, string exePath, string gameDir)
+        {
+            if (!string.IsNullOrEmpty(shortcutStem))
+            {
+                string normSc = CoverArt.NormalizeGameTitle(shortcutStem);
+                if (!string.IsNullOrEmpty(normSc)) return normSc;
+            }
+            try
+            {
+                if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
+                {
+                    var vi = FileVersionInfo.GetVersionInfo(exePath);
+                    string pn = (vi.ProductName ?? "").Trim();
+                    if (pn.Length == 0) pn = (vi.FileDescription ?? "").Trim();
+                    if (pn.Length >= 2)
+                    {
+                        string pnl = pn.ToLowerInvariant();
+                        bool generic = pnl.Contains("bootstrap") || pnl.Contains("unreal") || pnl.Contains("unity")
+                                    || pnl == "application" || pnl.StartsWith("todo") || pnl.Contains("install")
+                                    || pnl.Contains("windows") || pnl.Contains("client-win64-shipping");
+                        if (!generic)
+                            return CoverArt.NormalizeGameTitle(pn);
+                    }
+                }
+            }
+            catch { }
+
+            string dirName = "";
+            try
+            {
+                var di = new DirectoryInfo(gameDir);
+                for (int i = 0; i < 6 && di != null; i++)
+                {
+                    string dn = di.Name;
+                    string dl = dn.ToLowerInvariant();
+                    if (dl != "win64" && dl != "win32" && dl != "binaries" && dl != "client"
+                        && dl != "x64" && dl != "x86" && dl != "bin" && dl != "game" && dl != "windowsnoeditor")
+                    {
+                        dirName = dn;
+                        break;
+                    }
+                    di = di.Parent;
+                }
+            }
+            catch { }
+            if (dirName.Length == 0 && !string.IsNullOrEmpty(exePath))
+                dirName = Path.GetFileNameWithoutExtension(exePath);
+            return CoverArt.NormalizeGameTitle(dirName);
+        }
+
+        internal static DlssgGame ResolveGameFromShortcutForScan(string lnkPath)
+        {
+            DlssgGame g = ResolveGameFromFileCore(lnkPath, true);
+            return g;
+        }
+
+        public static DlssgGame ResolveGameFromFile(string path)
+        {
+            return ResolveGameFromFileCore(path, false);
+        }
+
+        static DlssgGame ResolveGameFromFileCore(string path, bool strictGameGate)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+            string ext = (Path.GetExtension(path) ?? "").ToLowerInvariant();
+            if (ext != ".lnk" && ext != ".url" && ext != ".exe") return null;
+
+            string shortcutStem = (ext == ".lnk" || ext == ".url") ? CleanShortcutStem(path) : "";
+            string target = path;
+            string lnkArgs = "";
+            string workDir = "";
+            string iconLoc = "";
+
+            if (ext == ".lnk" || ext == ".url")
+            {
+                if (!ParseShortcut(path, out target, out lnkArgs, out workDir, out iconLoc))
+                    return null;
+            }
+
+            // 1) URL 协议快捷方式（Steam .url / Epic .url / WeGame）
+            if (target.StartsWith("steam://rungameid/", StringComparison.OrdinalIgnoreCase))
+            {
+                Match sm = Regex.Match(target, @"steam://rungameid/(\d+)");
+                if (sm.Success)
+                {
+                    string wantId = sm.Groups[1].Value;
+                    foreach (SteamApp sa in SteamLib.Scan())
+                    {
+                        if (sa.AppId == wantId && !string.IsNullOrEmpty(sa.Dir) && Directory.Exists(sa.Dir))
+                        {
+                            DlssgGame sg = Dlssg.Inspect(sa.Dir, false);
+                            if (sg == null) { sg = new DlssgGame(); sg.Dir = sa.Dir; }
+                            sg.Dir = BackSlashes(sa.Dir);
+                            sg.Title = sa.Name.Length > 0 ? sa.Name : (shortcutStem.Length > 0 ? shortcutStem : Path.GetFileName(sa.Dir));
+                            sg.Platform = "steam";
+                            sg.AppId = sa.AppId;
+                            sg.PlatformId = sa.AppId;
+                            if (string.IsNullOrEmpty(sg.Exe))
+                                sg.Exe = Path.GetFileName(PlatformScan.FindExe(sa.Dir, null, sg.Title));
+                            sg.Custom = true;
+                            sg.Id = IdOf(sg);
+                            return sg;
+                        }
+                    }
+                }
+                return null;
+            }
+            if (target.StartsWith("com.epicgames.launcher://apps/", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (DlssgGame eg in PlatformScan.Epic())
+                {
+                    if (!string.IsNullOrEmpty(eg.PlatformId)
+                        && target.IndexOf(eg.PlatformId, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        Fill(eg);
+                        eg.Custom = true;
+                        eg.Id = IdOf(eg);
+                        return eg;
+                    }
+                }
+                return null;
+            }
+
+            target = BackSlashes(target);
+            if (!File.Exists(target) || !target.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            string exeNameL = Path.GetFileName(target).ToLowerInvariant();
+            string exeDir = BackSlashes(Path.GetDirectoryName(target));
+
+            // 跳过卸载器与平台客户端本体（如单独拖入 steam.exe / wegame.exe 且无游戏参数）
+            if (exeNameL.Contains("unins") || exeNameL.Contains("卸载")) return null;
+            if (exeNameL == "steam.exe")
+            {
+                Match apm = Regex.Match(lnkArgs ?? "", @"-applaunch\s+(\d+)", RegexOptions.IgnoreCase);
+                if (!apm.Success) return null;
+                string wantId = apm.Groups[1].Value;
+                foreach (SteamApp sa in SteamLib.Scan())
+                {
+                    if (sa.AppId == wantId && !string.IsNullOrEmpty(sa.Dir))
+                    {
+                        DlssgGame sg = Dlssg.Inspect(sa.Dir, false);
+                        if (sg == null) { sg = new DlssgGame(); sg.Dir = sa.Dir; }
+                        sg.Dir = BackSlashes(sa.Dir);
+                        sg.Title = sa.Name; sg.Platform = "steam"; sg.AppId = sa.AppId; sg.PlatformId = sa.AppId;
+                        if (string.IsNullOrEmpty(sg.Exe)) sg.Exe = Path.GetFileName(PlatformScan.FindExe(sa.Dir, null, sg.Title));
+                        sg.Custom = true; sg.Id = IdOf(sg);
+                        return sg;
+                    }
+                }
+                return null;
+            }
+            if (exeNameL == "wegame.exe" && string.IsNullOrEmpty(lnkArgs)) return null;
+
+            // 2) 米哈游 HoYoPlay 容器启动器剥壳（如 launcher.exe --game=hk4e_cn → 直连 YuanShen.exe）
+            if (exeNameL == "launcher.exe" && (exeDir.IndexOf("mihoyo", StringComparison.OrdinalIgnoreCase) >= 0
+                || exeDir.IndexOf("hoyoplay", StringComparison.OrdinalIgnoreCase) >= 0
+                || (lnkArgs != null && lnkArgs.IndexOf("--game=", StringComparison.OrdinalIgnoreCase) >= 0)))
+            {
+                Match gm = Regex.Match(lnkArgs ?? "", @"--game=([A-Za-z0-9_]+)", RegexOptions.IgnoreCase);
+                string wantBiz = gm.Success ? gm.Groups[1].Value : "";
+                List<DlssgGame> hoyos = PlatformScan.HoYo();
+                foreach (DlssgGame hg in hoyos)
+                {
+                    if (wantBiz.Length > 0 && string.Equals(hg.PlatformId, wantBiz, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Fill(hg); hg.Custom = true; hg.Id = IdOf(hg); return hg;
+                    }
+                    if (shortcutStem.Length > 0 && PlatformScan.NormName(hg.Title) == PlatformScan.NormName(shortcutStem))
+                    {
+                        Fill(hg); hg.Custom = true; hg.Id = IdOf(hg); return hg;
+                    }
+                }
+                return null;
+            }
+
+            // 3) 库洛《鸣潮》启动器剥壳（Wuthering Waves\launcher.exe → 直连 Client-Win64-Shipping.exe）
+            DlssgGame kuro = PlatformScan.ProbeKuroWuwa(exeDir);
+            if (kuro != null)
+            {
+                Fill(kuro);
+                kuro.Custom = true;
+                kuro.Id = IdOf(kuro);
+                return kuro;
+            }
+
+            // 4) WeGame 子目录引导器剥壳（<GameRoot>\WeGameLauncher\launcher.exe / ACLOS / TCLS）
+            string dirLeafL = Path.GetFileName(exeDir.TrimEnd('\\')).ToLowerInvariant();
+            if (dirLeafL == "wegamelauncher" || dirLeafL == "aclos" || dirLeafL == "tcls" || dirLeafL == "leagueclient")
+            {
+                string parentDir = Path.GetDirectoryName(exeDir.TrimEnd('\\'));
+                if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
+                    exeDir = BackSlashes(parentDir);
+            }
+
+            // 5) 自动扫描门禁：桌面快捷方式自动扫描时必须通过引擎级游戏性校验，杜绝普通办公工具混入
+            if (strictGameGate)
+            {
+                string sysWin = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+                if (exeDir.StartsWith(sysWin, StringComparison.OrdinalIgnoreCase)) return null;
+                if (exeDir.IndexOf(@"\AppData\", StringComparison.OrdinalIgnoreCase) >= 0) return null;
+                if (Dlssg.IsLauncherDir(exeDir) || Dlssg.IsPlatformClient(Path.GetFileName(exeDir))) return null;
+                if (Dlssg.Inspect(exeDir, true) == null) return null;
+            }
+
+            // 6) 构造标准 DlssgGame 条目并自动识别所属平台
+            DlssgGame resGame = Dlssg.Inspect(exeDir, false);
+            if (resGame == null)
+            {
+                resGame = new DlssgGame();
+                resGame.Dir = exeDir;
+            }
+            resGame.Dir = exeDir;
+
+            string realExeName = Path.GetFileName(target);
+            if (dirLeafL == "wegamelauncher" || dirLeafL == "aclos" || dirLeafL == "tcls" || dirLeafL == "leagueclient")
+                resGame.Exe = PlatformScan.PickWeGameExe(exeDir, shortcutStem);
+            else if (realExeName.IndexOf("launcher", StringComparison.OrdinalIgnoreCase) >= 0 && !string.IsNullOrEmpty(resGame.Exe)
+                     && resGame.Exe.IndexOf("launcher", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                // Inspect 已找到同目录更优的非 launcher 主程序，保留它
+            }
+            else resGame.Exe = realExeName;
+
+            string dirLower = exeDir.ToLowerInvariant();
+            string railIdFound = PlatformScan.ReadRailId(exeDir);
+            if (dirLower.Contains(@"\steamapps\common\"))
+            {
+                resGame.Platform = "steam";
+                foreach (SteamApp sa in SteamLib.Scan())
+                {
+                    if (!string.IsNullOrEmpty(sa.Dir) && (exeDir.Equals(sa.Dir, StringComparison.OrdinalIgnoreCase)
+                        || exeDir.StartsWith(sa.Dir + "\\", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        resGame.AppId = sa.AppId;
+                        resGame.PlatformId = sa.AppId;
+                        if (shortcutStem.Length == 0) shortcutStem = sa.Name;
+                        break;
+                    }
+                }
+            }
+            else if (railIdFound.Length > 0 || dirLower.Contains("wegameapps") || dirLower.Contains("rail_apps"))
+            {
+                resGame.Platform = "wegame";
+                resGame.PlatformId = railIdFound;
+                resGame.Title = PlatformScan.CleanWeGameTitle(
+                    shortcutStem.Length > 0 ? shortcutStem : Path.GetFileName(exeDir), railIdFound);
+            }
+            else
+            {
+                DlssgGame hoyoHit = PlatformScan.ProbeHoYoDir(exeDir, "");
+                if (hoyoHit != null)
+                {
+                    resGame.Platform = "hoyo";
+                    resGame.PlatformId = hoyoHit.PlatformId;
+                    resGame.Title = hoyoHit.Title;
+                    resGame.Exe = hoyoHit.Exe;
+                    resGame.Genre = "二次元";
+                }
+                else
+                {
+                    resGame.Platform = "local";
+                    foreach (DlssgGame eg in PlatformScan.Epic())
+                    {
+                        if (!string.IsNullOrEmpty(eg.Dir) && (exeDir.Equals(eg.Dir, StringComparison.OrdinalIgnoreCase)
+                            || exeDir.StartsWith(eg.Dir + "\\", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            resGame.Platform = "epic";
+                            resGame.PlatformId = eg.PlatformId;
+                            if (shortcutStem.Length == 0) shortcutStem = eg.Title;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (string.IsNullOrEmpty(resGame.Title) || resGame.Title == Path.GetFileName(exeDir))
+            {
+                string cleaned = CleanResolvedTitle(shortcutStem, target, exeDir);
+                if (!string.IsNullOrEmpty(cleaned)) resGame.Title = cleaned;
+            }
+            if (!string.IsNullOrEmpty(lnkArgs)
+                && lnkArgs.IndexOf("--game=", StringComparison.OrdinalIgnoreCase) < 0
+                && lnkArgs.IndexOf("-applaunch", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                resGame.LaunchArgs = lnkArgs;
+            }
+            if (string.IsNullOrEmpty(resGame.Genre) && PlatformScan.Genre2DHit(resGame.Title, resGame.Dir + " " + resGame.Exe))
+                resGame.Genre = "二次元";
+            resGame.Custom = !strictGameGate;
+            resGame.Id = IdOf(resGame);
+            return resGame;
+        }
+
+        public static string AddGameFromFile(string path)
+        {
+            DlssgGame dummy;
+            return AddGameFromFile(path, out dummy);
+        }
+
+        public static string AddGameFromFile(string path, out DlssgGame resolved)
+        {
+            resolved = ResolveGameFromFile(path);
+            if (resolved == null || string.IsNullOrEmpty(resolved.Dir))
+                return "无法识别游戏快捷方式或可执行文件：" + Path.GetFileName(path ?? "");
+            return Dlssg.AddCustomGame(resolved);
+        }
+
         public static string PlatformLabel(string p)
         {
             if (p == "steam") return "Steam";
             if (p == "epic") return "Epic";
             if (p == "wegame") return "WeGame";
+            if (p == "hoyo") return "米哈游";
+            if (p == "kuro") return "库洛";
             if (p == "battle") return "战网";
             if (p == "ubisoft") return "育碧";
             if (p == "ea") return "EA";

@@ -86,45 +86,45 @@ namespace Fluxion
         //  浅色底从 #F5F7FA 压到 #EDF1F6：卡片仍是纯白，但**对比拉开了**，
         //  白卡才真的"浮"在底上（原来两者只差 4 级，整页糊成一片白）。
         //  白卡与底色保持 8~10% 明度差（规范给的是 10~15%）。
-        public static Color Bg { get { return Pk(L(245, 246, 248), L(20, 22, 26)); } }           // 画布底色：宣纸石白 #F5F6F8 / 曜石黑 #14161A
-        public static Color Panel { get { return Pk(Color.White, L(28, 30, 36)); } }            // 抬升卡片：#FFFFFF / #1C1E24
-        public static Color Subtle { get { return Pk(L(248, 249, 251), L(24, 26, 31)); } }      // 内凹底栏/终端底：#F8F9FB / #181A1F
+        public static Color Bg { get { return Pk(L(239, 242, 248), L(14, 17, 24)); } }           // 画廊暖石白瓷 #EFF2F8 / 黑曜靛蓝 #0E1118
+        public static Color Panel { get { return Pk(Color.White, L(21, 25, 35)); } }            // 抬升白瓷卡片 #FFFFFF / 黑曜岩板 #151923
+        public static Color Subtle { get { return Pk(L(245, 247, 252), L(17, 20, 29)); } }      // 内凹槽位/终端底：#F5F7FC / #11141D
         //  三阶建筑感材质体系：侧栏脊柱 Sidebar < 工作区画布 Bg < 抬升卡片 Panel
-        public static Color Sidebar { get { return Pk(L(236, 238, 242), L(15, 16, 20)); } }     // 独立侧栏材质：#ECEEF2 / #0F1014
-        public static Color Line { get { return Pk(L(219, 222, 229), L(44, 48, 58)); } }        // 结构分割线：#DBDEE5 / #2C303A
-        public static Color LineSoft { get { return Pk(L(235, 237, 242), L(35, 38, 46)); } }    // 细微分隔线：#EBEDF2 / #23262E
-        public static Color Hover { get { return Pk(Mix(Bg, Text, 0.06), L(38, 41, 50)); } }
-        public static Color Accent { get { return Pk(L(24, 114, 232), L(56, 139, 253)); } }     // 精密钴蓝 #1872E8 / #388BFD（高对比度克制主色）
-        public static Color Accent2 { get { return Pk(L(79, 82, 198), L(94, 98, 226)); } }
-        public static Color Cyan { get { return Pk(L(34, 156, 214), L(86, 194, 246)); } }
-        public static Color AccentSoft { get { return Pk(L(232, 242, 254), L(25, 42, 68)); } }
-        public static Color OkFill { get { return Pk(L(232, 247, 237), L(21, 46, 31)); } }
-        public static Color ErrFill { get { return Pk(L(253, 233, 232), L(52, 24, 26)); } }
-        public static Color CheckOn { get { return Pk(L(232, 242, 254), L(25, 42, 68)); } }
-        public static Color GridHead { get { return Pk(L(248, 249, 251), L(24, 26, 31)); } }
-        public static Color GridAlt { get { return Pk(L(250, 251, 253), L(26, 28, 34)); } }
-        public static Color Ok { get { return Pk(L(34, 168, 78), L(46, 196, 92)); } }           // 沉稳祖母绿 #22A84E / #2EC45C
+        public static Color Sidebar { get { return Pk(L(231, 235, 243), L(10, 12, 18)); } }     // 独立侧栏脊柱：#E7EBF3 / #0A0C12
+        public static Color Line { get { return Pk(L(218, 223, 234), L(32, 38, 52)); } }        // 结构分割线：#DADFE9 / #202634
+        public static Color LineSoft { get { return Pk(L(232, 236, 244), L(25, 30, 42)); } }    // 细微分隔线：#E8ECF4 / #191E2A
+        public static Color Hover { get { return Pk(L(233, 238, 247), L(36, 43, 59)); } }       // 丝滑悬停面：#E9EEF7 / #242B3B
+        public static Color Accent { get { return Pk(L(37, 99, 235), L(59, 130, 246)); } }      // 旗舰电光钴蓝 #2563EB / #3B82F6
+        public static Color Accent2 { get { return Pk(L(79, 70, 229), L(99, 102, 241)); } }
+        public static Color Cyan { get { return Pk(L(14, 165, 233), L(56, 189, 248)); } }
+        public static Color AccentSoft { get { return Pk(L(234, 242, 255), L(23, 41, 77)); } }
+        public static Color OkFill { get { return Pk(L(232, 247, 237), L(18, 44, 30)); } }
+        public static Color ErrFill { get { return Pk(L(254, 235, 235), L(52, 22, 26)); } }
+        public static Color CheckOn { get { return Pk(L(234, 242, 255), L(23, 41, 77)); } }
+        public static Color GridHead { get { return Pk(L(245, 247, 252), L(17, 20, 29)); } }
+        public static Color GridAlt { get { return Pk(L(248, 250, 253), L(19, 23, 33)); } }
+        public static Color Ok { get { return Pk(L(22, 163, 74), L(34, 197, 94)); } }           // 翡翠绿 #16A34A / #22C55E
         public static Color Warn { get { return Pk(L(217, 119, 6), L(245, 158, 11)); } }        // 琥珀金 #D97706 / #F59E0B
-        public static Color Err { get { return Pk(L(220, 48, 42), L(248, 81, 73)); } }          // 朱砂红 #DC302A / #F85149
-        public static Color Text { get { return Pk(L(22, 24, 29), L(238, 240, 245)); } }        // 浓墨正文 #16181D / #EEF0F5
-        public static Color TextDim { get { return Pk(L(96, 101, 112), L(152, 158, 170)); } }   // 次级石墨 #606570 / #989EAA
-        public static Color TextFaint { get { return Pk(L(126, 131, 142), L(114, 120, 132)); } }// 辅助铭文 #7E838E / #727884
-        public static Color TextDisabled { get { return Pk(L(152, 156, 166), L(96, 101, 112)); } }
-        public static Color Field { get { return Pk(L(246, 247, 250), L(35, 38, 46)); } }       // 卡片内控件底 / 深色键帽底
+        public static Color Err { get { return Pk(L(220, 38, 38), L(248, 113, 113)); } }        // 朱砂红 #DC2626 / #F87171
+        public static Color Text { get { return Pk(L(15, 23, 42), L(241, 245, 252)); } }        // 浓墨正文 #0F172A / #F1F5FC
+        public static Color TextDim { get { return Pk(L(82, 93, 114), L(148, 159, 180)); } }    // 次级石墨 #525D72 / #949FB4
+        public static Color TextFaint { get { return Pk(L(126, 136, 156), L(100, 111, 132)); } }// 辅助铭文 #7E889C / #646F84
+        public static Color TextDisabled { get { return Pk(L(156, 163, 175), L(75, 85, 99)); } }
+        public static Color Field { get { return Pk(L(241, 244, 250), L(29, 35, 48)); } }       // 温润次级填充 #F1F4FA / #1D2330
         public static Color FieldOn(Color surround)
         {
             if (surround == Panel) return Field;
             return Dark ? Field : Panel;
         }
-        public static Color FieldEdge { get { return Pk(L(206, 210, 218), L(58, 63, 75)); } }   // 精密控件描边 #CED2DA / #3A3F4B
-        public static Color Selected { get { return Pk(L(232, 242, 254), L(25, 42, 68)); } }
+        public static Color FieldEdge { get { return Pk(L(210, 216, 228), L(46, 55, 74)); } }   // 克制控件描边 #D2D8E4 / #2E374A
+        public static Color Selected { get { return Pk(L(234, 242, 255), L(23, 41, 77)); } }
         public static Color OnAccent { get { return Color.White; } }
-        public static Color ShadowC { get { return Pk(L(15, 20, 30), L(0, 0, 0)); } }
-        public static Color Golden { get { return Pk(L(217, 119, 6), L(245, 184, 28)); } }
-        public static Color OkText { get { return Pk(L(24, 128, 58), L(63, 208, 108)); } }
-        public static Color WarnText { get { return Pk(L(176, 86, 0), L(245, 166, 35)); } }
-        public static Color ErrText { get { return Pk(L(196, 32, 28), L(252, 98, 90)); } }
-        public static Color AccentText { get { return Pk(L(20, 96, 204), L(76, 154, 255)); } }
+        public static Color ShadowC { get { return Pk(L(15, 23, 42), L(0, 0, 0)); } }
+        public static Color Golden { get { return Pk(L(217, 119, 6), L(250, 204, 21)); } }
+        public static Color OkText { get { return Pk(L(21, 128, 61), L(74, 222, 128)); } }
+        public static Color WarnText { get { return Pk(L(180, 83, 9), L(251, 191, 36)); } }
+        public static Color ErrText { get { return Pk(L(185, 28, 28), L(252, 129, 129)); } }
+        public static Color AccentText { get { return Pk(L(29, 78, 216), L(96, 165, 250)); } }
         public static Color TextSafe(Color c)
         {
             if (Dark) return c;
@@ -134,16 +134,16 @@ namespace Fluxion
             if (c == Accent) return AccentText;
             return c;
         }
-        public static Color CardEdge { get { return Pk(L(223, 226, 233), L(44, 48, 58)); } }    // 锐利 1px 建筑级卡片发丝边
-        public static Color Violet { get { return Pk(L(139, 76, 208), L(178, 108, 246)); } }
-        public static Color Indigo { get { return Pk(L(79, 82, 198), L(108, 112, 236)); } }
+        public static Color CardEdge { get { return Pk(L(220, 225, 236), L(35, 42, 58)); } }    // 1px 建筑级外轮廓 #DCE1EC / #232A3A
+        public static Color Violet { get { return Pk(L(124, 58, 237), L(167, 139, 250)); } }
+        public static Color Indigo { get { return Pk(L(79, 70, 229), L(129, 140, 248)); } }
         public static Color ChipBg(Color hue) { return Dark ? Subtle : Field; }
         public static Color TileBg(Color hue) { return Color.FromArgb(Dark ? 52 : 28, hue); }
 
-        public static Color AccentDeep { get { return Pk(L(18, 92, 196), L(31, 111, 235)); } }
-        public static Color AccentLite { get { return Pk(L(48, 132, 242), L(88, 166, 255)); } }
-        public static Color OkSoft { get { return Pk(L(232, 247, 237), L(21, 46, 31)); } }
-        public static Color ErrSoft { get { return Pk(L(253, 233, 232), L(52, 24, 26)); } }
+        public static Color AccentDeep { get { return Pk(L(29, 78, 216), L(37, 99, 235)); } }
+        public static Color AccentLite { get { return Pk(L(59, 130, 246), L(96, 165, 250)); } }
+        public static Color OkSoft { get { return Pk(L(232, 247, 237), L(18, 44, 30)); } }
+        public static Color ErrSoft { get { return Pk(L(254, 235, 235), L(52, 22, 26)); } }
         public static Color WarnSoft { get { return Pk(L(254, 243, 224), L(50, 38, 14)); } }
 
         // ---- 同心几何圆角秩序：外卡 12px · 内控件 7px · 微徽章 5px ----
@@ -155,34 +155,94 @@ namespace Fluxion
         public static int RPic { get { return S(9); } }
 
 
-        // ---- 圆角绘制工具 ----
+        // ---- 亚像素精密圆角绘制引擎（根治 PixelOffsetMode.Default 下四角半像素错位毛刺与直边裁切） ----
         public static GraphicsPath Round(Rectangle r, int rad)
         {
+            return RoundF(new RectangleF(r.X, r.Y, r.Width, r.Height), rad);
+        }
+        public static GraphicsPath RoundF(RectangleF rf, float rad)
+        {
             var gp = new GraphicsPath();
-            if (r.Width <= 0 || r.Height <= 0) return gp;
-            int d = Math.Min(rad * 2, Math.Min(r.Width, r.Height));
-            if (d <= 2) { gp.AddRectangle(r); return gp; }
-            gp.AddArc(r.X, r.Y, d, d, 180, 90);
-            gp.AddArc(r.Right - d, r.Y, d, d, 270, 90);
-            gp.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
-            gp.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            if (rf.Width <= 0f || rf.Height <= 0f) return gp;
+            float d = Math.Min(rad * 2f, Math.Min(rf.Width, rf.Height));
+            if (d <= 2f) { gp.AddRectangle(rf); return gp; }
+            gp.AddArc(rf.X, rf.Y, d, d, 180f, 90f);
+            gp.AddArc(rf.Right - d, rf.Y, d, d, 270f, 90f);
+            gp.AddArc(rf.Right - d, rf.Bottom - d, d, d, 0f, 90f);
+            gp.AddArc(rf.X, rf.Bottom - d, d, d, 90f, 90f);
             gp.CloseFigure();
             return gp;
+        }
+        static RectangleF AlignPixelCenter(Graphics g, Rectangle r)
+        {
+            float rw = r.Width;
+            float rh = r.Height;
+            try
+            {
+                RectangleF clip = g.VisibleClipBounds;
+                if (clip.Width > 2f && r.X == 0 && rw > clip.Width - 1f) rw = Math.Max(1f, rw - 1f);
+                if (clip.Height > 2f && r.Y == 0 && rh > clip.Height - 1f) rh = Math.Max(1f, rh - 1f);
+            }
+            catch { }
+            return new RectangleF(r.X + 0.5f, r.Y + 0.5f, rw, rh);
         }
         public static void FillRound(Graphics g, Rectangle r, int rad, Color c)
         {
             if (c.A == 0 || r.Width <= 0 || r.Height <= 0) return;
-            using (var gp = Round(r, rad)) g.FillPath(Solid(c), gp);
+            SmoothingMode oldSm = g.SmoothingMode;
+            PixelOffsetMode oldPo = g.PixelOffsetMode;
+            g.SmoothingMode = SmoothingMode.HighQuality;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            try
+            {
+                using (var gp = RoundF(AlignPixelCenter(g, r), rad))
+                    g.FillPath(Solid(c), gp);
+            }
+            finally
+            {
+                g.SmoothingMode = oldSm;
+                g.PixelOffsetMode = oldPo;
+            }
         }
         public static void FillRound(Graphics g, Rectangle r, int rad, Brush b)
         {
             if (b == null || r.Width <= 0 || r.Height <= 0) return;
-            using (var gp = Round(r, rad)) g.FillPath(b, gp);
+            SmoothingMode oldSm = g.SmoothingMode;
+            PixelOffsetMode oldPo = g.PixelOffsetMode;
+            g.SmoothingMode = SmoothingMode.HighQuality;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            try
+            {
+                using (var gp = RoundF(AlignPixelCenter(g, r), rad))
+                    g.FillPath(b, gp);
+            }
+            finally
+            {
+                g.SmoothingMode = oldSm;
+                g.PixelOffsetMode = oldPo;
+            }
         }
         public static void EdgeRound(Graphics g, Rectangle r, int rad, Color c, float w)
         {
-            if (c.A == 0) return;
-            using (var gp = Round(r, rad)) using (var p = new Pen(c, w)) g.DrawPath(p, gp);
+            if (c.A == 0 || r.Width <= 0 || r.Height <= 0) return;
+            SmoothingMode oldSm = g.SmoothingMode;
+            PixelOffsetMode oldPo = g.PixelOffsetMode;
+            g.SmoothingMode = SmoothingMode.HighQuality;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            try
+            {
+                using (var gp = RoundF(AlignPixelCenter(g, r), rad))
+                using (var p = new Pen(c, w))
+                {
+                    p.LineJoin = LineJoin.Round;
+                    g.DrawPath(p, gp);
+                }
+            }
+            finally
+            {
+                g.SmoothingMode = oldSm;
+                g.PixelOffsetMode = oldPo;
+            }
         }
 
         //  键盘焦点环（2026-10-29 第 166 轮）：2px Accent 圆角描边，画在控件内侧边缘
@@ -317,10 +377,10 @@ namespace Fluxion
             //  ★ 2026-10-24 第 137 轮：12 在 #F2F2F7 上几乎看不见，卡片像"印"在纸面上而不是浮着。
             //  收到 12 的前提是"卡片之间有足够留白"，那时留白不够、阴影再重就糊成一片。
             //  现在内边距/间距都放大了（24/20、卡片间距 24），阴影可以回到 17 而不显脏。
-            //  超净微弥散环境投影：依靠 1px 发丝边定界，投影只作 2~3 层极淡衬托，绝不糊灰边
-            int layers = Math.Min(depth, S(3));
-            double peak = Dark ? 5.0 : 2.6;
-            int yOffset = S(1);
+            //  画廊级微弥散悬浮托底投影（严格遵守浅色峰值 alpha < 40 红线）
+            int layers = Math.Min(depth, S(4));
+            double peak = Dark ? 18.0 : 10.5;
+            int yOffset = S(2);
             for (int i = layers; i >= 1; i--)
             {
                 int a = (int)(peak * (layers - i + 1) / layers);
@@ -1657,7 +1717,7 @@ namespace Fluxion
     // ======================= 自绘：扁平按钮 =======================
     //  只在自己边界内绘制（FillRectangle + DrawRectangle + TextRenderer），
     //  不可能画到别的控件上。
-    public enum BtnKind { Default, Primary, Success, Danger }
+    public enum BtnKind { Default, Primary, Subtle, Ghost, Success, Danger }
 
     // ═══════════════════ 动效引擎（2026-09-20，规范见 docs/motion-and-ui-research.md）═══════════════════
     //  为什么要有它：在此之前整个界面"零过渡"—— hover 是布尔量、数值是跳变、切页是硬切，
@@ -1869,6 +1929,7 @@ namespace Fluxion
             using (var __bg = new SolidBrush(surf)) e.Graphics.FillRectangle(__bg, 0, 0, Width, Height);
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
 
             double h = aHov.Value, dn = aDown.Value;
@@ -1876,9 +1937,23 @@ namespace Fluxion
             switch (Kind)
             {
                 case BtnKind.Primary:
-                    fill = Theme.Mix(Theme.Mix(Theme.Accent, Theme.AccentLite, h * 0.45), Theme.AccentDeep, dn);
-                    edge = Theme.Mix(Theme.AccentDeep, Color.Black, 0.08);
+                    fill = Theme.Mix(Theme.Mix(Theme.Accent, Theme.AccentLite, h * 0.48), Theme.AccentDeep, dn);
+                    edge = Theme.Mix(Theme.AccentDeep, Color.Black, Theme.Dark ? 0.14 : 0.08);
                     txt = Color.White;
+                    break;
+                case BtnKind.Subtle:
+                    Color subRest = Theme.FieldOn(surf);
+                    Color subHov = Theme.Hover;
+                    Color subDn = Theme.Mix(Theme.Hover, Theme.Text, 0.06);
+                    fill = Theme.Mix(Theme.Mix(subRest, subHov, h), subDn, dn);
+                    edge = Theme.Mix(Theme.Alpha(Theme.Line, Theme.Dark ? 0.42 : 0.50), Theme.FieldEdge, Math.Max(h, dn));
+                    txt = Theme.Text;
+                    break;
+                case BtnKind.Ghost:
+                    double gh = Math.Max(h, dn);
+                    fill = gh > 0.01 ? Theme.Mix(surf, Theme.Hover, gh) : surf;
+                    edge = gh > 0.02 ? Theme.Alpha(Theme.Line, gh * 0.72) : Color.FromArgb(0, surf);
+                    txt = Theme.Mix(Theme.TextDim, Theme.Text, gh);
                     break;
                 case BtnKind.Success:
                     fill = Theme.Mix(Theme.OkFill, Theme.OkSoft, Math.Max(h, dn));
@@ -1891,15 +1966,20 @@ namespace Fluxion
                     txt = Theme.TextSafe(Theme.Err);
                     break;
                 default:
-                    Color restFill = Theme.Dark ? Theme.Field : Theme.Panel;
-                    Color hovFill = Theme.Dark ? Theme.Mix(Theme.Field, Color.White, 0.05) : Theme.Subtle;
-                    Color dnFill = Theme.Dark ? Theme.Subtle : Theme.Field;
+                    Color restFill = Theme.FieldOn(surf);
+                    Color hovFill = Theme.Hover;
+                    Color dnFill = Theme.Mix(Theme.Hover, Theme.Text, 0.05);
                     fill = Theme.Mix(Theme.Mix(restFill, hovFill, h), dnFill, dn);
-                    edge = Theme.Mix(Theme.FieldEdge, Theme.TextDim, Math.Max(h, dn) * 0.42);
+                    edge = Theme.Mix(Theme.Alpha(Theme.Line, Theme.Dark ? 0.55 : 0.68), Theme.FieldEdge, Math.Max(h, dn));
                     txt = Theme.Text;
                     break;
             }
-            if (!Enabled) { fill = Theme.Subtle; edge = Theme.LineSoft; txt = Theme.TextDisabled; }
+            if (!Enabled)
+            {
+                fill = Kind == BtnKind.Ghost ? surf : Theme.Subtle;
+                edge = Kind == BtnKind.Ghost ? Color.FromArgb(0, surf) : Theme.LineSoft;
+                txt = Theme.TextDisabled;
+            }
 
             int pad = Theme.S(1);
             int press = (int)Math.Round(Math.Min(1.0, dn) * Theme.S(1));
@@ -1908,29 +1988,25 @@ namespace Fluxion
             bool primary = (Kind == BtnKind.Primary) && Enabled;
             if (primary)
             {
-                Color topC = Theme.Mix(fill, Color.White, 0.06);
-                Color botC = Theme.Mix(fill, Color.Black, 0.05);
-                using (var br = new LinearGradientBrush(new Rectangle(r.X, r.Y, Math.Max(1, r.Width), Math.Max(1, r.Height)), topC, botC, 90f))
+                Color topC = Theme.Mix(fill, Color.White, 0.10);
+                Color botC = Theme.Mix(fill, Color.Black, 0.08);
+                using (var br = new LinearGradientBrush(new Rectangle(r.X, r.Y, Math.Max(1, r.Width + 2), Math.Max(1, r.Height + 2)), topC, botC, 90f))
                 {
                     Theme.FillRound(g, r, rad, br);
                 }
                 Theme.EdgeRound(g, r, rad, edge, 1f);
-                var rIn = new Rectangle(r.X + 1, r.Y + 1, Math.Max(1, r.Width - 2), Math.Max(1, r.Height - 2));
-                using (var pIn = new Pen(Color.FromArgb(42, 255, 255, 255), 1f))
+                if (r.Width > rad * 2 + 4)
                 {
-                    g.DrawLine(pIn, rIn.X + rad, rIn.Y, rIn.Right - rad, rIn.Y);
+                    using (var pSheen = new Pen(Color.FromArgb(54, 255, 255, 255), 1f))
+                        g.DrawLine(pSheen, r.X + rad, r.Y + 1, r.Right - rad, r.Y + 1);
                 }
             }
             else
             {
-                Theme.FillRound(g, r, rad, fill);
-                if (Enabled && Kind == BtnKind.Default)
-                {
-                    int hiA = Theme.Dark ? 12 : 160;
-                    using (var pHi = new Pen(Color.FromArgb(hiA, 255, 255, 255), 1f))
-                        g.DrawLine(pHi, r.X + rad, r.Y + 1, r.Right - rad, r.Y + 1);
-                }
-                Theme.EdgeRound(g, r, rad, edge, 1f);
+                if (fill.A > 0 && !(Kind == BtnKind.Ghost && Math.Max(h, dn) <= 0.01))
+                    Theme.FillRound(g, r, rad, fill);
+                if (edge.A > 0)
+                    Theme.EdgeRound(g, r, rad, edge, 1f);
             }
             if (primary)
                 Theme.DrawTxt(g, Text, Theme.FM(9.5f), r, txt,
@@ -2304,15 +2380,17 @@ namespace Fluxion
             using (var bgBr = new SolidBrush(surf))
                 g.FillRectangle(bgBr, 0, 0, Width, Height);
 
-            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.SmoothingMode = SmoothingMode.HighQuality;
+            PixelOffsetMode oldPo = g.PixelOffsetMode;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
 
             int sz = Math.Min(Width, Height);
             int pad = Theme.S(4);
-            int penW = Math.Max(Theme.S(4), sz / 15);
-            int diam = Math.Max(1, sz - pad * 2 - penW);
-            var rect = new Rectangle((Width - diam) / 2, (Height - diam) / 2, diam, diam);
-            if (rect.Width <= 0 || rect.Height <= 0) return;
+            float penW = Math.Max(Theme.S(4), sz / 14f);
+            float diam = Math.Max(2f, sz - pad * 2f - penW);
+            var rect = new RectangleF((Width - diam) / 2f, (Height - diam) / 2f, diam, diam);
+            if (rect.Width <= 0f || rect.Height <= 0f) { g.PixelOffsetMode = oldPo; return; }
 
             using (var trackPen = new Pen(Theme.LineSoft, penW))
             {
@@ -2331,6 +2409,7 @@ namespace Fluxion
                     else g.DrawArc(activePen, rect, -90f, sweep);
                 }
             }
+            g.PixelOffsetMode = oldPo;
 
             // 3. 居中主数值与标注
             float numPt = sz < Theme.S(90) ? 15.5f : 19f;
@@ -2338,8 +2417,8 @@ namespace Fluxion
             Font fNum = Theme.NumLight(numPt);
             Font fSub = Theme.F(subPt);
 
-            int cx = rect.X + rect.Width / 2;
-            int cy = rect.Y + rect.Height / 2;
+            int cx = (int)Math.Round(rect.X + rect.Width / 2f);
+            int cy = (int)Math.Round(rect.Y + rect.Height / 2f);
 
             Size szNum = TextRenderer.MeasureText(score, fNum);
             Size szSub = TextRenderer.MeasureText(sub, fSub);
@@ -2427,6 +2506,7 @@ namespace Fluxion
         {
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
 
             Color surf = Corner.HasValue ? Corner.Value : Theme.ParentSurface(this);
@@ -2876,10 +2956,12 @@ namespace Fluxion
             Color surf = Corner.HasValue ? Corner.Value : Theme.ParentSurface(this);
             using (var __bg = new SolidBrush(surf)) e.Graphics.FillRectangle(__bg, 0, 0, Width, Height);
             var g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.SmoothingMode = SmoothingMode.HighQuality;
+            PixelOffsetMode oldPo = g.PixelOffsetMode;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             int d = Theme.S(16);
             int y = (Height - d) / 2;
-            var circle = new Rectangle(Theme.S(3), y, d, d);
+            var circle = new RectangleF(Theme.S(3) + 0.5f, y + 0.5f, d, d);
 
             Color restFill = Theme.FieldOn(surf);
             Color restEdge = Theme.Mix(Theme.FieldEdge, Theme.TextDim, 0.28);
@@ -2894,19 +2976,715 @@ namespace Fluxion
 
             if (Checked)
             {
-                int dotD = Theme.S(6);
-                int dotX = circle.X + (d - dotD) / 2;
-                int dotY = circle.Y + (d - dotD) / 2;
+                float dotD = Theme.S(6);
+                float dotX = circle.X + (d - dotD) / 2f;
+                float dotY = circle.Y + (d - dotD) / 2f;
                 using (var bDot = new SolidBrush(Theme.Accent))
                     g.FillEllipse(bDot, dotX, dotY, dotD, dotD);
             }
+            g.PixelOffsetMode = oldPo;
 
             Theme.DrawTxt(g, Text, Font, new Rectangle(Theme.S(25), 0, Math.Max(1, Width - Theme.S(25)), Height),
                 Enabled ? Theme.Text : Theme.TextDisabled,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
             if (Focused && ShowFocusCues)
-                Theme.DrawFocusRing(g, new Rectangle(circle.X - Theme.S(3), circle.Y - Theme.S(3),
-                    circle.Width + Theme.S(6), circle.Height + Theme.S(6)), Theme.S(11));
+                Theme.DrawFocusRing(g, new Rectangle((int)circle.X - Theme.S(3), (int)circle.Y - Theme.S(3),
+                    d + Theme.S(6), d + Theme.S(6)), Theme.S(11));
+        }
+    }
+
+    // ============================================================================
+    //  器物极简原语套件（对标 Windows 11 Settings / Winhance / Linear）
+    //  1) ToggleSwitch     —— 40x20 黄金比例丝滑胶囊拨杆开关
+    //  2) MemoryBar        —— 物理内存三段式（活跃占用 / Standby 备用缓存 / 纯空闲）可视化条
+    //  3) SettingExpander  —— 1px 发丝边可折叠设置组卡片（含行内胶囊开关 / 下拉 / 动作行）
+    //  4) ModernDialog     —— 自适应浅/深色主题的 DWM 圆角确认与提示对话框
+    // ============================================================================
+    public class ToggleSwitch : Control
+    {
+        bool isOn;
+        bool hover;
+        readonly Anim aThumb;
+        public Color? Corner;
+        public event EventHandler CheckedChanged;
+
+        public ToggleSwitch()
+        {
+            SetStyle(ControlStyles.Opaque | ControlStyles.AllPaintingInWmPaint
+                     | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint
+                     | ControlStyles.ResizeRedraw | ControlStyles.Selectable, true);
+            Size = new Size(Theme.S(42), Theme.S(22));
+            BackColor = Theme.Panel;
+            Cursor = Cursors.Hand;
+            TabStop = true;
+            aThumb = new Anim(this, Motion.Fast, Motion.Decel);
+            aThumb.Snap(0);
+        }
+
+        public bool Checked
+        {
+            get { return isOn; }
+            set
+            {
+                if (isOn == value) return;
+                isOn = value;
+                aThumb.To(isOn ? 1.0 : 0.0);
+                Invalidate();
+                if (CheckedChanged != null) CheckedChanged(this, EventArgs.Empty);
+            }
+        }
+
+        public void SetSilent(bool value)
+        {
+            isOn = value;
+            aThumb.Snap(isOn ? 1.0 : 0.0);
+            Invalidate();
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnMouseClick(MouseEventArgs e)
+        {
+            base.OnMouseClick(e);
+            if (e.Button == MouseButtons.Left && Enabled) Checked = !isOn;
+        }
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            if (Enabled && (e.KeyCode == Keys.Space || e.KeyCode == Keys.Enter))
+            {
+                e.Handled = true;
+                Checked = !isOn;
+            }
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            Color surf = Corner.HasValue ? Corner.Value : Theme.ParentSurface(this);
+            using (var bgBr = new SolidBrush(surf))
+                g.FillRectangle(bgBr, 0, 0, Width, Height);
+
+            int tw = Theme.S(40);
+            int th = Theme.S(20);
+            int tx = (Width - tw) / 2;
+            int ty = (Height - th) / 2;
+            var trackRect = new Rectangle(tx, ty, tw - 1, th - 1);
+
+            double t = Math.Max(0.0, Math.Min(1.0, aThumb.Value));
+            Color offFill = Theme.Dark ? Theme.Subtle : Theme.Field;
+            if (hover && Enabled) offFill = Theme.Mix(offFill, Theme.Text, 0.05);
+            Color onFill = hover && Enabled ? Theme.AccentLite : Theme.Accent;
+            Color trackFill = !Enabled ? Theme.LineSoft : Theme.Mix(offFill, onFill, t);
+            Color offEdge = hover && Enabled ? Theme.TextDim : Theme.Mix(Theme.FieldEdge, Theme.TextDim, 0.35);
+            Color trackEdge = !Enabled ? Theme.LineSoft : Theme.Mix(offEdge, onFill, t);
+
+            Theme.FillRound(g, trackRect, th / 2, trackFill);
+            Theme.EdgeRound(g, trackRect, th / 2, trackEdge, 1.1f);
+
+            SmoothingMode oldSm = g.SmoothingMode;
+            PixelOffsetMode oldPo = g.PixelOffsetMode;
+            g.SmoothingMode = SmoothingMode.HighQuality;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            try
+            {
+                float pad = Theme.S(3.5f);
+                float knobD = Math.Max(Theme.S(12), th - pad * 2f);
+                float minX = tx + 0.5f + pad;
+                float maxX = tx + 0.5f + (tw - 1) - pad - knobD;
+                float kx = (float)(minX + (maxX - minX) * t);
+                float ky = ty + 0.5f + ((th - 1) - knobD) / 2f;
+
+                Color offKnob = Theme.Dark ? Theme.TextDim : Theme.Mix(Theme.TextDim, Theme.Text, 0.25);
+                Color knobCol = !Enabled ? Theme.TextDisabled : Theme.Mix(offKnob, Color.White, t);
+                using (var kb = new SolidBrush(knobCol))
+                    g.FillEllipse(kb, kx, ky, knobD, knobD);
+            }
+            finally
+            {
+                g.SmoothingMode = oldSm;
+                g.PixelOffsetMode = oldPo;
+            }
+
+            if (Focused && ShowFocusCues)
+                Theme.DrawFocusRing(g, new Rectangle(0, 0, Width - 1, Height - 1), th / 2 + 2);
+        }
+    }
+
+    public class MemoryBar : Control
+    {
+        long totalMb = 16384;
+        long usedMb = 0;
+        long standbyMb = 0;
+        long freeMb = 16384;
+        public Color? Corner;
+
+        public MemoryBar()
+        {
+            SetStyle(ControlStyles.Opaque | ControlStyles.AllPaintingInWmPaint
+                     | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint
+                     | ControlStyles.ResizeRedraw, true);
+            Height = Theme.S(46);
+            BackColor = Theme.Panel;
+        }
+
+        public void SetSnapshot(MemListSnapshot s)
+        {
+            if (s == null || s.TotalMb <= 0) return;
+            totalMb = s.TotalMb;
+            usedMb = Math.Max(0, s.UsedMb);
+            standbyMb = Math.Max(0, s.StandbyMb + s.ModifiedMb);
+            freeMb = Math.Max(0, totalMb - usedMb - standbyMb);
+            Invalidate();
+        }
+
+        static string FmtGb(long mb)
+        {
+            return (mb / 1024.0).ToString("0.0") + " GB";
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            Color surf = Corner.HasValue ? Corner.Value : Theme.ParentSurface(this);
+            using (var bgBr = new SolidBrush(surf))
+                g.FillRectangle(bgBr, 0, 0, Width, Height);
+
+            int barH = Theme.S(10);
+            int barY = Theme.S(4);
+            int barW = Math.Max(Theme.S(40), Width - 2);
+            var track = new Rectangle(0, barY, barW, barH);
+            Theme.FillRound(g, track, barH / 2, Theme.Field);
+            Theme.EdgeRound(g, track, barH / 2, Theme.LineSoft, 1f);
+
+            if (totalMb > 0)
+            {
+                int wUsed = (int)Math.Round(barW * (double)usedMb / totalMb);
+                int wSb = (int)Math.Round(barW * (double)standbyMb / totalMb);
+                if (wUsed + wSb > barW) wSb = Math.Max(0, barW - wUsed);
+
+                if (wUsed + wSb > barH / 2 && wSb > 2)
+                {
+                    var sbRect = new Rectangle(0, barY, Math.Min(barW, wUsed + wSb), barH);
+                    Theme.FillRound(g, sbRect, barH / 2, Theme.Alpha(Theme.Warn, Theme.Dark ? 0.68 : 0.58));
+                }
+                if (wUsed > 2)
+                {
+                    var uRect = new Rectangle(0, barY, Math.Max(barH, Math.Min(barW, wUsed)), barH);
+                    Theme.FillRound(g, uRect, barH / 2, Theme.Accent);
+                }
+            }
+
+            int legY = barY + barH + Theme.S(8);
+            int legH = Math.Max(Theme.S(18), Height - legY);
+            Font fLeg = Theme.F(8.8f);
+            int cx = 0;
+            cx = DrawLegendItem(g, cx, legY, legH, Theme.Accent, "活跃占用 " + FmtGb(usedMb), fLeg);
+            cx = DrawLegendItem(g, cx + Theme.S(18), legY, legH, Theme.Warn, "Standby 备用缓存 " + FmtGb(standbyMb) + "（可净化）", fLeg);
+            DrawLegendItem(g, cx + Theme.S(18), legY, legH, Theme.Ok, "纯空闲 " + FmtGb(freeMb), fLeg);
+        }
+
+        static int DrawLegendItem(Graphics g, int x, int y, int h, Color dotCol, string txt, Font f)
+        {
+            int d = Theme.S(7);
+            SmoothingMode oldSm = g.SmoothingMode;
+            g.SmoothingMode = SmoothingMode.HighQuality;
+            using (var b = new SolidBrush(dotCol))
+                g.FillEllipse(b, x, y + (h - d) / 2f, d, d);
+            g.SmoothingMode = oldSm;
+
+            int tx = x + d + Theme.S(6);
+            int tw = (int)Math.Ceiling(Theme.MeasureTxt(g, txt, f, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width) + Theme.S(4);
+            Theme.DrawTxt(g, txt, f, new Rectangle(tx, y, tw, h), Theme.TextDim,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+            return tx + tw;
+        }
+    }
+
+    public class SettingExpander : Panel
+    {
+        class ChildRow
+        {
+            public string RowTitle = "";
+            public string RowDesc = "";
+            public Control RightCtrl;
+            public Control FullBlock;
+            public int CustomH;
+            public int TopY;
+            public int RowH;
+        }
+
+        readonly List<ChildRow> rows = new List<ChildRow>();
+        public string GroupTitle = "";
+        public string GroupSummary = "";
+        public string StatusBadge = "";
+        public Color BadgeColor = Theme.Ok;
+        public int IconKind = 0; // 0=Chip, 1=Speed, 2=Pulse, 3=Lightning, 4=Globe, 5=Shield
+        bool expanded;
+        bool headHover;
+
+        public event EventHandler ExpandedChanged;
+
+        public SettingExpander(string title, string summary, int iconKind, bool startExpanded)
+        {
+            SetStyle(ControlStyles.Opaque | ControlStyles.AllPaintingInWmPaint
+                     | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint
+                     | ControlStyles.ResizeRedraw, true);
+            GroupTitle = title ?? "";
+            GroupSummary = summary ?? "";
+            IconKind = iconKind;
+            expanded = startExpanded;
+            BackColor = Theme.Bg;
+            Width = Theme.S(600);
+            Height = HeadHeight;
+        }
+
+        int HeadHeight { get { return Theme.S(58); } }
+        int Inset { get { return Sec.ShadowMargin; } }
+
+        public bool IsExpanded
+        {
+            get { return expanded; }
+            set
+            {
+                if (expanded == value) return;
+                expanded = value;
+                SyncChildrenVisibility();
+                RecomputeLayout();
+                NotifyParentReflow();
+                if (ExpandedChanged != null) ExpandedChanged(this, EventArgs.Empty);
+            }
+        }
+
+        public ToggleSwitch AddToggleRow(string title, string desc, bool initial, Action<bool> onChanged)
+        {
+            var sw = new ToggleSwitch();
+            sw.Corner = Theme.Panel;
+            sw.SetSilent(initial);
+            if (onChanged != null)
+            {
+                sw.CheckedChanged += delegate { onChanged(sw.Checked); };
+            }
+            AddRightRow(title, desc, sw);
+            return sw;
+        }
+
+        public RoundCombo AddComboRow(string title, string desc, object[] options, int selIdx, int comboW, Action<int> onPicked)
+        {
+            var cb = new RoundCombo();
+            cb.SetCorner(Theme.Panel);
+            cb.Width = comboW > 0 ? comboW : Theme.S(240);
+            if (options != null) cb.Items.AddRange(options);
+            if (selIdx >= 0 && selIdx < cb.Items.Count) cb.SelectedIndex = selIdx;
+            if (onPicked != null)
+            {
+                cb.SelectedIndexChanged += delegate { if (cb.SelectedIndex >= 0) onPicked(cb.SelectedIndex); };
+            }
+            AddRightRow(title, desc, cb);
+            return cb;
+        }
+
+        public FlatBtn AddActionRow(string title, string desc, string btnText, BtnKind kind, int btnW, EventHandler onClick)
+        {
+            var btn = new FlatBtn();
+            btn.Text = btnText ?? "执行";
+            btn.Kind = kind;
+            btn.Corner = Theme.Panel;
+            btn.Width = btnW > 0 ? btnW : Theme.S(108);
+            btn.Height = Theme.S(30);
+            if (onClick != null) btn.Click += onClick;
+            AddRightRow(title, desc, btn);
+            return btn;
+        }
+
+        public void AddRightRow(string title, string desc, Control rightCtrl)
+        {
+            var r = new ChildRow();
+            r.RowTitle = title ?? "";
+            r.RowDesc = desc ?? "";
+            r.RightCtrl = rightCtrl;
+            if (rightCtrl != null)
+            {
+                rightCtrl.Visible = expanded;
+                Controls.Add(rightCtrl);
+            }
+            rows.Add(r);
+            RecomputeLayout();
+        }
+
+        public void AddCustomBlock(Control block, int blockH)
+        {
+            if (block == null) return;
+            var r = new ChildRow();
+            r.FullBlock = block;
+            r.CustomH = blockH > 0 ? blockH : block.Height;
+            block.BackColor = Theme.Panel;
+            block.Visible = expanded;
+            Controls.Add(block);
+            rows.Add(r);
+            RecomputeLayout();
+        }
+
+        void SyncChildrenVisibility()
+        {
+            for (int i = 0; i < rows.Count; i++)
+            {
+                if (rows[i].RightCtrl != null) rows[i].RightCtrl.Visible = expanded;
+                if (rows[i].FullBlock != null) rows[i].FullBlock.Visible = expanded;
+            }
+        }
+
+        public void RecomputeLayout()
+        {
+            int ins = Inset;
+            int padX = Theme.S(20);
+            int curY = ins + HeadHeight;
+
+            if (expanded && rows.Count > 0)
+            {
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    ChildRow cr = rows[i];
+                    cr.TopY = curY;
+                    if (cr.FullBlock != null)
+                    {
+                        int bh = cr.CustomH > 0 ? cr.CustomH : cr.FullBlock.Height;
+                        cr.RowH = bh + Theme.S(18);
+                        cr.FullBlock.SetBounds(ins + padX, curY + Theme.S(9), Math.Max(Theme.S(120), Width - (ins + padX) * 2), bh);
+                    }
+                    else
+                    {
+                        cr.RowH = string.IsNullOrEmpty(cr.RowDesc) ? Theme.S(46) : Theme.S(56);
+                        if (cr.RightCtrl != null)
+                        {
+                            int rx = Width - ins - padX - cr.RightCtrl.Width;
+                            int ry = curY + (cr.RowH - cr.RightCtrl.Height) / 2;
+                            cr.RightCtrl.Location = new Point(Math.Max(ins + Theme.S(140), rx), ry);
+                        }
+                    }
+                    curY += cr.RowH;
+                }
+                curY += Theme.S(4);
+            }
+
+            int wantH = curY + ins;
+            if (Height != wantH) Height = wantH;
+            Invalidate();
+        }
+
+        protected override void OnSizeChanged(EventArgs e)
+        {
+            base.OnSizeChanged(e);
+            RecomputeLayout();
+        }
+
+        void NotifyParentReflow()
+        {
+            Sec parentSec = Parent as Sec;
+            if (parentSec != null)
+            {
+                parentSec.Resync();
+                return;
+            }
+            Pg pg = MainForm.PgOfControl(this);
+            if (pg != null)
+            {
+                pg.InvalidateLayout();
+                pg.Reflow();
+            }
+        }
+
+        Rectangle HeadHitRect()
+        {
+            return new Rectangle(Inset, Inset, Math.Max(1, Width - Inset * 2), HeadHeight);
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            bool h = HeadHitRect().Contains(e.Location);
+            if (h != headHover)
+            {
+                headHover = h;
+                Cursor = h ? Cursors.Hand : Cursors.Default;
+                Invalidate(new Rectangle(0, 0, Width, Inset + HeadHeight + 2));
+            }
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            if (headHover)
+            {
+                headHover = false;
+                Cursor = Cursors.Default;
+                Invalidate(new Rectangle(0, 0, Width, Inset + HeadHeight + 2));
+            }
+            base.OnMouseLeave(e);
+        }
+
+        protected override void OnMouseClick(MouseEventArgs e)
+        {
+            base.OnMouseClick(e);
+            if (e.Button == MouseButtons.Left && HeadHitRect().Contains(e.Location))
+                IsExpanded = !expanded;
+        }
+
+        static void DrawDomainIcon(Graphics g, Rectangle r, int kind, Color c)
+        {
+            SmoothingMode oldSm = g.SmoothingMode;
+            g.SmoothingMode = SmoothingMode.HighQuality;
+            try
+            {
+                if (kind == 0) Theme.DrawIconChip(g, r, c);
+                else if (kind == 1) Theme.DrawIconSpeedometer(g, r, c);
+                else if (kind == 2) Theme.DrawIconPulse(g, r, c);
+                else if (kind == 3) Theme.DrawIconLightning(g, r, c);
+                else
+                {
+                    using (var p = new Pen(c, 1.35f))
+                    {
+                        p.StartCap = LineCap.Round; p.EndCap = LineCap.Round; p.LineJoin = LineJoin.Round;
+                        if (kind == 4)
+                        {
+                            // 网络地球仪图标
+                            var er = new RectangleF(r.X + 1.5f, r.Y + 1.5f, r.Width - 3f, r.Height - 3f);
+                            g.DrawEllipse(p, er);
+                            g.DrawLine(p, er.Left + 1f, er.Top + er.Height / 2f, er.Right - 1f, er.Top + er.Height / 2f);
+                            g.DrawEllipse(p, er.X + er.Width * 0.27f, er.Y, er.Width * 0.46f, er.Height);
+                        }
+                        else
+                        {
+                            // 护盾降噪图标
+                            float cx = r.X + r.Width / 2f;
+                            PointF[] pts = new PointF[]
+                            {
+                                new PointF(cx, r.Y + 1.5f),
+                                new PointF(r.Right - 2f, r.Y + 4f),
+                                new PointF(r.Right - 2.5f, r.Y + r.Height * 0.58f),
+                                new PointF(cx, r.Bottom - 1.5f),
+                                new PointF(r.X + 2.5f, r.Y + r.Height * 0.58f),
+                                new PointF(r.X + 2f, r.Y + 4f)
+                            };
+                            g.DrawPolygon(p, pts);
+                        }
+                    }
+                }
+            }
+            finally { g.SmoothingMode = oldSm; }
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            using (var bgBr = new SolidBrush(BackColor))
+                g.FillRectangle(bgBr, 0, 0, Width, Height);
+
+            int ins = Inset;
+            var cardRect = new Rectangle(ins, ins, Math.Max(1, Width - ins * 2 - 1), Math.Max(1, Height - ins * 2 - 1));
+            Theme.SoftShadow(g, cardRect, Theme.RPanel, ins);
+            Color headFill = (!expanded && headHover)
+                ? (Theme.Dark ? Theme.Mix(Theme.Panel, Color.White, 0.025) : Theme.Mix(Theme.Panel, Theme.Subtle, 0.65))
+                : Theme.Panel;
+            Theme.FillRound(g, cardRect, Theme.RPanel, headFill);
+
+            int padX = Theme.S(20);
+            int iconBoxSz = Theme.S(32);
+            int iconBoxX = ins + padX;
+            int iconBoxY = ins + (HeadHeight - iconBoxSz) / 2;
+            var iconBox = new Rectangle(iconBoxX, iconBoxY, iconBoxSz, iconBoxSz);
+            Theme.FillRound(g, iconBox, Theme.S(8), Theme.Dark ? Theme.Subtle : Theme.Field);
+            Theme.EdgeRound(g, iconBox, Theme.S(8), Theme.LineSoft, 1f);
+
+            int glyphSz = Theme.S(16);
+            var glyphRect = new Rectangle(iconBoxX + (iconBoxSz - glyphSz) / 2, iconBoxY + (iconBoxSz - glyphSz) / 2, glyphSz, glyphSz);
+            DrawDomainIcon(g, glyphRect, IconKind, Theme.Accent);
+
+            // 右侧折叠箭头与汇总胶囊
+            int chevX = Width - ins - padX - Theme.S(8);
+            int chevY = ins + HeadHeight / 2;
+            SmoothingMode oldSm = g.SmoothingMode;
+            g.SmoothingMode = SmoothingMode.HighQuality;
+            using (var pChev = new Pen(Theme.TextDim, 1.6f))
+            {
+                pChev.StartCap = LineCap.Round; pChev.EndCap = LineCap.Round; pChev.LineJoin = LineJoin.Round;
+                int cs = Theme.S(4);
+                if (expanded)
+                {
+                    g.DrawLines(pChev, new Point[] {
+                        new Point(chevX - cs, chevY + cs / 2),
+                        new Point(chevX, chevY - cs / 2 - 1),
+                        new Point(chevX + cs, chevY + cs / 2)
+                    });
+                }
+                else
+                {
+                    g.DrawLines(pChev, new Point[] {
+                        new Point(chevX - cs, chevY - cs / 2),
+                        new Point(chevX, chevY + cs / 2 + 1),
+                        new Point(chevX + cs, chevY - cs / 2)
+                    });
+                }
+            }
+            g.SmoothingMode = oldSm;
+
+            int rightBound = chevX - Theme.S(16);
+            if (!string.IsNullOrEmpty(StatusBadge))
+            {
+                Font fPill = Theme.FM(8.3f);
+                int pw = (int)Math.Ceiling(Theme.MeasureTxt(g, StatusBadge, fPill, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Width) + Theme.S(18);
+                int ph = Theme.S(22);
+                var pillRect = new Rectangle(rightBound - pw, ins + (HeadHeight - ph) / 2, pw, ph);
+                Color pillBg = BadgeColor == Theme.Ok ? Theme.OkSoft
+                             : (BadgeColor == Theme.Warn ? Theme.WarnSoft : Theme.AccentSoft);
+                Theme.FillRound(g, pillRect, ph / 2, pillBg);
+                Theme.DrawTxt(g, StatusBadge, fPill, pillRect, Theme.TextSafe(BadgeColor),
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                rightBound = pillRect.Left - Theme.S(14);
+            }
+
+            int textX = iconBox.Right + Theme.S(14);
+            int availW = Math.Max(Theme.S(80), rightBound - textX);
+            if (string.IsNullOrEmpty(GroupSummary))
+            {
+                Theme.DrawTxt(g, GroupTitle, Theme.FM(10.5f), new Rectangle(textX, ins, availW, HeadHeight), Theme.Text,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            }
+            else
+            {
+                Theme.DrawTxt(g, GroupTitle, Theme.FM(10.3f), new Rectangle(textX, ins + Theme.S(9), availW, Theme.S(22)), Theme.Text,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                Theme.DrawTxt(g, GroupSummary, Theme.F(8.8f), new Rectangle(textX, ins + Theme.S(30), availW, Theme.S(20)), Theme.TextDim,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            }
+
+            // 展开态：绘制行间精密 1px 发丝分割线与左侧标题/说明
+            if (expanded && rows.Count > 0)
+            {
+                using (var pSep = new Pen(Theme.LineSoft, 1f))
+                {
+                    g.DrawLine(pSep, ins + 1, ins + HeadHeight, Width - ins - 2, ins + HeadHeight);
+                    for (int i = 0; i < rows.Count; i++)
+                    {
+                        ChildRow cr = rows[i];
+                        if (i > 0)
+                            g.DrawLine(pSep, ins + padX, cr.TopY, Width - ins - padX, cr.TopY);
+                        if (cr.FullBlock != null) continue;
+
+                        int rowRight = (cr.RightCtrl != null) ? (cr.RightCtrl.Left - Theme.S(16)) : (Width - ins - padX);
+                        int rowAvail = Math.Max(Theme.S(80), rowRight - (ins + padX));
+                        if (string.IsNullOrEmpty(cr.RowDesc))
+                        {
+                            Theme.DrawTxt(g, cr.RowTitle, Theme.F(9.5f),
+                                new Rectangle(ins + padX, cr.TopY, rowAvail, cr.RowH), Theme.Text,
+                                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                        }
+                        else
+                        {
+                            Theme.DrawTxt(g, cr.RowTitle, Theme.F(9.5f),
+                                new Rectangle(ins + padX, cr.TopY + Theme.S(8), rowAvail, Theme.S(20)), Theme.Text,
+                                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                            Theme.DrawTxt(g, cr.RowDesc, Theme.F(8.5f),
+                                new Rectangle(ins + padX, cr.TopY + Theme.S(28), rowAvail, Theme.S(19)), Theme.TextDim,
+                                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                        }
+                    }
+                }
+            }
+
+            Theme.EdgeRound(g, cardRect, Theme.RPanel, Theme.CardEdge, 1f);
+            if (Theme.Dark && cardRect.Width > Theme.RPanel * 2 + 4)
+            {
+                using (var pRim = new Pen(Color.FromArgb(18, 255, 255, 255), 1f))
+                    g.DrawLine(pRim, cardRect.X + Theme.RPanel, cardRect.Y + 1, cardRect.Right - Theme.RPanel, cardRect.Y + 1);
+            }
+        }
+    }
+
+    public static class ModernDialog
+    {
+        public static bool Confirm(IWin32Window owner, string title, string message, string okText, bool danger)
+        {
+            return ShowModal(owner, title, message, okText ?? "确定", "取消", true, danger) == DialogResult.Yes;
+        }
+
+        public static void Notice(IWin32Window owner, string title, string message)
+        {
+            ShowModal(owner, title, message, "知道了", null, false, false);
+        }
+
+        static DialogResult ShowModal(IWin32Window owner, string title, string message, string okText, string cancelText, bool twoButtons, bool danger)
+        {
+            using (var dlg = new Form())
+            {
+                dlg.FormBorderStyle = FormBorderStyle.None;
+                dlg.StartPosition = owner != null ? FormStartPosition.CenterParent : FormStartPosition.CenterScreen;
+                dlg.ShowInTaskbar = false;
+                dlg.BackColor = Theme.Panel;
+                dlg.ForeColor = Theme.Text;
+                dlg.Font = Theme.F(9.5f);
+                dlg.KeyPreview = true;
+
+                int dlgW = Theme.S(430);
+                int padX = Theme.S(24);
+                int textW = dlgW - padX * 2;
+                int bodyH = Math.Max(Theme.S(44), Theme.MeasureLabelHeight(message ?? "", Theme.F(9.5f), textW) + Theme.S(6));
+                int dlgH = Theme.S(54) + bodyH + Theme.S(68);
+                dlg.ClientSize = new Size(dlgW, dlgH);
+
+                dlg.HandleCreated += delegate { Theme.ApplyChrome(dlg.Handle); };
+                dlg.Paint += delegate(object s, PaintEventArgs e)
+                {
+                    var g = e.Graphics;
+                    g.Clear(Theme.Panel);
+                    var footRect = new Rectangle(1, dlg.ClientSize.Height - Theme.S(54), dlg.ClientSize.Width - 2, Theme.S(53));
+                    using (var sb = new SolidBrush(Theme.Subtle))
+                        g.FillRectangle(sb, footRect);
+                    using (var pLine = new Pen(Theme.LineSoft, 1f))
+                        g.DrawLine(pLine, 1, footRect.Top, dlg.ClientSize.Width - 2, footRect.Top);
+                    Theme.DrawTxt(g, title ?? "Fluxion", Theme.FM(11.5f),
+                        new Rectangle(padX, Theme.S(16), textW, Theme.S(28)), Theme.Text,
+                        TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                    using (var pEdge = new Pen(Theme.CardEdge, 1f))
+                        g.DrawRectangle(pEdge, 0, 0, dlg.ClientSize.Width - 1, dlg.ClientSize.Height - 1);
+                };
+
+                var lblMsg = new TxtLbl();
+                lblMsg.BackColor = Theme.Panel;
+                lblMsg.ForeColor = Theme.TextDim;
+                lblMsg.Font = Theme.F(9.5f);
+                lblMsg.Text = message ?? "";
+                lblMsg.SetBounds(padX, Theme.S(50), textW, bodyH);
+                dlg.Controls.Add(lblMsg);
+
+                int btnY = dlgH - Theme.S(41);
+                var btnOk = new FlatBtn();
+                btnOk.Text = okText;
+                btnOk.Kind = danger ? BtnKind.Danger : BtnKind.Primary;
+                btnOk.Corner = Theme.Subtle;
+                btnOk.Size = new Size(Theme.S(92), Theme.S(30));
+                btnOk.Location = new Point(dlgW - padX - btnOk.Width, btnY);
+                btnOk.Click += delegate { dlg.DialogResult = twoButtons ? DialogResult.Yes : DialogResult.OK; };
+                dlg.Controls.Add(btnOk);
+
+                if (twoButtons)
+                {
+                    var btnCancel = new FlatBtn();
+                    btnCancel.Text = cancelText ?? "取消";
+                    btnCancel.Corner = Theme.Subtle;
+                    btnCancel.Size = new Size(Theme.S(84), Theme.S(30));
+                    btnCancel.Location = new Point(btnOk.Left - Theme.S(10) - btnCancel.Width, btnY);
+                    btnCancel.Click += delegate { dlg.DialogResult = DialogResult.No; };
+                    dlg.Controls.Add(btnCancel);
+                }
+
+                dlg.KeyDown += delegate(object s, KeyEventArgs ke)
+                {
+                    if (ke.KeyCode == Keys.Escape) dlg.DialogResult = twoButtons ? DialogResult.No : DialogResult.Cancel;
+                    else if (ke.KeyCode == Keys.Enter) dlg.DialogResult = twoButtons ? DialogResult.Yes : DialogResult.OK;
+                };
+                Fx.FadeOnClose(dlg);
+                return owner != null ? dlg.ShowDialog(owner) : dlg.ShowDialog();
+            }
         }
     }
 
@@ -3469,6 +4247,7 @@ namespace Fluxion
             using (var __bg = new SolidBrush(BackColor)) e.Graphics.FillRectangle(__bg, 0, 0, Width, Height);
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
             var r = new Rectangle(Theme.S(1), Theme.S(1), Width - 1 - Theme.S(2), Height - 1 - Theme.S(2));
             Theme.FillRound(g, r, Theme.RField, Theme.FieldOn(BackColor));
@@ -4029,6 +4808,7 @@ namespace Fluxion
         {
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
             if (Hero) { PaintHero(g); return; }
 
@@ -4176,6 +4956,7 @@ namespace Fluxion
         }
 
         public int Selected { get { return selected; } }
+        public int GameBadgeCount;
         public event EventHandler SelectedChanged;
 
         public void SetItems(string[] names, bool[] showMask)
@@ -4274,10 +5055,24 @@ namespace Fluxion
                 Color ic = sel ? Theme.Accent : (i == hot ? Theme.Text : Theme.TextDim);
                 int iz = Theme.S(16);
                 MainForm.DrawPageIcon(g, new Rectangle(Theme.S(13), y + (RowH - iz) / 2, iz, iz), i, ic);
+                int rightPad = (i == 2 && GameBadgeCount > 0) ? Theme.S(44) : Theme.S(12);
                 Theme.DrawTxt(g, items[i], sel ? Theme.FM(10f) : Theme.F(10f),
-                    new Rectangle(Theme.S(40), y, Width - Theme.S(48), RowH), fg,
+                    new Rectangle(Theme.S(40), y, Math.Max(Theme.S(40), Width - Theme.S(40) - rightPad), RowH), fg,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix
                     | TextFormatFlags.EndEllipsis);
+                if (i == 2 && GameBadgeCount > 0)
+                {
+                    string cntStr = GameBadgeCount > 99 ? "99+" : GameBadgeCount.ToString();
+                    Font fBadge = Theme.Num(8.2f);
+                    int bw = Math.Max(Theme.S(22), TextRenderer.MeasureText(cntStr, fBadge).Width + Theme.S(8));
+                    int bh = Theme.S(18);
+                    var br = new Rectangle(row.Right - bw - Theme.S(8), row.Y + (row.Height - bh) / 2, bw, bh);
+                    Color bFill = sel ? Theme.AccentSoft : Theme.FieldOn(BackColor);
+                    Color bFg = sel ? Theme.Accent : Theme.TextDim;
+                    Theme.FillRound(g, br, bh / 2, bFill);
+                    Theme.DrawTxt(g, cntStr, fBadge, br, bFg,
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
+                }
                 y += RowH;
                 k++;
             }
@@ -4319,6 +5114,7 @@ namespace Fluxion
         }
 
         public int Selected { get { return selected; } }
+        public int GameBadgeCount;
         public event EventHandler SelectedChanged;
 
         // 程序化切换（Switch / 探针）：走动画 + 发事件。
@@ -4432,6 +5228,7 @@ namespace Fluxion
             if (items.Length == 0 || slotOf == null) return;
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
 
             var track = TrackRect();
@@ -4742,8 +5539,10 @@ namespace Fluxion
     public class SideGameList : Control
     {
         public event Action<DlssgGame> Picked;
+        public event Action<DlssgGame> Launched;
         public event Action<DlssgGame> RightClicked;
         public event Action MorePicked;      // "还有 N 款 ›" 被点（去游戏库）
+        public event Action ScanRequested;   // 空态引导卡被点（一键扫描游戏）
         public string EmptyText = "扫描中…";   // 一条都没有时显示的话（由 RefreshSideGames 按库状态给）
 
         readonly List<DlssgGame> items = new List<DlssgGame>();
@@ -4751,6 +5550,8 @@ namespace Fluxion
         string selId = "";
         string lastSig = "";        // 上一批游戏的签名（相同就不重取封面）
         int hot = -1;
+        bool hotPlayBtn;
+        bool hotEmpty;
 
         int RowH { get { return Theme.S(42); } }
         int CovW { get { return Theme.S(24); } }
@@ -4838,12 +5639,41 @@ namespace Fluxion
             return i;
         }
 
+        Rectangle EmptyCardRect()
+        {
+            return new Rectangle(Theme.S(2), Theme.S(4), Math.Max(Theme.S(80), Width - Theme.S(4) - 1), Theme.S(56));
+        }
+
+        Rectangle PlayBtnRect(int rowIdx)
+        {
+            var r = new Rectangle(Theme.S(1), Theme.S(2) + rowIdx * RowH, Width - 1 - Theme.S(2), RowH - Theme.S(2));
+            int d = Theme.S(22);
+            return new Rectangle(r.Right - d - Theme.S(6), r.Y + (r.Height - d) / 2, d, d);
+        }
+
         protected override void OnMouseMove(MouseEventArgs e)
         {
+            if (DrawRows == 0)
+            {
+                bool he = EmptyCardRect().Contains(e.Location);
+                if (he != hotEmpty || hot != -1)
+                {
+                    hotEmpty = he;
+                    hot = -1;
+                    hotPlayBtn = false;
+                    Cursor = he ? Cursors.Hand : Cursors.Default;
+                    Invalidate();
+                }
+                base.OnMouseMove(e);
+                return;
+            }
+            hotEmpty = false;
             int i = RowAt(e.Location);
-            if (i != hot)
+            bool hp = (i >= 0 && i != MoreRow && i < items.Count) && PlayBtnRect(i).Contains(e.Location);
+            if (i != hot || hp != hotPlayBtn)
             {
                 hot = i;
+                hotPlayBtn = hp;
                 Cursor = (hot >= 0) ? Cursors.Hand : Cursors.Default;
                 Invalidate();
             }
@@ -4852,9 +5682,11 @@ namespace Fluxion
 
         protected override void OnMouseLeave(EventArgs e)
         {
-            if (hot != -1)
+            if (hot != -1 || hotPlayBtn || hotEmpty)
             {
                 hot = -1;
+                hotPlayBtn = false;
+                hotEmpty = false;
                 Cursor = Cursors.Default;
                 Invalidate();
             }
@@ -4864,18 +5696,39 @@ namespace Fluxion
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
+            if (DrawRows == 0)
+            {
+                if (e.Button == MouseButtons.Left && EmptyCardRect().Contains(e.Location))
+                {
+                    if (ScanRequested != null) ScanRequested();
+                }
+                return;
+            }
             int i = RowAt(e.Location);
             if (i < 0) return;
             if (e.Button == MouseButtons.Left)
             {
                 if (i == MoreRow) { if (MorePicked != null) MorePicked(); }
-                else if (i < items.Count && Picked != null) { Picked(items[i]); }
+                else if (i < items.Count)
+                {
+                    if (PlayBtnRect(i).Contains(e.Location) && Launched != null) Launched(items[i]);
+                    else if (Picked != null) Picked(items[i]);
+                }
             }
             else if (e.Button == MouseButtons.Right)
             {
                 if (i != MoreRow && i < items.Count && RightClicked != null)
                     RightClicked(items[i]);
             }
+        }
+
+        protected override void OnDoubleClick(EventArgs e)
+        {
+            base.OnDoubleClick(e);
+            Point pt = PointToClient(Cursor.Position);
+            int i = RowAt(pt);
+            if (i >= 0 && i != MoreRow && i < items.Count && Launched != null)
+                Launched(items[i]);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -4889,13 +5742,24 @@ namespace Fluxion
                 int n = DrawRows;
                 if (n == 0)
                 {
-                    Theme.DrawTxt(g, EmptyText ?? "", Theme.F(9f),
-                        new Rectangle(TagX, Theme.S(2), Width - TagX - Theme.S(8), RowH),
-                        Theme.TextDim,
-                        TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix
-                        | TextFormatFlags.EndEllipsis);
+                    var er = EmptyCardRect();
+                    Color eFill = hotEmpty ? Theme.Hover : Theme.FieldOn(BackColor);
+                    Color eEdge = hotEmpty ? Theme.Accent : Theme.Line;
+                    Theme.FillRound(g, er, Theme.RBtn, eFill);
+                    Theme.EdgeRound(g, er, Theme.RBtn, eEdge, 1f);
+                    int icSz = Theme.S(14);
+                    Theme.DrawIconLightning(g, new Rectangle(er.X + Theme.S(11), er.Y + Theme.S(11), icSz, icSz), Theme.Accent);
+                    string mainTxt = (EmptyText != null && EmptyText.Contains("扫描中")) ? "正在扫描本机游戏…" : "一键扫描本机游戏";
+                    Theme.DrawTxt(g, mainTxt, Theme.FM(9.2f),
+                        new Rectangle(er.X + Theme.S(29), er.Y + Theme.S(7), Math.Max(Theme.S(40), er.Width - Theme.S(36)), Theme.S(20)),
+                        Theme.TextSafe(Theme.Accent),
+                        TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+                    Theme.DrawTxt(g, "Steam · WeGame · 米哈游 · 快捷方式", Theme.F(8f),
+                        new Rectangle(er.X + Theme.S(11), er.Y + Theme.S(29), Math.Max(Theme.S(40), er.Width - Theme.S(18)), Theme.S(18)),
+                        Theme.TextFaint,
+                        TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
                 }
-                Color hov = Theme.Mix(BackColor, Theme.Text, Theme.Dark ? 0.07 : 0.045);
+                Color hov = Theme.Mix(BackColor, Theme.Text, Theme.Dark ? 0.08 : 0.05);
                 for (int i = 0; i < n; i++)
                 {
                     bool hv = i == hot;
@@ -4903,12 +5767,12 @@ namespace Fluxion
                     if (i == MoreRow)
                     {
                         if (hv) Theme.FillRound(g, r, Theme.RBtn, hov);
-                        Theme.DrawTxt(g, "还有 " + (items.Count - MoreRow) + " 款", Theme.F(9f),
+                        Theme.DrawTxt(g, "全部 " + items.Count + " 款游戏", Theme.FM(8.8f),
                             new Rectangle(TagX, r.Y, r.Right - TagX - Theme.S(22), r.Height),
-                            hv ? Theme.Text : Theme.TextDim,
+                            hv ? Theme.Accent : Theme.TextDim,
                             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
                         int cx = r.Right - Theme.S(12), cy = r.Y + r.Height / 2, q = Theme.S(3);
-                        using (var p = new Pen(hv ? Theme.Text : Theme.TextFaint, 1.4f))
+                        using (var p = new Pen(hv ? Theme.Accent : Theme.TextFaint, 1.4f))
                         {
                             p.StartCap = LineCap.Round; p.EndCap = LineCap.Round; p.LineJoin = LineJoin.Round;
                             g.DrawLines(p, new Point[] {
@@ -4953,11 +5817,32 @@ namespace Fluxion
                     }
                     else Theme.FillRound(g, cr, Theme.S(4), Theme.FieldOn(BackColor));
 
+                    int rightStop = hv ? Theme.S(34) : Theme.S(8);
                     Theme.DrawTxt(g, gi.Title, on ? Theme.FM(9.5f) : Theme.F(9.5f),
-                        new Rectangle(TagX, r.Y, r.Right - TagX - Theme.S(8), r.Height),
+                        new Rectangle(TagX, r.Y, Math.Max(Theme.S(24), r.Right - TagX - rightStop), r.Height),
                         on ? Theme.Text : (hv ? Theme.Text : Theme.TextDim),
                         TextFormatFlags.Left | TextFormatFlags.VerticalCenter
                         | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+
+                    if (hv)
+                    {
+                        var pr = PlayBtnRect(i);
+                        Color pBg = hotPlayBtn ? Theme.Accent : Theme.AccentSoft;
+                        Color pFg = hotPlayBtn ? Color.White : Theme.Accent;
+                        using (var pb = new SolidBrush(pBg)) g.FillEllipse(pb, pr);
+                        using (var pf = new SolidBrush(pFg))
+                        {
+                            int tw = Math.Max(4, pr.Width * 3 / 10);
+                            int th = Math.Max(6, pr.Height * 2 / 5);
+                            int px = pr.X + (pr.Width - tw) / 2 + 1;
+                            int py = pr.Y + pr.Height / 2;
+                            g.FillPolygon(pf, new Point[] {
+                                new Point(px, py - th / 2),
+                                new Point(px, py + th / 2),
+                                new Point(px + tw, py)
+                            });
+                        }
+                    }
                 }
             }
             catch
@@ -5519,6 +6404,342 @@ namespace Fluxion
     //    · 卡面只留两行：名字 + **可点的方案胶囊** —— 这颗胶囊是和竞品真正的差别，
     //      点它就地换方案，不用进详情；
     //    · 点卡片 = 进详情（Steam 的行为），右下 ▶ = 直接启动。
+    static class LauncherUi
+    {
+        public static string PlatformShort(string plat)
+        {
+            if (string.IsNullOrEmpty(plat)) return "本地";
+            string p = plat.Trim().ToLowerInvariant();
+            if (p == "steam") return "Steam";
+            if (p == "wegame") return "WeGame";
+            if (p == "hoyo" || p == "mihoyo" || p == "hoyoplay") return "米哈游";
+            if (p == "epic") return "Epic";
+            if (p == "kuro") return "库洛";
+            if (p == "gog") return "GOG";
+            if (p == "ea") return "EA";
+            if (p == "ubisoft" || p == "uplay") return "育碧";
+            if (p == "battle" || p == "battlenet") return "战网";
+            return "本地";
+        }
+
+        public static string ModeLabel(DlssgGame g)
+        {
+            if (g == null) return "免平台直启";
+            try
+            {
+                string s = Lib.LaunchModeLabel(g);
+                if (!string.IsNullOrEmpty(s)) return s;
+            }
+            catch { }
+            return (g.Platform == "steam" && !string.IsNullOrEmpty(g.AppId)) ? "静默唤起" : "免平台直启";
+        }
+
+        public static string GetMode(DlssgGame g)
+        {
+            if (g == null) return "auto";
+            try
+            {
+                string m = Lib.GetLaunchMode(g);
+                if (!string.IsNullOrEmpty(m)) return m;
+            }
+            catch { }
+            return "auto";
+        }
+
+        public static void SetMode(DlssgGame g, string mode)
+        {
+            if (g == null) return;
+            try { Lib.SetLaunchMode(g, mode ?? "auto"); } catch { }
+        }
+
+        public static bool IsLauncherCapsule(DlssgGame g)
+        {
+            if (g == null || g.Ignored) return false;
+            if (g.Installed || Dlssg030.ShortTag(g).Length > 0 || XeMfg.ShortTag(g).Length > 0) return false;
+            if (g.HasFrameGen) return false;
+            return true;
+        }
+    }
+
+    //  仪表盘首屏顶部：快速开局聚光灯横幅（Launcher-First Spotlight）
+    public class DashSpotlight : Panel
+    {
+        public DlssgGame Game;
+        public int TotalCount;
+        public bool Scanning;
+        public bool PurgeOnGame = true;
+        public bool EcoOn = true;
+
+        public event Action<DlssgGame> PlayClicked;
+        public event Action<DlssgGame> CardClicked;
+        public event Action LibraryClicked;
+        public event Action ScanClicked;
+        public event Action<Control> AddClicked;
+
+        readonly FlatBtn bPrimary, bSecondary;
+        Image coverImg;
+        string coverKey = "";
+
+        public DashSpotlight()
+        {
+            SetStyle(ControlStyles.Opaque | ControlStyles.AllPaintingInWmPaint
+                     | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint
+                     | ControlStyles.ResizeRedraw, true);
+            BackColor = Theme.Bg;
+            Height = Theme.S(114);
+
+            bPrimary = new FlatBtn();
+            bPrimary.Kind = BtnKind.Primary;
+            bPrimary.Corner = Theme.Panel;
+            bPrimary.Font = Theme.FM(9.5f);
+            bPrimary.Height = Theme.S(36);
+            bPrimary.Click += delegate
+            {
+                if (Game != null) { if (PlayClicked != null) PlayClicked(Game); }
+                else { if (ScanClicked != null) ScanClicked(); }
+            };
+
+            bSecondary = new FlatBtn();
+            bSecondary.Kind = BtnKind.Subtle;
+            bSecondary.Corner = Theme.Panel;
+            bSecondary.Font = Theme.F(9.2f);
+            bSecondary.Height = Theme.S(36);
+            bSecondary.Click += delegate
+            {
+                if (Game != null) { if (LibraryClicked != null) LibraryClicked(); }
+                else { if (AddClicked != null) AddClicked(bSecondary); }
+            };
+
+            Controls.Add(bPrimary);
+            Controls.Add(bSecondary);
+        }
+
+        int Inset { get { return Sec.ShadowMargin; } }
+
+        public void SetState(DlssgGame g, int totalCount, bool scanning, bool purgeOn, bool ecoOn)
+        {
+            Game = g;
+            TotalCount = totalCount;
+            Scanning = scanning;
+            PurgeOnGame = purgeOn;
+            EcoOn = ecoOn;
+
+            string wantKey = g == null ? "" : (Lib.IdOf(g) + "|" + (g.Title ?? ""));
+            if (wantKey != coverKey)
+            {
+                coverKey = wantKey;
+                if (coverImg != null) { try { coverImg.Dispose(); } catch { } coverImg = null; }
+                if (g != null && !Program.ShareBuild)
+                {
+                    try { coverImg = CoverArt.Card(g, Theme.S(112), Theme.S(168)); } catch { }
+                }
+            }
+
+            if (g != null)
+            {
+                bPrimary.Text = "▶ 立即畅玩";
+                bPrimary.Enabled = true;
+                bPrimary.Width = Theme.S(118);
+                bSecondary.Text = totalCount > 0 ? ("游戏库 (" + totalCount + ")") : "打开游戏库";
+                bSecondary.Width = Theme.S(104);
+                Cursor = Cursors.Hand;
+            }
+            else
+            {
+                bPrimary.Text = scanning ? "正在扫描…" : "⚡ 立即扫描游戏";
+                bPrimary.Enabled = !scanning;
+                bPrimary.Width = Theme.S(130);
+                bSecondary.Text = "+ 添加游戏";
+                bSecondary.Width = Theme.S(98);
+                Cursor = Cursors.Default;
+            }
+            PlaceButtons();
+            Invalidate();
+        }
+
+        void PlaceButtons()
+        {
+            if (bPrimary == null || bSecondary == null || Width <= 0 || Height <= 0) return;
+            int ins = Inset;
+            int bh = Theme.S(36);
+            int cy = (Height - bh) / 2;
+            int rightEdge = Width - ins - Theme.S(22);
+            bSecondary.SetBounds(rightEdge - bSecondary.Width, cy, bSecondary.Width, bh);
+            bPrimary.SetBounds(bSecondary.Left - Theme.S(8) - bPrimary.Width, cy, bPrimary.Width, bh);
+        }
+
+        protected override void OnLayout(LayoutEventArgs e)
+        {
+            base.OnLayout(e);
+            PlaceButtons();
+        }
+
+        protected override void OnMouseClick(MouseEventArgs e)
+        {
+            base.OnMouseClick(e);
+            if (e.Button == MouseButtons.Left && Game != null)
+            {
+                if (bPrimary != null && bPrimary.Bounds.Contains(e.Location)) return;
+                if (bSecondary != null && bSecondary.Bounds.Contains(e.Location)) return;
+                if (CardClicked != null) CardClicked(Game);
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && coverImg != null)
+            {
+                try { coverImg.Dispose(); } catch { }
+                coverImg = null;
+            }
+            base.Dispose(disposing);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            using (var bg = new SolidBrush(BackColor)) g.FillRectangle(bg, 0, 0, Width, Height);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+
+            int ins = Inset;
+            var cardRect = new Rectangle(ins, ins, Math.Max(1, Width - ins * 2 - 1), Math.Max(1, Height - ins * 2 - 1));
+            Theme.SoftShadow(g, cardRect, Theme.RPanel, ins);
+            Theme.FillRound(g, cardRect, Theme.RPanel, Theme.Panel);
+
+            if (cardRect.Width > 8 && cardRect.Height > 4)
+            {
+                Color washStart = Color.FromArgb(Theme.Dark ? 34 : 18, Theme.Accent);
+                Color washEnd = Color.FromArgb(0, Theme.Panel);
+                using (var br = new LinearGradientBrush(
+                    new Rectangle(cardRect.X - 2, cardRect.Y, cardRect.Width + 4, cardRect.Height),
+                    washStart, washEnd, 0f))
+                {
+                    var cb = new ColorBlend(3);
+                    cb.Colors = new Color[] { washStart, washEnd, washEnd };
+                    cb.Positions = new float[] { 0f, 0.45f, 1f };
+                    br.InterpolationColors = cb;
+                    Theme.FillRound(g, cardRect, Theme.RPanel, br);
+                }
+            }
+
+            Color edgeCol = Theme.Dark ? Theme.Mix(Theme.CardEdge, Theme.Accent, 0.20) : Theme.CardEdge;
+            Theme.EdgeRound(g, cardRect, Theme.RPanel, edgeCol, 1f);
+            if (Theme.Dark && cardRect.Width > Theme.RPanel * 2 + 4)
+            {
+                using (var pRim = new Pen(Color.FromArgb(22, 255, 255, 255), 1f))
+                    g.DrawLine(pRim, cardRect.X + Theme.RPanel, cardRect.Y + 1, cardRect.Right - Theme.RPanel, cardRect.Y + 1);
+            }
+
+            int rightStop = (bPrimary != null ? bPrimary.Left : (cardRect.Right - Theme.S(240))) - Theme.S(18);
+            if (Game != null)
+            {
+                int cw = Theme.S(54), ch = Theme.S(81);
+                var cr = new Rectangle(cardRect.X + Theme.S(18), cardRect.Y + (cardRect.Height - ch) / 2, cw, ch);
+                if (coverImg != null)
+                {
+                    var oldClip = g.Clip;
+                    try
+                    {
+                        using (var gpC = Theme.Round(cr, Theme.S(6))) g.SetClip(gpC);
+                        g.InterpolationMode = InterpolationMode.HighQualityBilinear;
+                        g.DrawImage(coverImg, cr);
+                        g.InterpolationMode = InterpolationMode.Default;
+                    }
+                    finally { g.Clip = oldClip; oldClip.Dispose(); }
+                }
+                else
+                {
+                    Theme.FillRound(g, cr, Theme.S(6), Theme.Subtle);
+                    int gz = Theme.S(22);
+                    Theme.DrawIconGamepad(g, new Rectangle(cr.X + (cr.Width - gz) / 2, cr.Y + (cr.Height - gz) / 2, gz, gz), Theme.Accent);
+                }
+                Theme.EdgeRound(g, new Rectangle(cr.X, cr.Y, cr.Width - 1, cr.Height - 1), Theme.S(6), Theme.Line, 1.25f);
+
+                int tx = cr.Right + Theme.S(18);
+                int availW = Math.Max(Theme.S(80), rightStop - tx);
+
+                int iz = Theme.S(12);
+                Theme.DrawIconLightning(g, new Rectangle(tx, cardRect.Y + Theme.S(16), iz, iz), Theme.Accent);
+                string eye = Game.LastPlayed > 0 ? "最近游玩 · 一键加速直启" : "快速开局 · 一键加速直启";
+                Theme.DrawTxt(g, eye, Theme.FM(8.4f),
+                    new Rectangle(tx + iz + Theme.S(5), cardRect.Y + Theme.S(13), availW - iz - Theme.S(6), Theme.S(18)),
+                    Theme.TextSafe(Theme.Accent),
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+
+                Theme.DrawTxt(g, Game.Title ?? "", Theme.FB(13.5f),
+                    new Rectangle(tx, cardRect.Y + Theme.S(34), availW, Theme.S(26)),
+                    Theme.Text,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+
+                int py = cardRect.Y + Theme.S(66);
+                int ph = Theme.S(20);
+                int px = tx;
+                Font fPill = Theme.FM(8.2f);
+
+                string platTxt = LauncherUi.PlatformShort(Game.Platform);
+                int pw1 = TextRenderer.MeasureText(platTxt, fPill).Width + Theme.S(14);
+                var pr1 = new Rectangle(px, py, pw1, ph);
+                Theme.FillRound(g, pr1, ph / 2, Theme.Field);
+                Theme.DrawTxt(g, platTxt, fPill, pr1, Theme.TextDim,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
+                px += pw1 + Theme.S(6);
+
+                string modeTxt = LauncherUi.ModeLabel(Game);
+                bool isSilent = modeTxt.IndexOf("静默") >= 0;
+                int pw2 = TextRenderer.MeasureText(modeTxt, fPill).Width + Theme.S(16);
+                var pr2 = new Rectangle(px, py, pw2, ph);
+                Theme.FillRound(g, pr2, ph / 2, isSilent ? Theme.AccentSoft : Theme.OkSoft);
+                Theme.DrawTxt(g, modeTxt, fPill, pr2, Theme.TextSafe(isSilent ? Theme.Accent : Theme.Ok),
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
+                px += pw2 + Theme.S(10);
+
+                if (px < rightStop - Theme.S(40))
+                {
+                    long pSec = 0;
+                    try { pSec = Program.PlayTimeOf(Lib.IdOf(Game)); } catch { }
+                    string boostNote = (PurgeOnGame ? "启动自动净化缓存" : "就绪")
+                        + (EcoOn ? " · EcoQoS 守护" : "")
+                        + (pSec >= 60 ? (" · 累计 " + Program.FmtPlay(pSec)) : "");
+                    Theme.DrawTxt(g, boostNote, Theme.F(8.5f),
+                        new Rectangle(px, py, rightStop - px, ph),
+                        Theme.TextFaint,
+                        TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+                }
+            }
+            else
+            {
+                int boxSz = Theme.S(52);
+                var ir = new Rectangle(cardRect.X + Theme.S(20), cardRect.Y + (cardRect.Height - boxSz) / 2, boxSz, boxSz);
+                Theme.FillRound(g, ir, Theme.S(12), Theme.AccentSoft);
+                int gz = Theme.S(26);
+                Theme.DrawIconGamepad(g, new Rectangle(ir.X + (boxSz - gz) / 2, ir.Y + (boxSz - gz) / 2, gz, gz), Theme.Accent);
+
+                int tx = ir.Right + Theme.S(18);
+                int availW = Math.Max(Theme.S(80), rightStop - tx);
+
+                Theme.DrawTxt(g, "全平台游戏一站式启动台", Theme.FM(8.4f),
+                    new Rectangle(tx, cardRect.Y + Theme.S(15), availW, Theme.S(18)),
+                    Theme.TextSafe(Theme.Accent),
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+
+                Theme.DrawTxt(g, "告别反复切换 Steam 与 WeGame，点一下即刻加速开局", Theme.FB(12.2f),
+                    new Rectangle(tx, cardRect.Y + Theme.S(35), availW, Theme.S(24)),
+                    Theme.Text,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+
+                string sub = Scanning
+                    ? "正在自动扫描本机 Steam · WeGame · 米哈游 · Epic 与桌面快捷方式…"
+                    : "支持自动聚合主流平台游戏，或直接将桌面游戏快捷方式 (.lnk / .exe) 拖入窗口";
+                Theme.DrawTxt(g, sub, Theme.F(8.8f),
+                    new Rectangle(tx, cardRect.Y + Theme.S(63), availW, Theme.S(20)),
+                    Theme.TextDim,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+            }
+        }
+    }
+
     public class CoverTile : Control
     {
         public DlssgGame Game;
@@ -5528,6 +6749,7 @@ namespace Fluxion
         public event EventHandler Chosen;                 // 单击：进详情
         public event EventHandler Launched;               // 右下 ▶：启动
         public event Action<CoverTile> SchemeMenu;        // 胶囊：换方案
+        public event Action<CoverTile> LaunchModeMenu;    // 胶囊：换启动方式（非帧生成游戏）
         public event Action<DlssgGame> RightClicked;      // 右键：游戏菜单
 
         Anim aHover, aPick;
@@ -5618,13 +6840,20 @@ namespace Fluxion
         //  安装或换方案后 Key 自然变化，缓存自己失效，不需要谁去手动清。
         static readonly Dictionary<string, string> tagMemo = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+        public void InvalidateBadges()
+        {
+            tagCache = null;
+            tagMemo.Clear();
+            Invalidate();
+        }
+
         string SchemeTag()
         {
             if (tagCache != null) return tagCache;
             DlssgGame g = Game;
             if (g == null) return tagCache = "";
             string memoKey = (g.Dir == null ? "" : g.Dir) + "|" + g.Installed + "|" + g.HasFrameGen
-                           + "|" + (g.Entry == null ? "" : g.Entry) + "|" + g.Ignored;
+                           + "|" + (g.Entry == null ? "" : g.Entry) + "|" + g.Ignored + "|" + LauncherUi.GetMode(g);
             string hit;
             if (tagMemo.TryGetValue(memoKey, out hit)) return tagCache = hit;
             tagCache = ComputeTag(g);
@@ -5646,7 +6875,7 @@ namespace Fluxion
                 return "已开启";
             }
             if (g.HasFrameGen) return "可接入";
-            return "无组件";
+            return LauncherUi.ModeLabel(g);
         }
 
         //  累计时长的短写法（"12h" / "35m"）：完整格式（"12.5 小时"）在小角标里放不下
@@ -5671,8 +6900,9 @@ namespace Fluxion
             DlssgGame g = Game;
             if (g == null) return Theme.TextFaint;
             if (g.Ignored) return Theme.Warn;
-            if (tagCache == "可接入") return Theme.Accent;
-            if (tagCache == "无组件") return Theme.TextFaint;
+            string t = SchemeTag();
+            if (t == "可接入") return Theme.Accent;
+            if (t.IndexOf("静默") >= 0) return Theme.Cyan;
             return Theme.Ok;
         }
 
@@ -5721,7 +6951,12 @@ namespace Fluxion
             if (e.Button == MouseButtons.Left && SchemeRect().Contains(e.Location))
             {
                 eatClick = true;
-                if (SchemeMenu != null) SchemeMenu(this);
+                if (LauncherUi.IsLauncherCapsule(Game))
+                {
+                    if (LaunchModeMenu != null) LaunchModeMenu(this);
+                    else if (SchemeMenu != null) SchemeMenu(this);
+                }
+                else if (SchemeMenu != null) SchemeMenu(this);
                 return;                                   // 不再触发"选中/进详情"
             }
             if (e.Button == MouseButtons.Left && (aHover.Value > 0.15 || hot) && PlayRect().Contains(e.Location))
@@ -5834,10 +7069,18 @@ namespace Fluxion
             else
                 Theme.EdgeRound(g, edgeRect, Theme.RCard, Theme.CardEdge, 1f);
 
-            if (Game != null && Game.Favorite)
-                Theme.DrawPhotoText(g, "★", Theme.FB(10f),
-                    new Rectangle(Theme.S(8), Theme.S(6), Theme.S(18), Theme.S(18)),
-                    Theme.Golden);
+            if (Game != null)
+            {
+                string platTag = (Game.Favorite ? "★ " : "") + LauncherUi.PlatformShort(Game.Platform);
+                Font fPlat = Theme.FM(7.8f);
+                int plW = TextRenderer.MeasureText(platTag, fPlat).Width + Theme.S(10);
+                int plH = Theme.S(17);
+                var plRect = new Rectangle(Theme.S(8), Theme.S(8), plW, plH);
+                Theme.FillRound(g, plRect, Theme.S(4), Color.FromArgb(156, 8, 12, 20));
+                Theme.EdgeRound(g, plRect, Theme.S(4), Color.FromArgb(38, 255, 255, 255), 1f);
+                Color plFg = Game.Favorite ? Color.FromArgb(250, 224, 102) : Color.FromArgb(236, 241, 245, 252);
+                Theme.DrawPhotoText(g, platTag, fPlat, plRect, plFg, StringAlignment.Center);
+            }
             string played = PlayLabel();
             if (played.Length > 0)
             {
@@ -6100,7 +7343,7 @@ namespace Fluxion
         Image cover;
         string coverKey;
 
-        public event Action<DlssgGame> Install, Launch, Details, PickScheme;
+        public event Action<DlssgGame> Install, Launch, Details, PickScheme, PickLaunchMode;
         string tagCache; Color dotCache;      // 状态摘要（SetGame 时算一次，绘制零 IO）
 
         readonly FlatBtn bInstall, bLaunch;
@@ -6113,8 +7356,8 @@ namespace Fluxion
                      | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint
                      | ControlStyles.ResizeRedraw, true);
             BackColor = Theme.Panel;
-            bInstall = MkBtn("安装并应用", BtnKind.Primary);
-            bLaunch = MkBtn("启动", BtnKind.Default);
+            bInstall = MkBtn("配置插帧", BtnKind.Subtle);
+            bLaunch = MkBtn("▶ 立即畅玩", BtnKind.Primary);
             bInstall.Click += delegate { if (Game != null && Install != null) Install(Game); };
             bLaunch.Click += delegate { if (Game != null && Launch != null) Launch(Game); };
         }
@@ -6160,10 +7403,18 @@ namespace Fluxion
             else if (a == Plan.Nvbr) { tag = "方案 B"; dot = Theme.Ok; }
             else if (a == Plan.Legacy) { tag = "旧代理"; dot = Theme.Ok; }
             else if (Game.Installed) { tag = "已开启"; dot = Theme.Ok; }
-            else if (Game.HasFrameGen) { tag = "可接入"; dot = Theme.Accent; }
-            else { tag = "无组件"; dot = Theme.TextFaint; }
+            else if (Game.HasFrameGen) { tag = "可接入帧生成"; dot = Theme.Accent; }
+            else
+            {
+                tag = LauncherUi.ModeLabel(Game);
+                dot = tag.IndexOf("静默") >= 0 ? Theme.Cyan : Theme.Ok;
+            }
             tagCache = tag;
             dotCache = dot;
+            if (bInstall != null)
+            {
+                bInstall.Text = LauncherUi.IsLauncherCapsule(Game) ? "启动参数…" : "安装并应用";
+            }
         }
 
         protected override void Dispose(bool disposing)
@@ -6179,10 +7430,10 @@ namespace Fluxion
             int h = Theme.S(30);
             int cy = (Height - h) / 2;
             int right = Width - Theme.S(18);
-            bLaunch.SetBounds(right - Theme.S(76), cy, Theme.S(76), h);
-            bInstall.SetBounds(bLaunch.Left - Theme.S(8) - Theme.S(100), cy, Theme.S(100), h);
+            bLaunch.SetBounds(right - Theme.S(104), cy, Theme.S(104), h);
+            bInstall.SetBounds(bLaunch.Left - Theme.S(8) - Theme.S(98), cy, Theme.S(98), h);
             rDetail = new Rectangle(bInstall.Left - Theme.S(8) - Theme.S(84), cy + Theme.S(1), Theme.S(84), h - Theme.S(2));
-            rChip = new Rectangle(Theme.S(18), cy + Theme.S(1), Theme.S(154), h - Theme.S(2));
+            rChip = new Rectangle(Theme.S(18), cy + Theme.S(1), Theme.S(164), h - Theme.S(2));
         }
 
         void PaintTopLine(Graphics g)
@@ -6275,7 +7526,16 @@ namespace Fluxion
         {
             if (e.Button == MouseButtons.Left && Game != null)
             {
-                if (rChip.Contains(e.Location)) { if (PickScheme != null) PickScheme(Game); return; }
+                if (rChip.Contains(e.Location))
+                {
+                    if (LauncherUi.IsLauncherCapsule(Game))
+                    {
+                        if (PickLaunchMode != null) PickLaunchMode(Game);
+                        else if (PickScheme != null) PickScheme(Game);
+                    }
+                    else if (PickScheme != null) PickScheme(Game);
+                    return;
+                }
                 if (rDetail.Contains(e.Location)) { if (Details != null) Details(Game); return; }
             }
             base.OnMouseDown(e);
@@ -6460,17 +7720,20 @@ namespace Fluxion
                     new Rectangle(tx, Height - Theme.S(46), Math.Max(Theme.S(120), Width - Theme.S(360)), Theme.S(18)),
                     Color.FromArgb(205, 255, 255, 255));
 
-            //  ---- 右下：详细设置 + 启动 ----
-            Theme.FillRound(g, rDetail, rDetail.Height / 2, Color.FromArgb(hotDetail ? 52 : 26, 255, 255, 255));
+            //  ---- 右下：启动设置 + 立即畅玩 ----
+            Theme.FillRound(g, rDetail, rDetail.Height / 2, Color.FromArgb(hotDetail ? 58 : 30, 255, 255, 255));
             Theme.EdgeRound(g, new Rectangle(rDetail.X, rDetail.Y, rDetail.Width - 1, rDetail.Height - 1),
-                rDetail.Height / 2, Color.FromArgb(hotDetail ? 96 : 44, 255, 255, 255), 1f);
-            Theme.DrawTxt(g, "详细设置", Theme.FM(9f), rDetail,
-                Color.FromArgb(hotDetail ? 255 : 228, 255, 255, 255),
+                rDetail.Height / 2, Color.FromArgb(hotDetail ? 104 : 48, 255, 255, 255), 1f);
+            Theme.DrawTxt(g, "启动设置", Theme.FM(9f), rDetail,
+                Color.FromArgb(hotDetail ? 255 : 232, 255, 255, 255),
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-            Theme.FillRound(g, rLaunch, rLaunch.Height / 2,
-                hotLaunch ? Color.FromArgb(255, 255, 255) : Color.FromArgb(238, 255, 255, 255));
-            Theme.DrawTxt(g, "启动游戏", Theme.FM(9.5f), rLaunch,
-                Color.FromArgb(16, 20, 28),
+
+            Color launchFill = hotLaunch ? Theme.AccentLite : Theme.Accent;
+            Theme.FillRound(g, rLaunch, rLaunch.Height / 2, launchFill);
+            Theme.EdgeRound(g, new Rectangle(rLaunch.X, rLaunch.Y, rLaunch.Width - 1, rLaunch.Height - 1),
+                rLaunch.Height / 2, Color.FromArgb(64, 255, 255, 255), 1f);
+            Theme.DrawTxt(g, "▶ 立即畅玩", Theme.FM(9.5f), rLaunch,
+                Color.White,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
         }
 
@@ -6496,47 +7759,49 @@ namespace Fluxion
 
         void OnLayoutClean()
         {
-            int h = Theme.S(34);
-            rLaunch = new Rectangle(Width - Theme.S(112) - Theme.S(20), Height - Theme.S(18) - h, Theme.S(112), h);
+            int h = Theme.S(36);
+            rLaunch = new Rectangle(Width - Theme.S(122) - Theme.S(20), Height - Theme.S(18) - h, Theme.S(122), h);
             rDetail = new Rectangle(rLaunch.Left - Theme.S(92) - Theme.S(10), Height - Theme.S(18) - h, Theme.S(92), h);
         }
 
-        //  副标题：状态 + 最近游玩（"可接入 · 昨天玩过"）
+        //  副标题：平台 + 启动方式 + 最近游玩/累计时长 + 插帧状态
         string HeroSub()
         {
-            string a = "";
-            try
-            {
-                if (Game.Installed)
-                {
-                    string p = Plan.Current(Game.Dir);
-                    if (p == Plan.Opti) a = "方案 A";
-                    else if (p == Plan.D030) a = "DLSS MFG " + Dlssg030.Ver;
-                    else if (p == Plan.D040) a = "DLSS MFG " + Dlssg040.Ver;
-                    else if (p == Plan.Nvbr) a = "方案 B";
-                    else a = "已开启";
-                }
-                else if (Game.HasFrameGen) a = "可接入帧生成";
-            }
-            catch { }
-            string when = "";
+            var parts = new List<string>();
+            parts.Add(LauncherUi.PlatformShort(Game.Platform));
+            parts.Add(LauncherUi.ModeLabel(Game));
             try
             {
                 if (Game.LastPlayed > 0)
                 {
                     var t = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(Game.LastPlayed).ToLocalTime();
                     TimeSpan d = DateTime.Now - t;
-                    if (d.TotalMinutes < 60) when = "刚刚玩过";
-                    else if (t.Date == DateTime.Today) when = "今天玩过";
-                    else if (t.Date == DateTime.Today.AddDays(-1)) when = "昨天玩过";
-                    else if (d.TotalDays < 30) when = (int)d.TotalDays + " 天前玩过";
+                    if (d.TotalMinutes < 60) parts.Add("刚刚玩过");
+                    else if (t.Date == DateTime.Today) parts.Add("今天玩过");
+                    else if (t.Date == DateTime.Today.AddDays(-1)) parts.Add("昨天玩过");
+                    else if (d.TotalDays < 30) parts.Add((int)d.TotalDays + " 天前玩过");
                 }
             }
             catch { }
-            //  只显示「最近玩过」：方案状态在底部状态栏已经有一份，两处都写就是重复
-            if (when.Length > 0) return when;
-            if (a.Length > 0) return a;
-            return "";
+            try
+            {
+                long pSec = Program.PlayTimeOf(Lib.IdOf(Game));
+                if (pSec >= 60) parts.Add("累计 " + Program.FmtPlay(pSec));
+            }
+            catch { }
+            try
+            {
+                if (Game.Installed)
+                {
+                    string p = Plan.Current(Game.Dir);
+                    if (p == Plan.Opti) parts.Add("方案 A");
+                    else if (p == Plan.D030) parts.Add("DLSS MFG " + Dlssg030.Ver);
+                    else if (p == Plan.D040) parts.Add("DLSS MFG " + Dlssg040.Ver);
+                    else if (p == Plan.Nvbr) parts.Add("方案 B");
+                }
+            }
+            catch { }
+            return string.Join("  ·  ", parts.ToArray());
         }
     }
 
@@ -6559,9 +7824,11 @@ namespace Fluxion
         public int IdealCellW { get { return Theme.S(174); } }   // 期望格宽（卡片 162 + 间距 12）
         public int CellW = Theme.S(174), CellH = Theme.S(255);
         public string Placeholder = "";
-        public Action ScanRequested;            // 空态主行动按钮（懒创建，见 OnPaint）触发
-        public bool ScanEnabled = true;         // 扫描进行中置 false：空态不显示主按钮（避免"正在扫描…"下再摆一颗"扫描游戏"）
+        public Action ScanRequested;            // 空态主行动按钮触发
+        public Action<Control> AddRequested;    // 空态添加快捷方式/游戏按钮触发
+        public bool ScanEnabled = true;         // 扫描进行中置 false：空态不显示主按钮
         FlatBtn btnEmpty;
+        FlatBtn btnEmptyAdd;
         bool busy;
 
         public int CardW { get { return Math.Max(Theme.S(96), CellW - Theme.S(12)); } }
@@ -6623,12 +7890,29 @@ namespace Fluxion
 
         void PlaceEmptyBtn()
         {
-            if (btnEmpty == null || !btnEmpty.Visible) return;
-            if (TileCount() > 0) { btnEmpty.Visible = false; return; }
-            int bx = Math.Max(0, (Width - btnEmpty.Width) / 2);
-            int by = Theme.S(168);
-            if (btnEmpty.Left != bx || btnEmpty.Top != by)
-                btnEmpty.Location = new Point(bx, by);
+            if (btnEmpty == null) return;
+            if (TileCount() > 0)
+            {
+                btnEmpty.Visible = false;
+                if (btnEmptyAdd != null) btnEmptyAdd.Visible = false;
+                return;
+            }
+            if (!btnEmpty.Visible) return;
+            int by = Theme.S(178);
+            if (btnEmptyAdd != null && btnEmptyAdd.Visible)
+            {
+                int gap = Theme.S(10);
+                int totalW = btnEmpty.Width + gap + btnEmptyAdd.Width;
+                int bx = Math.Max(0, (Width - totalW) / 2);
+                if (btnEmpty.Left != bx || btnEmpty.Top != by) btnEmpty.Location = new Point(bx, by);
+                int ax = bx + btnEmpty.Width + gap;
+                if (btnEmptyAdd.Left != ax || btnEmptyAdd.Top != by) btnEmptyAdd.Location = new Point(ax, by);
+            }
+            else
+            {
+                int bx = Math.Max(0, (Width - btnEmpty.Width) / 2);
+                if (btnEmpty.Left != bx || btnEmpty.Top != by) btnEmpty.Location = new Point(bx, by);
+            }
         }
 
         void FitHeight()
@@ -6643,7 +7927,7 @@ namespace Fluxion
                 int perRow = Math.Max(1, ClientSize.Width / CellW);
                 int rows = tiles == 0 ? 0 : (tiles + perRow - 1) / perRow;
                 int want = rows == 0
-                    ? (Placeholder.Length > 0 ? Theme.S(238) : 0)
+                    ? (Placeholder.Length > 0 ? Theme.S(254) : 0)
                     : rows * CellH + Padding.Top + Padding.Bottom;
                 if (Height != want) { Height = want; changed = true; }
             }
@@ -6664,49 +7948,81 @@ namespace Fluxion
                     e.Graphics.DrawLine(pLine, 0, 0, Width, 0);
             }
 
-            if (Placeholder.Length == 0 || Width <= 0) { if (btnEmpty != null) btnEmpty.Visible = false; return; }
+            if (Placeholder.Length == 0 || Width <= 0)
+            {
+                if (btnEmpty != null) btnEmpty.Visible = false;
+                if (btnEmptyAdd != null) btnEmptyAdd.Visible = false;
+                return;
+            }
             bool hasTiles = TileCount() > 0;
-            if (hasTiles) { if (btnEmpty != null) btnEmpty.Visible = false; return; }
+            if (hasTiles)
+            {
+                if (btnEmpty != null) btnEmpty.Visible = false;
+                if (btnEmptyAdd != null) btnEmptyAdd.Visible = false;
+                return;
+            }
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
 
-            // 空态沉静内框：避免大面积无边界空地显得像页面未加载完
             var well = new Rectangle(0, Theme.S(14), Math.Max(1, Width - 1), Math.Max(1, Height - Theme.S(20)));
             Theme.FillRound(g, well, Theme.RPanel, Theme.Panel);
             Theme.EdgeRound(g, well, Theme.RPanel, Theme.CardEdge, 1f);
+            if (Theme.Dark && well.Width > Theme.RPanel * 2 + 4)
+            {
+                using (var pRim = new Pen(Color.FromArgb(18, 255, 255, 255), 1f))
+                    g.DrawLine(pRim, well.X + Theme.RPanel, well.Y + 1, well.Right - Theme.RPanel, well.Y + 1);
+            }
 
             string head = Placeholder, tail = null;
             int bar = Placeholder.IndexOf('|');
             if (bar > 0) { head = Placeholder.Substring(0, bar); tail = Placeholder.Substring(bar + 1); }
-            Font f1 = Theme.FM(11.5f), f2 = Theme.F(9.5f);
-            int y = Theme.S(44);
-            var ir = new Rectangle((Width - Theme.S(40)) / 2, y, Theme.S(40), Theme.S(40));
-            Theme.DrawIconGamepad(g, ir, Theme.TextFaint);
-            y += Theme.S(40) + Theme.S(14);
-            Theme.DrawTxt(g, head, f1, new Rectangle(0, y, Width, f1.Height), Theme.Text,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-            y += f1.Height;
+            Font f1 = Theme.FB(12.2f), f2 = Theme.F(9.3f);
+            int y = Theme.S(38);
+            int badgeSz = Theme.S(50);
+            var badgeR = new Rectangle((Width - badgeSz) / 2, y, badgeSz, badgeSz);
+            Theme.FillRound(g, badgeR, Theme.S(14), Theme.AccentSoft);
+            int irSz = Theme.S(26);
+            var ir = new Rectangle(badgeR.X + (badgeSz - irSz) / 2, badgeR.Y + (badgeSz - irSz) / 2, irSz, irSz);
+            Theme.DrawIconGamepad(g, ir, Theme.Accent);
+            y += badgeSz + Theme.S(16);
+            Theme.DrawTxt(g, head, f1, new Rectangle(Theme.S(24), y, Math.Max(1, Width - Theme.S(48)), f1.Height + Theme.S(2)), Theme.Text,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+            y += f1.Height + Theme.S(2);
             if (tail != null)
             {
-                Theme.DrawTxt(g, tail, f2, new Rectangle(0, y + Theme.S(6), Width, f2.Height),
+                Theme.DrawTxt(g, tail, f2, new Rectangle(Theme.S(24), y + Theme.S(6), Math.Max(1, Width - Theme.S(48)), f2.Height + Theme.S(2)),
                     Theme.TextDim,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
                 y += f2.Height + Theme.S(6);
             }
             if (btnEmpty == null)
             {
                 btnEmpty = new FlatBtn();
-                btnEmpty.Text = "立即扫描游戏";
+                btnEmpty.Text = "⚡ 立即扫描本机游戏";
                 btnEmpty.Kind = BtnKind.Primary;
                 btnEmpty.Corner = Theme.Panel;
-                btnEmpty.Width = Theme.S(116);
-                btnEmpty.Height = Theme.S(32);
+                btnEmpty.Width = Theme.S(146);
+                btnEmpty.Height = Theme.S(34);
                 btnEmpty.Click += delegate { var h = ScanRequested; if (h != null) h(); };
                 Controls.Add(btnEmpty);
             }
+            if (btnEmptyAdd == null)
+            {
+                btnEmptyAdd = new FlatBtn();
+                btnEmptyAdd.Text = "+ 添加快捷方式";
+                btnEmptyAdd.Kind = BtnKind.Subtle;
+                btnEmptyAdd.Corner = Theme.Panel;
+                btnEmptyAdd.Width = Theme.S(120);
+                btnEmptyAdd.Height = Theme.S(34);
+                btnEmptyAdd.Click += delegate { var ha = AddRequested; if (ha != null) ha(btnEmptyAdd); };
+                Controls.Add(btnEmptyAdd);
+            }
             btnEmpty.Corner = Theme.Panel;
+            btnEmptyAdd.Corner = Theme.Panel;
             btnEmpty.Visible = ScanEnabled;
+            btnEmptyAdd.Visible = ScanEnabled;
             if (ScanEnabled) PlaceEmptyBtn();
         }
     }
@@ -7089,7 +8405,8 @@ namespace Fluxion
         //  ②库页整条链比其它页的卡片外框右缩 23px，切页时内容左右边界会跳一下。
         //  现在 Plain 分区的内容直接贴到**卡片外框**那条线（ShadowMargin），
         //  卡片外元素与卡片外框共用一条基准，卡片内的文字自己再缩 padX —— 两层各自整齐。
-        int BaseX { get { return Plain ? ShadowMargin : padX + inset; } }
+        public bool EdgeToEdge;
+        int BaseX { get { return EdgeToEdge ? 0 : (Plain ? ShadowMargin : padX + inset); } }
         // ★ 卡片四周留给阴影的边距（2026-10-21）：
         //   阴影是比卡片大一圈的几层圆角矩形。以前卡片直接铺满整个控件，阴影往外扩的部分
         //   被 Control 的矩形剪切掉 → 圆角外侧只剩一圈**方角**的残影（用户截图：卡片左下角那块灰）。
@@ -7116,7 +8433,10 @@ namespace Fluxion
             RoundCombo rb = c as RoundCombo; if (rb != null) rb.SetCorner(contentBg);
             BreathingLabel bl = c as BreathingLabel; if (bl != null) bl.Corner = contentBg;
             RadialGauge rg = c as RadialGauge; if (rg != null) rg.Corner = contentBg;
+            ToggleSwitch ts = c as ToggleSwitch; if (ts != null) ts.Corner = contentBg;
+            MemoryBar mb = c as MemoryBar; if (mb != null) mb.Corner = contentBg;
             FilterChips fc = c as FilterChips; if (fc != null) fc.BackColor = contentBg;
+            SettingExpander se = c as SettingExpander; if (se != null) return; // 折叠组自带独立白卡底色，不穿透覆盖其内部行控件
             foreach (Control ch in c.Controls) ApplySurface(ch);
         }
         // 分区色相表。顺序即优先级（先判的赢）：
@@ -7145,6 +8465,7 @@ namespace Fluxion
         // 页首卡片（2026-09-20）：顶边加一条两端渐隐的色相线。一页里的第一张卡
         //   因此有了"领头"的身份，其余卡片保持安静 —— 层级不靠阴影堆，靠这一笔。
         public bool Hero;
+        public bool TopSpan;               // 双栏页面下：置于顶部通栏拉伸（如仪表盘快速开局聚光灯）
         public bool FullSpan;              // 双栏页面下：拉伸至全宽（如仪表盘底部的系统信息卡）
 
         public bool Plain;                 // 工具条：不画分区底与描边、不做标签列缩进
@@ -7196,7 +8517,7 @@ namespace Fluxion
             int bp = title.IndexOf('（');
             if (bp <= 0) bp = title.IndexOf('(');
             if (bp > 0) { titleMain = title.Substring(0, bp).TrimEnd(); titleNote = title.Substring(bp); }
-            lb.Text = titleMain; lb.Font = Theme.FM(12f); lb.ForeColor = Theme.Text;
+            lb.Text = titleMain; lb.Font = Theme.FM(11.5f); lb.ForeColor = Theme.Text;
             lb.Location = new Point(padX + inset, t);
             Controls.Add(lb);
             titleLbl = lb;
@@ -7226,17 +8547,12 @@ namespace Fluxion
 
             Theme.SoftShadow(g, r, Theme.RPanel, inset);
             Theme.FillRound(g, r, Theme.RPanel, Theme.Panel);
-
-            if (Theme.Dark)
-            {
-                var rIn = new Rectangle(r.X + 1, r.Y + 1, Math.Max(1, r.Width - 2), Math.Max(1, r.Height - 2));
-                using (var pLight = new Pen(Color.FromArgb(14, 255, 255, 255), 1f))
-                {
-                    g.DrawLine(pLight, rIn.X + Theme.RPanel, rIn.Y, rIn.Right - Theme.RPanel, rIn.Y);
-                }
-            }
-
             Theme.EdgeRound(g, r, Theme.RPanel, Theme.CardEdge, 1f);
+            if (Theme.Dark && r.Width > Theme.RPanel * 2 + 4)
+            {
+                using (var pRim = new Pen(Color.FromArgb(18, 255, 255, 255), 1f))
+                    g.DrawLine(pRim, r.X + Theme.RPanel, r.Y + 1, r.Right - Theme.RPanel, r.Y + 1);
+            }
         }
 
         Label MkLabel(string text, Font f, Color c)
@@ -8117,7 +9433,7 @@ namespace Fluxion
                     Sec s = secs[i];
                     if (s == null) continue;
                     h = h * 31 + (s.Visible ? 1 : 0);
-                    if (s.Visible) h = (h * 31 + s.Height) * 31 + (s.FullSpan ? 1 : 0);
+                    if (s.Visible) h = ((h * 31 + s.Height) * 31 + (s.FullSpan ? 1 : 0)) * 31 + (s.TopSpan ? 1 : 0);
                 }
                 return h;
             }
@@ -8157,23 +9473,33 @@ namespace Fluxion
                 // Bento Grid 模式：双栏逐行等高网格对齐，检查配对卡片的高度和 Top 是否平齐
                 if (GridRowAlign && (LeftWidth > 0 || LeftRatio > 0))
                 {
+                    var visT = new List<Sec>();
                     var visL = new List<Sec>();
                     var visR = new List<Sec>();
                     var visF = new List<Sec>();
                     foreach (Sec s in secs)
                     {
                         if (!s.Visible) continue;
-                        if (s.FullSpan) visF.Add(s);
+                        if (s.TopSpan) visT.Add(s);
+                        else if (s.FullSpan) visF.Add(s);
                         else if (leftSecs.Contains(s)) visL.Add(s);
                         else visR.Add(s);
                     }
                     int curY = y;
+                    for (int i = 0; i < visT.Count; i++)
+                    {
+                        Sec sT = visT[i];
+                        if (curY > y) curY += SecGap;
+                        if (sT.Height < Theme.S(30)) return false;
+                        if (sT.Top + sy != curY) return false;
+                        curY += sT.Height;
+                    }
                     int maxP = Math.Max(visL.Count, visR.Count);
                     for (int i = 0; i < maxP; i++)
                     {
                         Sec sL = i < visL.Count ? visL[i] : null;
                         Sec sR = i < visR.Count ? visR[i] : null;
-                        if (i > 0) curY += SecGap;
+                        if (curY > y) curY += SecGap;
                         int rowH = 0;
                         if (sL != null && sR != null)
                         {
@@ -8331,21 +9657,28 @@ namespace Fluxion
             }
             if (GridRowAlign && (LeftWidth > 0 || LeftRatio > 0))
             {
+                var visT = new List<Sec>();
                 var visL = new List<Sec>();
                 var visR = new List<Sec>();
                 var visF = new List<Sec>();
                 foreach (Sec s in secs)
                 {
                     if (!s.Visible) continue;
-                    if (s.FullSpan) visF.Add(s);
+                    if (s.TopSpan) visT.Add(s);
+                    else if (s.FullSpan) visF.Add(s);
                     else if (leftSecs.Contains(s)) visL.Add(s);
                     else visR.Add(s);
                 }
                 int cur = 0;
+                for (int i = 0; i < visT.Count; i++)
+                {
+                    if (cur > 0) cur += SecGap;
+                    cur += visT[i].Height;
+                }
                 int maxP = Math.Max(visL.Count, visR.Count);
                 for (int i = 0; i < maxP; i++)
                 {
-                    if (i > 0) cur += SecGap;
+                    if (cur > 0) cur += SecGap;
                     int hl0 = i < visL.Count ? visL[i].Height : 0;
                     int hr0 = i < visR.Count ? visR[i].Height : 0;
                     cur += Math.Max(hl0, hr0);
@@ -8422,7 +9755,7 @@ namespace Fluxion
                 bool isLeft = leftW > 0 && leftSecs.Contains(s);
                 if (relayout)
                 {
-                    s.Width = s.FullSpan ? avail : (isLeft ? leftW : rightW);
+                    s.Width = (s.FullSpan || s.TopSpan) ? avail : (isLeft ? leftW : rightW);
                     s.DoLayout();                       // 先给宽度再排版（换行文字要用宽度）
                     // 分区高度不该小于一个空分区的最小值；真的塌了就按内容重算一次再定位，
                     //  否则它会以"压扁"的姿态留在页面上（用户截图里的封面带就是这么来的）。
@@ -8502,23 +9835,32 @@ namespace Fluxion
             //    （用户："被挡住了" —— 设置页数据与隐私/系统信息/显示器设备三张卡都中招））。
             if (GridRowAlign && leftW > 0)
             {
+                var visTop = new List<Sec>();
                 visLeft.Clear();
                 visRight.Clear();
                 visFull.Clear();
                 foreach (Sec s in secs)
                 {
                     if (!s.Visible) continue;
-                    if (s.FullSpan) visFull.Add(s);
+                    if (s.TopSpan) visTop.Add(s);
+                    else if (s.FullSpan) visFull.Add(s);
                     else if (leftSecs.Contains(s)) visLeft.Add(s);
                     else visRight.Add(s);
                 }
                 int curY = y;
+                for (int i = 0; i < visTop.Count; i++)
+                {
+                    Sec sT = visTop[i];
+                    if (curY > y) curY += SecGap;
+                    sT.Location = new Point(GapSize + centerOfs, curY - sy);
+                    curY += sT.Height;
+                }
                 int maxPairs = Math.Max(visLeft.Count, visRight.Count);
                 for (int i = 0; i < maxPairs; i++)
                 {
                     Sec sL = i < visLeft.Count ? visLeft[i] : null;
                     Sec sR = i < visRight.Count ? visRight[i] : null;
-                    if (i > 0) curY += SecGap;
+                    if (curY > y) curY += SecGap;
                     int rowH = 0;
                     if (sL != null && sR != null)
                     {
@@ -9074,6 +10416,11 @@ namespace Fluxion
         Label lblDrift;
         FilterChips optChips;
         string optFilterId = "all";
+        MemoryBar memBarOpt, memBarMon;
+        SettingExpander expPower, expLowLat, expMemory, expEco, expNet, expNoise;
+        Label lblDnsCurrent;
+        RoundCombo cbDnsPick;
+        List<DnsPresetResult> dnsBenchList;
         // 帧生成
         Label lblRt, lblD3d12, lbl030, lblDlssLib;
         Label lblJunk;   // 设置页：备份/隔离区占用一行（P0-1）
@@ -9084,6 +10431,10 @@ namespace Fluxion
         //  卡片底下就是一整屏灰底 —— 用户"还能往下翻动，底下却什么都没有"。
         //  把游戏自身的事实（平台/入口/目录/时长）填在这里，页面不再空着翻。
         Label lblGi;
+        Sec sSpot;
+        DashSpotlight dashSpotlight;   // 仪表盘首屏顶部「快速开局」聚光灯横幅
+        RoundCombo cbLaunchMode;       // 游戏详情页「启动方式」选择器（自动 / 免平台直启 / 平台静默唤起）
+        bool launchModeSyncing;
         MetaLine lblDashSub;           // 仪表盘「快捷操作」工具条右端的元信息行（第 154 轮从 Body 行挪进来）
         string dashOpt = "";           // 摘要里的优化状态（体检表读完后才有值）
         FlatBtn btnWebCover, btnSetCover, btnPasteCover, btnClearCover;   // 概览「游戏信息」卡里的自定义封面入口
@@ -9154,8 +10505,8 @@ namespace Fluxion
         CheckBox chkShowHidden;
         bool onlyHidden;                  // 左栏选中「已隐藏」时为真：只显示隐藏条目
         bool coverRunning;
-        static readonly object[] PlatNames = new object[] { "全部", "收藏", "私密", "二次元", "Steam", "Epic", "WeGame", "本地" };
-        static readonly string[] PlatIds = new string[] { "all", "fav", "private", "genre", "steam", "epic", "wegame", "local" };
+        static readonly object[] PlatNames = new object[] { "全部", "收藏", "Steam", "WeGame", "米哈游", "Epic", "本地", "私密" };
+        static readonly string[] PlatIds = new string[] { "all", "fav", "steam", "wegame", "hoyo", "epic", "local", "private" };
         RoundCombo cbRouter, cbKernel, cbBilinear, cbMaxFrames, cbLogLevel, cbNr, cbNrPos;
         CheckBox cbFgAutoEntry, cbFgD3d12;
         FlatBtn btnDownload, btnFgApply, btnOptimize;
@@ -9701,17 +11052,19 @@ namespace Fluxion
 
             btnScanTop = new FlatBtn();
             btnScanTop.Text = "扫描游戏";
-            btnScanTop.Width = Theme.S(86);
+            btnScanTop.Kind = BtnKind.Ghost;
+            btnScanTop.Width = Theme.S(82);
             btnScanTop.Height = Theme.S(30);
             btnScanTop.Corner = Theme.Bg;
             btnScanTop.Click += delegate { RunScan(true); };
 
             btnAddTop = new FlatBtn();
-            btnAddTop.Text = "添加游戏";
-            btnAddTop.Width = Theme.S(86);
+            btnAddTop.Text = "+ 添加游戏";
+            btnAddTop.Kind = BtnKind.Subtle;
+            btnAddTop.Width = Theme.S(94);
             btnAddTop.Height = Theme.S(30);
             btnAddTop.Corner = Theme.Bg;
-            btnAddTop.Click += delegate { DoAddGame(); };
+            btnAddTop.Click += delegate { DoAddGameMenu(btnAddTop); };
 
             var box = new CaptionPanel();
             box.Dock = DockStyle.None;
@@ -9882,6 +11235,7 @@ namespace Fluxion
             scanOn = on;
             if (scanBeat != null) { if (on) scanBeat.Start(); else scanBeat.Stop(); }
             if (titleBar != null) titleBar.Invalidate();
+            RefreshSideGames();
         }
 
         // ---- 导航行：页面导航 + 守护状态（品牌已移回侧栏顶部） ----
@@ -10170,7 +11524,7 @@ namespace Fluxion
                 Theme.DrawTxt(g, "Fluxion", Theme.FB(11.5f),
                     new Rectangle(tx, Theme.S(12), brandPane.Width - tx - Theme.S(44), Theme.S(20)), Theme.Text,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
-                Theme.DrawTxt(g, "系统调优与帧生成", Theme.F(8.5f),
+                Theme.DrawTxt(g, "全平台游戏启动与加速", Theme.F(8.5f),
                     new Rectangle(tx, Theme.S(32), brandPane.Width - tx - Theme.S(44), Theme.S(18)),
                     Theme.TextDim,
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
@@ -10255,7 +11609,7 @@ namespace Fluxion
                 g.Clear(Theme.Sidebar);
                 using (var p = new Pen(Theme.LineSoft, 1f))
                     g.DrawLine(p, Theme.S(13), 0, guardWrap.Width - Theme.S(13), 0);
-                Theme.DrawTxt(g, "快捷游戏", Theme.FM(8.5f),
+                Theme.DrawTxt(g, "快捷启动", Theme.FM(8.5f),
                     new Rectangle(Theme.S(16), Theme.S(8), guardWrap.Width - Theme.S(60), Theme.S(18)),
                     Theme.TextFaint, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
                 if (sideGameCount > 0)
@@ -10317,6 +11671,18 @@ namespace Fluxion
                     SelectGame(g);
                     Switch(P_FG);
                 }
+            };
+            sideList.Launched += delegate(DlssgGame g)
+            {
+                if (g != null)
+                {
+                    SelectGame(g, false);
+                    DoLaunchGame();
+                }
+            };
+            sideList.ScanRequested += delegate
+            {
+                RunScan(true);
             };
             sideList.RightClicked += delegate(DlssgGame g)
             {
@@ -10429,20 +11795,76 @@ namespace Fluxion
             SelectGame(g, false);                      // 只同步 selected，**不切页** —— 墙留在原地
             if (cbScheme != null && idx >= 0 && idx < cbScheme.Items.Count) cbScheme.SelectedIndex = idx;
             DoInstallCurrent();
-            FillGameList();                            // 卡上的"可嵌入/无组件"之类状态可能变了
+            FillGameList();                            // 卡上的状态可能变了
+        }
+
+        void ApplyLaunchModeChoice(DlssgGame gm, string mode, string humanLabel)
+        {
+            if (gm == null) return;
+            LauncherUi.SetMode(gm, mode);
+            Log("启动方式已切换为「" + humanLabel + "」：" + gm.Title);
+            if (libGrid != null && !libGrid.IsDisposed)
+            {
+                foreach (Control ctrl in libGrid.Controls)
+                {
+                    CoverTile ct = ctrl as CoverTile;
+                    if (ct != null && ct.Game == gm) ct.InvalidateBadges();
+                }
+            }
+            if (actBar != null && selected == gm) actBar.SetGame(gm);
+            if (libHero != null && heroHasData) libHero.SetGame(selected ?? gm);
+            RefreshDashSpotlight();
+            RefreshFgSummary();
+        }
+
+        void ShowLaunchModeMenuAt(DlssgGame gm, Control anchor, Point at)
+        {
+            if (gm == null || anchor == null) return;
+            ThemedMenu m = MenuFactory.New();
+            string cur = LauncherUi.GetMode(gm);
+
+            var miAuto = new ToolStripMenuItem("自动推荐（优先免平台直启）");
+            miAuto.Checked = (cur == "auto" || cur.Length == 0);
+            miAuto.Click += delegate { ApplyLaunchModeChoice(gm, "auto", "自动推荐"); };
+            m.Items.Add(miAuto);
+
+            var miDirect = new ToolStripMenuItem("免平台直启 EXE（零平台弹窗）");
+            miDirect.Checked = (cur == "direct");
+            miDirect.Click += delegate { ApplyLaunchModeChoice(gm, "direct", "免平台直启 EXE"); };
+            m.Items.Add(miDirect);
+
+            var miPlat = new ToolStripMenuItem("平台静默唤起（Steam -silent / 协议）");
+            miPlat.Checked = (cur == "platform");
+            miPlat.Click += delegate { ApplyLaunchModeChoice(gm, "platform", "平台静默唤起"); };
+            m.Items.Add(miPlat);
+
+            m.Items.Add(new ToolStripSeparator());
+            m.Items.Add("▶ 立即畅玩", null, delegate { SelectGame(gm, false); DoLaunchGame(); });
+            if (!Program.ShareBuild)
+                m.Items.Add("启动参数与环境变量…", null, delegate { SelectGame(gm, false); ShowLaunchConfigDialog(); });
+            m.Items.Add("打开完整详情…", null, delegate { SelectGame(gm, true); });
+
+            m.PrepareLayout();
+            if (at.Y < 0)
+                m.Show(anchor, at, ToolStripDropDownDirection.AboveRight);
+            else
+                m.Show(anchor, at);
         }
 
         void ShowLibMenu(Control anchor)
         {
             ThemedMenu m = MenuFactory.New();
-            m.Items.Add("扫描游戏", null, delegate { RunScan(true); });
-            m.Items.Add("添加扫描目录…", null, delegate { DoAddScanRoot(); });
+            m.Items.Add("扫描本机全平台游戏", null, delegate { RunScan(true); });
+            m.Items.Add("从桌面快捷方式添加 (.lnk / .url)…", null, delegate { DoAddDesktopShortcut(); });
+            m.Items.Add("选择游戏安装文件夹…", null, delegate { DoAddGame(); });
+            m.Items.Add("添加自动扫描根目录…", null, delegate { DoAddScanRoot(); });
             if (!Program.ShareBuild)
-                m.Items.Add("获取封面", null, delegate { DoFetchCovers(); });
+            {
+                m.Items.Add(new ToolStripSeparator());
+                m.Items.Add("一键补全全库封面", null, delegate { DoFetchAllCovers(); });
+            }
             m.Items.Add(new ToolStripSeparator());
-            m.Items.Add("添加游戏…", null, delegate { DoAddGame(); });
-            m.Items.Add(new ToolStripSeparator());
-            var miHid = new ToolStripMenuItem("显示已隐藏");
+            var miHid = new ToolStripMenuItem("显示已隐藏游戏");
             miHid.Checked = (chkShowHidden != null && chkShowHidden.Checked);
             miHid.Click += delegate
             {
@@ -10535,15 +11957,16 @@ namespace Fluxion
 
             var quickBox = new Panel();
             quickBox.Dock = DockStyle.Right;
-            quickBox.Width = Theme.S(94);
+            quickBox.Width = Theme.S(102);
             quickBox.BackColor = Theme.Bg;
             quickBox.Padding = new Padding(Theme.S(6), Theme.S(4), Theme.S(10), Theme.S(4));
             Buffered(quickBox);
 
             var btnQuick = new FlatBtn();
-            btnQuick.Text = "快速启动";
+            btnQuick.Text = "▶ 快速启动";
+            btnQuick.Kind = BtnKind.Subtle;
             btnQuick.Dock = DockStyle.Fill;
-            btnQuick.Font = Theme.F(8.5f);
+            btnQuick.Font = Theme.FM(8.5f);
             btnQuick.Corner = Theme.Bg;
             btnQuick.Margin = Padding.Empty;
             btnQuick.Cursor = Cursors.Hand;
@@ -10729,6 +12152,20 @@ namespace Fluxion
             p.LeftRatio = 0.50; // 现代 2x2 Bento Grid 等宽双栏布局 (50% / 50%)
             p.GridRowAlign = true; // 逐行等高网格对齐，底部平齐消除大块留白
 
+            // ================= 首屏聚光灯：全平台快捷开局 =================
+            sSpot = new Sec("");
+            sSpot.TopSpan = true;
+            sSpot.EdgeToEdge = true;
+            sSpot.Visible = false;
+            dashSpotlight = new DashSpotlight();
+            dashSpotlight.PlayClicked += delegate(DlssgGame g) { SelectGame(g, false); DoLaunchGame(); };
+            dashSpotlight.CardClicked += delegate(DlssgGame g) { SelectGame(g, true); };
+            dashSpotlight.LibraryClicked += delegate { Switch(P_FG); ShowLibView(true); };
+            dashSpotlight.ScanClicked += delegate { RunScan(true); };
+            dashSpotlight.AddClicked += delegate(Control c) { DoAddGameMenu(c); };
+            sSpot.Block(dashSpotlight, Theme.S(114));
+            p.Add(sSpot);
+
             // ================= Bento 1 (左上): 游戏联动与实时状态 =================
             var sLink = new Sec("游戏联动");
             lblGameState = sLink.Body(new BreathingLabel("待命 · 等待状态…"));
@@ -10741,13 +12178,20 @@ namespace Fluxion
 
             lblLinkAct = sLink.Body(LinkIdleText);
 
-            var b1 = new FlatBtn(); b1.Text = "游戏库"; b1.Kind = BtnKind.Primary; b1.Width = Theme.S(84);
-            b1.Click += delegate { Switch(P_FG); };
-            var b2 = new FlatBtn(); b2.Text = "刷新联动"; b2.Width = Theme.S(84);
-            b2.Click += delegate { UpdateLink(); Log("已刷新联动状态"); };
-            var b3 = new FlatBtn(); b3.Text = "联动设置"; b3.Width = Theme.S(84);
-            b3.Click += delegate { Switch(P_SET); };
-            sLink.Buttons(b1, b2, b3);
+            var bPurgeDash = new FlatBtn(); bPurgeDash.Text = "净化内存"; bPurgeDash.Kind = BtnKind.Subtle; bPurgeDash.Width = Theme.S(88);
+            bPurgeDash.Click += delegate { DoQuickPurgeRam(bPurgeDash, true); };
+            var bLinkMore = new FlatBtn(); bLinkMore.Text = "联动选项 ▾"; bLinkMore.Kind = BtnKind.Ghost; bLinkMore.Width = Theme.S(96);
+            bLinkMore.Click += delegate
+            {
+                ThemedMenu m = MenuFactory.New();
+                m.Items.Add("刷新联动状态", null, delegate { UpdateLink(); Log("已刷新联动状态"); });
+                m.Items.Add("场景与联动设置…", null, delegate { Switch(P_SET); });
+                m.Items.Add(new ToolStripSeparator());
+                m.Items.Add("打开游戏库", null, delegate { Switch(P_FG); ShowLibView(true); });
+                m.PrepareLayout();
+                m.Show(bLinkMore, new Point(0, bLinkMore.Height + Theme.S(4)));
+            };
+            sLink.Buttons(bPurgeDash, bLinkMore);
 
             p.AddLeft(sLink);
 
@@ -10785,17 +12229,13 @@ namespace Fluxion
             pnlBtns.BackColor = Theme.Panel;
 
             var q1 = new FlatBtn(); q1.Text = "一键优化"; q1.Kind = BtnKind.Primary;
-            q1.Margin = new Padding(0, 0, Theme.S(6), 0);
+            q1.Margin = new Padding(0, 0, Theme.S(8), 0);
             q1.Click += delegate { DoOptimize(); };
-            var q2 = new FlatBtn(); q2.Text = "系统体检";
-            q2.Margin = new Padding(0, 0, Theme.S(6), 0);
+            var q2 = new FlatBtn(); q2.Text = "系统体检"; q2.Kind = BtnKind.Subtle;
+            q2.Margin = Padding.Empty;
             q2.Click += delegate { RefreshGridAsync(); Log("已刷新优化项状态（体检结果见「性能优化」页）"); Switch(P_OPT); };
-            var q3 = new FlatBtn(); q3.Text = "恢复备份";
-            q3.Margin = Padding.Empty;
-            q3.Click += delegate { DoRestore(); };
             pnlBtns.Controls.Add(q1);
             pnlBtns.Controls.Add(q2);
-            pnlBtns.Controls.Add(q3);
             healthBox.Controls.Add(pnlBtns);
 
             lblDashSub = new MetaLine();
@@ -10813,25 +12253,15 @@ namespace Fluxion
                 lblHealth.Width = rw;
                 pnlBtns.Width = rw;
                 lblDashSub.Width = rw;
-                int gap = Theme.S(6);
-                if (rw >= Theme.S(254))
+                int gap = Theme.S(8);
+                if (rw >= Theme.S(184))
                 {
-                    q3.Visible = true;
-                    q1.Text = "一键优化"; q1.Width = Theme.S(80);
-                    q2.Text = "系统体检"; q2.Width = Theme.S(80);
-                    q3.Text = "恢复备份"; q3.Width = Theme.S(80);
-                }
-                else if (rw >= Theme.S(184))
-                {
-                    q3.Visible = true;
-                    q1.Text = "一键优化"; q1.Width = Theme.S(76);
-                    q2.Text = "体检";     q2.Width = Theme.S(48);
-                    q3.Text = "备份";     q3.Width = Theme.S(48);
+                    q1.Text = "一键优化"; q1.Width = Theme.S(88);
+                    q2.Text = "系统体检"; q2.Width = Theme.S(84);
                 }
                 else
                 {
-                    q3.Visible = false;
-                    int btnW = Math.Max(Theme.S(48), (rw - gap) / 2);
+                    int btnW = Math.Max(Theme.S(60), (rw - gap) / 2);
                     q1.Text = "一键优化"; q1.Width = btnW;
                     q2.Text = "系统体检"; q2.Width = btnW;
                 }
@@ -10858,7 +12288,7 @@ namespace Fluxion
             var sFg = new Sec("帧生成（DLSSG）");
             lblFgRuntime = sFg.Body("—");
             lblFgLast = sFg.Body("");
-            var btnGo = new FlatBtn(); btnGo.Text = "管理帧生成"; btnGo.Kind = BtnKind.Primary; btnGo.Width = Theme.S(112);
+            var btnGo = new FlatBtn(); btnGo.Text = "管理帧生成"; btnGo.Kind = BtnKind.Subtle; btnGo.Width = Theme.S(104);
             btnGo.Click += delegate { Switch(P_FG); };
             sFg.Buttons(btnGo);
             p.Add(sFg);
@@ -10868,62 +12298,122 @@ namespace Fluxion
             sSys.FullSpan = true;
             lblSysInfo = sSys.Body("正在探测硬件…");
             p.Add(sSys);
+
+            RefreshDashSpotlight();
         }
 
-        // ---------------------- 页 2：性能优化 ----------------------
+        void RefreshDashSpotlight()
+        {
+            if (dashSpotlight == null || dashSpotlight.IsDisposed) return;
+            DlssgGame topG = null;
+            int validCount = 0;
+            long bestLast = 0;
+            if (games != null)
+            {
+                for (int i = 0; i < games.Count; i++)
+                {
+                    DlssgGame g = games[i];
+                    if (g == null || g.Ignored || g.Hidden) continue;
+                    validCount++;
+                    if (g.LastPlayed > bestLast) { bestLast = g.LastPlayed; topG = g; }
+                }
+                if (selected != null && !selected.Ignored && !selected.Hidden)
+                    topG = selected;
+                else if (topG == null)
+                {
+                    for (int i = 0; i < games.Count; i++)
+                    {
+                        DlssgGame g = games[i];
+                        if (g != null && !g.Ignored && !g.Hidden) { topG = g; break; }
+                    }
+                }
+            }
+            bool wantVis = (topG != null);
+            bool visChanged = (sSpot != null && !sSpot.IsDisposed && sSpot.Visible != wantVis);
+            if (visChanged) sSpot.Visible = wantVis;
+            bool purgeOn = Cfg != null && Cfg.MemPurgeOnGame;
+            bool ecoOn = Cfg != null && Cfg.EcoQosEnable;
+            dashSpotlight.SetState(topG, validCount, scanRunning, purgeOn, ecoOn);
+            if (visChanged)
+            {
+                try { if (pages != null && pages.Length > P_DASH && pages[P_DASH] != null) pages[P_DASH].Reflow(); } catch { }
+            }
+        }
+
+        // ---------------------- 页 2：性能优化（对标 Win11 Settings / Winhance / Linear 器物极简工作台） ----------------------
         void BuildPageOptimize()
         {
             var p = pages[P_OPT];
+            btnRestore = null;
 
-            var s1 = new Sec("操作");
-            btnOptimize = new FlatBtn(); btnOptimize.Text = "一键优化"; btnOptimize.Kind = BtnKind.Primary; btnOptimize.Width = Theme.S(100);
+            var s1 = new Sec("系统调优总控");
+            btnOptimize = new FlatBtn(); btnOptimize.Text = "⚡ 一键深度优化"; btnOptimize.Kind = BtnKind.Primary; btnOptimize.Width = Theme.S(132);
             btnOptimize.Click += delegate { DoOptimize(); };
-            var btnCustom = new FlatBtn(); btnCustom.Text = "自定义项"; btnCustom.Width = Theme.S(92);
-            btnCustom.Click += delegate { ShowCustomDialog(); };
-            //  与仪表盘「快捷操作」里的同名按钮统一中性（5657 行）：同一个动作、同一个确认框，
-            //  一处红一处中性本身就是不一致；红块还会让"操作"整排看着像警告区。
-            btnRestore = new FlatBtn(); btnRestore.Text = "恢复备份"; btnRestore.Width = Theme.S(92);
-            btnRestore.Click += delegate { DoRestore(); };
-            var btnDefaults = new FlatBtn(); btnDefaults.Text = "恢复默认"; btnDefaults.Width = Theme.S(92);
-            btnDefaults.Click += delegate
+            var btnPurgeTop = new FlatBtn(); btnPurgeTop.Text = "净化内存"; btnPurgeTop.Kind = BtnKind.Subtle; btnPurgeTop.Width = Theme.S(88);
+            btnPurgeTop.Click += delegate { DoQuickPurgeRam(btnPurgeTop, true); };
+            var btnOptMore = new FlatBtn(); btnOptMore.Text = "更多操作 ▾"; btnOptMore.Kind = BtnKind.Subtle; btnOptMore.Width = Theme.S(96);
+            bool restorePtBusy = false;
+            bool defaultsBusy = false;
+            btnOptMore.Click += delegate
             {
-                if (MessageBox.Show("将把电源计划重置为出厂默认，并把所有优化项恢复为 Windows 默认值（不是恢复备份）。\n\n确定继续吗？",
-                    "恢复系统默认", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-                Log("开始恢复系统默认设置…");
-                btnDefaults.Enabled = false;
-                var gw = new BackgroundWorker();
-                gw.DoWork += delegate { Program.RestoreSystemDefaults(); };
-                gw.RunWorkerCompleted += delegate
+                ThemedMenu m = MenuFactory.New();
+                m.Items.Add("自定义优化项…", null, delegate { ShowCustomDialog(); });
+                m.Items.Add("刷新体检状态", null, delegate { RefreshGridAsync(); RefreshWorkbenchSummaries(); UpdateLink(); Log("已刷新状态"); });
+                m.Items.Add(new ToolStripSeparator());
+                var miRp = new ToolStripMenuItem(restorePtBusy ? "正在创建系统还原点…" : "创建系统还原点");
+                miRp.Enabled = !restorePtBusy;
+                miRp.Click += delegate
                 {
-                    btnDefaults.Enabled = true; RefreshGridAsync();
-                    Log("已恢复系统默认设置");
+                    if (restorePtBusy) return;
+                    restorePtBusy = true;
+                    Log("正在创建系统还原点…");
+                    var gw0 = new BackgroundWorker();
+                    gw0.DoWork += delegate(object s, DoWorkEventArgs e)
+                    { e.Result = Program.CreateRestorePoint("Fluxion 手动 · " + DateTime.Now.ToString("yyyy-MM-dd HH:mm")); };
+                    gw0.RunWorkerCompleted += delegate(object s, RunWorkerCompletedEventArgs e)
+                    {
+                        restorePtBusy = false;
+                        string why = e.Error != null ? e.Error.Message : (e.Result as string);
+                        if (string.IsNullOrEmpty(why)) { Log("已创建系统还原点"); return; }
+                        Log("⚠ 未创建还原点：" + why);
+                        ModernDialog.Notice(this, "创建还原点提示",
+                            "未能创建系统还原点：\n\n" + why + "\n\n仍可随时使用内置配置备份无损还原。");
+                    };
+                    gw0.RunWorkerAsync();
                 };
-                gw.RunWorkerAsync();
-            };
-            var btnRestorePt = new FlatBtn(); btnRestorePt.Text = "创建还原点"; btnRestorePt.Width = Theme.S(96);
-            btnRestorePt.Click += delegate
-            {
-                btnRestorePt.Enabled = false; btnRestorePt.Text = "创建中…";
-                var gw0 = new BackgroundWorker();
-                gw0.DoWork += delegate(object s, DoWorkEventArgs e)
-                { e.Result = Program.CreateRestorePoint("Fluxion 手动 · " + DateTime.Now.ToString("yyyy-MM-dd HH:mm")); };
-                gw0.RunWorkerCompleted += delegate(object s, RunWorkerCompletedEventArgs e)
+                m.Items.Add(miRp);
+                m.Items.Add("恢复上次备份", null, delegate { DoRestore(); });
+                var miDef = new ToolStripMenuItem(defaultsBusy ? "正在恢复系统默认…" : "恢复 Windows 默认设置…");
+                miDef.Enabled = !defaultsBusy;
+                miDef.Click += delegate
                 {
-                    btnRestorePt.Enabled = true; btnRestorePt.Text = "创建还原点";
-                    string why = e.Error != null ? e.Error.Message : (e.Result as string);
-                    if (string.IsNullOrEmpty(why)) { Log("已创建系统还原点"); return; }
-                    Log("⚠ 未创建还原点：" + why);
-                    MessageBox.Show(this, "未能创建系统还原点：\n\n" + why
-                        + "\n\n仍可继续使用内置配置备份还原。", "创建还原点",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    if (defaultsBusy) return;
+                    if (!ModernDialog.Confirm(this, "恢复系统默认设置",
+                        "将把电源计划重置为出厂默认，并把所有优化项恢复为 Windows 默认值（区别于恢复上次备份）。\n\n确定继续吗？",
+                        "确认恢复", true)) return;
+                    Log("开始恢复系统默认设置…");
+                    defaultsBusy = true;
+                    var gw = new BackgroundWorker();
+                    gw.DoWork += delegate { Program.RestoreSystemDefaults(); };
+                    gw.RunWorkerCompleted += delegate
+                    {
+                        defaultsBusy = false; RefreshGridAsync(); RefreshWorkbenchSummaries();
+                        Log("已恢复系统默认设置");
+                    };
+                    gw.RunWorkerAsync();
                 };
-                gw0.RunWorkerAsync();
+                m.Items.Add(miDef);
+                m.PrepareLayout();
+                m.Show(btnOptMore, new Point(0, btnOptMore.Height + Theme.S(4)));
             };
-            var btnRefresh = new FlatBtn(); btnRefresh.Text = "刷新"; btnRefresh.Width = Theme.S(76);
-            btnRefresh.Click += delegate { RefreshGridAsync(); UpdateLink(); Log("已刷新状态"); };
-            s1.Buttons(btnOptimize, btnCustom, btnRestore, btnDefaults, btnRestorePt, btnRefresh);
-            s1.Body("默认配置已排除实验项，不影响 WSL2、Docker 与模拟器；执行前自动备份至 backup\\，可随时还原。");
+            s1.Buttons(btnOptimize, btnPurgeTop, btnOptMore);
+            Label lblOptHint = s1.Body("执行前自动快照备份至 backup\\ · 无损兼容 WSL2、Docker 与安卓模拟器");
+            lblOptHint.Font = Theme.F(9.5f);
+            lblOptHint.ForeColor = Theme.TextFaint;
             p.Add(s1);
+
+            // 六大领域可折叠交互设置卡片（Win11 Settings / Winhance 范式）
+            BuildOptimizeWorkbench(p);
 
             var s2 = new Sec("优化项明细");
             lvOpt = NewList(new string[] { "优化项", "状态", "当前值", "期望值" }, new int[] { 240, 118, 200, 0 }, Theme.S(300));
@@ -10933,7 +12423,7 @@ namespace Fluxion
             {
                 if (ek.KeyCode == Keys.Enter) { ek.Handled = true; ek.SuppressKeyPress = true; OpenKnobForRow(); }
             };
-            btnKnobSel = new FlatBtn(); btnKnobSel.Text = "调整选中项"; btnKnobSel.Width = Theme.S(100);
+            btnKnobSel = new FlatBtn(); btnKnobSel.Text = "调整选中项"; btnKnobSel.Kind = BtnKind.Subtle; btnKnobSel.Width = Theme.S(100);
             btnKnobSel.Enabled = false;
             btnKnobSel.Click += delegate { OpenKnobForRow(); };
             lvOpt.SelectedIndexChanged += delegate
@@ -10941,7 +12431,7 @@ namespace Fluxion
                 if (btnKnobSel != null)
                     btnKnobSel.Enabled = lvOpt.SelectedItems.Count > 0 && !string.IsNullOrEmpty(lvOpt.SelectedItems[0].Tag as string);
             };
-            var btnKnobAll = new FlatBtn(); btnKnobAll.Text = "取值细调…"; btnKnobAll.Width = Theme.S(100);
+            var btnKnobAll = new FlatBtn(); btnKnobAll.Text = "取值细调…"; btnKnobAll.Kind = BtnKind.Subtle; btnKnobAll.Width = Theme.S(100);
             btnKnobAll.Click += delegate { ShowKnobDialog(null); };
 
             optChips = new FilterChips();
@@ -10962,7 +12452,9 @@ namespace Fluxion
             s2.Buttons(btnKnobSel, btnKnobAll);
             s2.Block(optChips, Theme.S(34));
             s2.Block(BoxOf(lvOpt), 0);
-            s2.Body("点击上方胶囊可快速筛选「未生效」或「可调项」；双击（或右键）标有「可调」的行可调整档位。");
+            Label lblOptBody = s2.Body("点击上方胶囊筛选分类 · 双击（或右键）标有「可调」的行可细调档位");
+            lblOptBody.Font = Theme.F(9.5f);
+            lblOptBody.ForeColor = Theme.TextFaint;
             p.Add(s2);
 
             var s3 = new Sec("漂移检测");
@@ -10972,7 +12464,7 @@ namespace Fluxion
             var s4 = new Sec("显示器设备");
             lvMon = NewList(new string[] { "显示器", "输出", "状态", "型号 ID" }, new int[] { 200, 100, 160, 0 }, Theme.S(150));
             ((TableListView)lvMon).AutoFitMinRows = 3;
-            btnMonOn = new FlatBtn(); btnMonOn.Text = "启用选中"; btnMonOn.Width = Theme.S(88);
+            btnMonOn = new FlatBtn(); btnMonOn.Text = "启用选中"; btnMonOn.Kind = BtnKind.Subtle; btnMonOn.Width = Theme.S(88);
             btnMonOn.Enabled = false;
             btnMonOn.Click += delegate { MonSetSel(true); };
             btnMonOff = new FlatBtn(); btnMonOff.Text = "禁用选中"; btnMonOff.Kind = BtnKind.Danger; btnMonOff.Width = Theme.S(88);
@@ -10984,20 +12476,784 @@ namespace Fluxion
                 if (btnMonOn != null) btnMonOn.Enabled = hasSel;
                 if (btnMonOff != null) btnMonOff.Enabled = hasSel;
             };
-            btnMonAll = new FlatBtn(); btnMonAll.Text = "全部启用"; btnMonAll.Width = Theme.S(88);
+            btnMonAll = new FlatBtn(); btnMonAll.Text = "全部启用"; btnMonAll.Kind = BtnKind.Subtle; btnMonAll.Width = Theme.S(88);
             btnMonAll.Click += delegate
             {
                 int n = MonMgr.EnableAll();
                 Log(n > 0 ? ("已启用 " + n + " 台被禁用的显示器") : "当前没有被禁用的显示器（无需处理）");
                 FillMonList();
             };
-            var btnMonRef = new FlatBtn(); btnMonRef.Text = "刷新"; btnMonRef.Width = Theme.S(76);
+            var btnMonRef = new FlatBtn(); btnMonRef.Text = "刷新"; btnMonRef.Kind = BtnKind.Ghost; btnMonRef.Width = Theme.S(72);
             btnMonRef.Click += delegate { FillMonList(); Log("已刷新显示器设备列表"); };
             s4.Buttons(btnMonOn, btnMonOff, btnMonAll, btnMonRef);
             s4.Block(BoxOf(lvMon), 0);
-            s4.Body("对应设备管理器「监视器」启停（重启后保持）；单屏默认受保护，可点「全部启用」一键恢复。");
+            Label lblMonHint = s4.Body("对应设备管理器「监视器」启停 · 单屏受防黑屏保护，可点「全部启用」恢复");
+            lblMonHint.Font = Theme.F(9.5f);
+            lblMonHint.ForeColor = Theme.TextFaint;
             p.Add(s4);
             FillMonList();
+        }
+
+        void BuildOptimizeWorkbench(Pg p)
+        {
+            var sWb = new Sec("");
+            sWb.EdgeToEdge = true;
+
+            // ---------------- 组 1：电源计划与处理器核心调度（首屏默认展开） ----------------
+            int liveCpInit = LowLatencyKit.GetCoreParkingMin();
+            bool cpUnparkedInit = liveCpInit >= 0 ? (liveCpInit >= 100) : (Cfg.CoreParkMin >= 100);
+            expPower = new SettingExpander("电源计划与处理器核心调度",
+                "卓越性能电源方案 · Win32 短量子前台调度 · 防停核唤醒尖峰抑制", 0, true);
+            expPower.StatusBadge = cpUnparkedInit ? "防停核已开" : "可开启防停核";
+            expPower.BadgeColor = cpUnparkedInit ? Theme.Ok : Theme.Accent;
+
+            int schemeIdx = Cfg.PowerScheme == "ultimate" ? 0 : (Cfg.PowerScheme == "balanced" ? 2 : 1);
+            expPower.AddComboRow("系统电源方案", "卓越性能关闭空闲微休眠，竞技帧生成时间更稳；笔记本办公可选平衡",
+                new object[] { "卓越性能（Ultimate，推荐台式机）", "高性能（High Performance）", "平衡（Balanced，兼顾续航）" },
+                schemeIdx, Theme.S(274), delegate(int idx)
+                {
+                    int code = idx == 0 ? 0 : (idx == 2 ? 2 : 1);
+                    ApplyInlineKnobByKey("power.scheme", code);
+                });
+
+            int sepIdx = Cfg.SchedSep == 38 ? 0 : (Cfg.SchedSep == 40 ? 1 : 2);
+            expPower.AddComboRow("CPU 调度量子（Win32PrioritySeparation）", "0x26(38) 短固定量子 + 前台 3:1 权重，降低鼠标与帧渲染响应延迟",
+                new object[] { "38 · 短量子竞技增强（0x26，推荐）", "40 · 长量子吞吐优先（0x28）", "2 · Windows 出厂默认" },
+                sepIdx, Theme.S(274), delegate(int idx)
+                {
+                    int val = idx == 0 ? 38 : (idx == 1 ? 40 : 2);
+                    ApplyInlineKnobByKey("scheduler.win32PrioritySeparation", val);
+                });
+
+            expPower.AddToggleRow("禁止 CPU 核心停放（CPMINCORES = 100%）",
+                "阻止物理核心在团战间隙跌入深度停放态，消除突发唤醒微卡顿（同时在系统电源面板解锁该隐藏项）",
+                cpUnparkedInit, delegate(bool on)
+                {
+                    int pct = on ? 100 : 10;
+                    Cfg.CoreParkMin = pct;
+                    ApplyInlineKnobByKey("power.coreParkMin", pct);
+                });
+
+            int hetIdx = Cfg.HeteroPolicy == 1 ? 0 : (Cfg.HeteroPolicy == 2 ? 1 : 2);
+            expPower.AddComboRow("混合架构短线程调度（12 代酷睿+ P/E 核）", "将游戏突发渲染短线程优先派发至高性能 P 核（同构 CPU 自动忽略）",
+                new object[] { "1 · 仅高性能处理器（P 核优先）", "2 · 首选高性能处理器", "5 · 系统自动调度" },
+                hetIdx, Theme.S(274), delegate(int idx)
+                {
+                    int hv = idx == 0 ? 1 : (idx == 1 ? 2 : 5);
+                    ApplyInlineKnobByKey("scheduler.heteroShortPolicy", hv);
+                });
+            sWb.Block(expPower, 0);
+            sWb.Space(8);
+
+            // ---------------- 组 2：显卡、显示链路与硬核低延迟 ----------------
+            expLowLat = new SettingExpander("显卡、显示链路与硬核低延迟",
+                "HAGS 硬件调度 · DWM MPO 多平面叠加开关 · PCIe MSI 中断 · USB 接收器防断连", 1, false);
+            expLowLat.StatusBadge = LowLatencyKit.IsMpoDisabled() ? "MPO 已禁" : "低延迟组件";
+            expLowLat.BadgeColor = Theme.Accent;
+
+            expLowLat.AddToggleRow("硬件加速 GPU 计划（HAGS）",
+                "开启 DLSS 帧生成（DLSSG / OptiScaler）的必需前提；切换后重启电脑生效",
+                Cfg.HagsOn, delegate(bool on)
+                {
+                    Cfg.HagsOn = on;
+                    ApplyInlineKnobByKey("hags.enable", on ? 1 : 0);
+                });
+
+            expLowLat.AddToggleRow("禁用 DWM 多平面叠加（OverlayTestMode = 5）",
+                "对标 AtlasOS / NVIDIA 官方补丁：根治无边框全屏切屏黑屏、副屏看视频引发的主屏微卡顿",
+                LowLatencyKit.IsMpoDisabled(), delegate(bool on)
+                {
+                    Cfg.MpoOff = on;
+                    ApplyInlineKnobByKey("gpu.mpoOff", on ? 1 : 0);
+                });
+
+            expLowLat.AddToggleRow("USB 控制器与无线键鼠接收器防休眠",
+                "关闭 USB 选择性挂起并加固根集线器 IdleInWorkingState，防止 1K/4K/8K 无线鼠标偶发跳帧断连",
+                Cfg.UsbSuspendOff, delegate(bool on)
+                {
+                    Cfg.UsbSuspendOff = on;
+                    SaveCfgBool("power", "usbSuspendOff", on);
+                    System.Threading.ThreadPool.QueueUserWorkItem(delegate
+                    {
+                        int n = LowLatencyKit.ApplyUsbControllerGuard(on);
+                        BeginInvoke((Action)delegate
+                        {
+                            Log("[低延迟] USB 防休眠已" + (on ? "开启" : "关闭") + "（覆盖 " + n + " 个 USB 控制器端点）");
+                        });
+                    });
+                });
+
+            expLowLat.AddActionRow("PCIe MSI 消息信号中断 & Resizable BAR 诊断",
+                "核验显卡与网卡是否工作在低 DPC 延迟的 MSI 中断模式，并检测主板大显存窗口映射状态",
+                "核验与配置…", BtnKind.Default, Theme.S(114), delegate { ShowMsiDialog(); });
+            sWb.Block(expLowLat, 0);
+            sWb.Space(8);
+
+            // ---------------- 组 3：备用内存页（Standby List）净化与着色器缓存 ----------------
+            expMemory = new SettingExpander("备用内存页（Standby List）净化与着色器缓存",
+                "对标 MemReduct / ISLC：微秒级排空陈旧文件缓存 · 安全清理 DirectX / NVIDIA / AMD 旧着色器", 2, false);
+            expMemory.StatusBadge = Cfg.MemPurgeOnGame ? "进游戏净化" : "按需净化";
+            expMemory.BadgeColor = Theme.Ok;
+
+            memBarOpt = new MemoryBar();
+            memBarOpt.Corner = Theme.Panel;
+            try { memBarOpt.SetSnapshot(MemCleaner.QuerySnapshot()); } catch { }
+            expMemory.AddCustomBlock(memBarOpt, Theme.S(46));
+
+            FlatBtn btnDeepPurge = null;
+            btnDeepPurge = expMemory.AddActionRow("立即深度净化物理内存（工作集 + Standby 备用页）",
+                "调用 NtSetSystemInformation(80) 无损回收历史缓存页，不强杀任何应用、不丢失未保存文档",
+                "立即深度净化", BtnKind.Primary, Theme.S(114), delegate { DoQuickPurgeRam(btnDeepPurge, true); });
+
+            expMemory.AddToggleRow("进入游戏时自动排空 Standby 备用内存页",
+                "启动游戏瞬间自动清空旧缓存页，避免开放世界大地图流式加载时触发同步页回收卡顿",
+                Cfg.MemPurgeOnGame, delegate(bool on)
+                {
+                    Cfg.MemPurgeOnGame = on;
+                    ApplyInlineKnobByKey("memory.purgeStandbyOnGame", on ? 1 : 0);
+                });
+
+            expMemory.AddToggleRow("后台低空闲内存自动守护净化（纯空闲 < 2 GB 时触发）",
+                "当系统纯空闲内存跌破 2 GB 且 Standby 备用缓存 ≥ 1 GB 时静默排空（带 90 秒防抖冷却）",
+                Cfg.MemAutoPurge, delegate(bool on)
+                {
+                    Cfg.MemAutoPurge = on;
+                    SaveCfgBool("memory", "autoPurge", on);
+                    Log("[内存守护] 低空闲阈值自动净化已" + (on ? "开启（阈值 2048 MB）" : "关闭"));
+                });
+
+            FlatBtn btnCleanShader = null;
+            btnCleanShader = expMemory.AddActionRow("多平台陈旧着色器缓存安全清理（NV / AMD / DirectX）",
+                "升级显卡驱动或游戏大版本更新后清理陈旧缓存可消除编译冲突微顿（自动跳过正在占用的热文件）",
+                "扫描并清理…", BtnKind.Default, Theme.S(114), delegate { DoScanAndCleanShaders(btnCleanShader); });
+            sWb.Block(expMemory, 0);
+            sWb.Space(8);
+
+            // ---------------- 组 4：游戏期 EcoQoS 效能模式智能压制 ----------------
+            expEco = new SettingExpander("游戏期 EcoQoS 效能模式智能压制",
+                "守护游戏主进程禁电源节流 · 自动将 Edge / Chrome / SteamWebHelper 收拢至能效核", 3, false);
+            expEco.StatusBadge = Cfg.EcoQosEnable ? "智能守护开" : "已停用";
+            expEco.BadgeColor = Cfg.EcoQosEnable ? Theme.Ok : Theme.TextDim;
+
+            expEco.AddToggleRow("启用游戏期 EcoQoS 智能压制与主进程防节流",
+                "替代易掉线的粗暴挂起：后台浏览器与平台渲染器自动打上绿色效能叶，退游后按原优先级无损还原",
+                Cfg.EcoQosEnable, delegate(bool on)
+                {
+                    Cfg.EcoQosEnable = on;
+                    ApplyInlineKnobByKey("gameBoost.ecoQos", on ? 1 : 0);
+                    RefreshWorkbenchSummaries();
+                });
+
+            expEco.AddToggleRow("进游戏自动修剪后台大内存进程工作集（≥ 200 MB）",
+                "自动压缩闲置后台软件物理内存占用，把带宽与容量让给前台游戏",
+                Cfg.GbTrim, delegate(bool on)
+                {
+                    Cfg.GbTrim = on;
+                    SaveCfgBool("gameBoost", "trimMemory", on);
+                    Log("[游戏加速包] 后台工作集修剪已" + (on ? "开启" : "关闭"));
+                });
+
+            expEco.AddToggleRow("游戏期临时暂停 Windows Update 与传递优化（DoSvc）",
+                "防止打竞技网游中途后台静默拉取系统补丁引发 Ping 值尖峰，退出游戏自动恢复服务",
+                Cfg.GbPauseWU, delegate(bool on)
+                {
+                    Cfg.GbPauseWU = on;
+                    SaveCfgBool("gameBoost", "pauseWindowsUpdate", on);
+                    Log("[游戏加速包] 游戏期暂停更新服务已" + (on ? "开启" : "关闭"));
+                });
+
+            FlatBtn btnEcoDrill = null;
+            btnEcoDrill = expEco.AddActionRow("桌面实测演练：立即对后台浏览器/平台应用 EcoQoS 压制",
+                "可在任务管理器「状态」列直观看到后台渲染进程出现绿色效能模式图标，再次点击即刻解除",
+                "演练压制", BtnKind.Default, Theme.S(104), delegate
+                {
+                    if (EcoGovernor.ActiveThrottledCount > 0)
+                    {
+                        int rest = EcoGovernor.RestoreAll();
+                        btnEcoDrill.Text = "演练压制";
+                        Log("[EcoQoS] 已解除后台效能压制，恢复 " + rest + " 个进程默认调度");
+                    }
+                    else
+                    {
+                        int hit = EcoGovernor.ApplyForGame();
+                        btnEcoDrill.Text = hit > 0 ? ("解除(" + hit + ")") : "演练压制";
+                        Log("[EcoQoS] 已对 " + hit + " 个后台浏览器/WebHelper 进程启用效能模式压制");
+                    }
+                    RefreshWorkbenchSummaries();
+                    RefreshGridAsync();
+                });
+            sWb.Block(expEco, 0);
+            sWb.Space(8);
+
+            // ---------------- 组 5：游戏网络协议与公共 DNS 测速工具箱 ----------------
+            expNet = new SettingExpander("游戏网络协议与公共 DNS 测速工具箱",
+                "TCP Nagle 零延迟发包 · 6 组主流游戏/公共 DNS 并发毫秒测速与一键切换", 4, false);
+            expNet.StatusBadge = Cfg.NagleOff ? "低延迟栈" : "系统默认";
+            expNet.BadgeColor = Theme.Accent;
+
+            expNet.AddToggleRow("禁用 Nagle 小包合并算法（TcpAckFrequency + TCPNoDelay）",
+                "操作指令小包立即发出不等待拼包，显著改善竞技 FPS / 动作网游发包跟手感",
+                Cfg.NagleOff, delegate(bool on)
+                {
+                    Cfg.NagleOff = on;
+                    ApplyInlineKnobByKey("network.nagleOff", on ? 1 : 0);
+                });
+
+            expNet.AddToggleRow("解除多媒体网络流量节流（NetworkThrottlingIndex = -1）",
+                "关闭 Windows 默认每 10ms 对非多媒体数据包的节流限制，防止联机与语音并发抖动",
+                Cfg.NetThrottle == -1, delegate(bool on)
+                {
+                    int tv = on ? -1 : 10;
+                    Cfg.NetThrottle = tv;
+                    ApplyInlineKnobByKey("network.throttlingIndex", tv);
+                });
+
+            expNet.AddCustomBlock(BuildDnsToolboxPanel(), Theme.S(76));
+            sWb.Block(expNet, 0);
+            sWb.Space(8);
+
+            // ---------------- 组 6：系统后台降噪与开机启动项治理 ----------------
+            expNoise = new SettingExpander("系统后台降噪与开机启动项治理",
+                "对标 WinUtil / Optimizer：小组件 · Copilot · 诊断遥测 · 任务管理器同源无损启动项管理", 5, false);
+            expNoise.StatusBadge = "纯净降噪";
+            expNoise.BadgeColor = Theme.Accent;
+
+            expNoise.AddToggleRow("关闭 Windows 11 小组件后台常驻（Widgets / WebView2）",
+                "释放任务栏天气资讯背后的常驻 Chromium WebView2 进程组（通常可节省 150~300 MB 内存）",
+                NoiseControl.IsWidgetsOff(), delegate(bool on)
+                {
+                    Cfg.WidgetsOff = on;
+                    SaveCfgBool("debloat", "widgetsOff", on);
+                    NoiseControl.SetWidgetsOff(on);
+                });
+
+            expNoise.AddToggleRow("禁用 Windows Copilot 侧栏驻留入口",
+                "关闭系统策略层 Copilot 入口与任务栏按钮，减少后台唤醒干扰",
+                NoiseControl.IsCopilotOff(), delegate(bool on)
+                {
+                    Cfg.CopilotOff = on;
+                    SaveCfgBool("debloat", "copilotOff", on);
+                    NoiseControl.SetCopilotOff(on);
+                });
+
+            expNoise.AddToggleRow("收敛系统诊断遥测收集至最低档（AllowTelemetry = 0）",
+                "降低后台周期性诊断上传与磁盘采样开销，可随时关闭开关恢复原状",
+                NoiseControl.IsTelemetryMin(), delegate(bool on)
+                {
+                    Cfg.TelemetryMin = on;
+                    SaveCfgBool("debloat", "telemetryMin", on);
+                    NoiseControl.SetTelemetryMin(on);
+                });
+
+            expNoise.AddToggleRow("禁止 UWP 商店应用后台静默常驻唤醒",
+                "阻止未打开的商店应用在后台自启消耗 CPU 时间片，打开应用本身完全正常",
+                NoiseControl.IsBgAppsOff(), delegate(bool on)
+                {
+                    Cfg.BgAppsOff = on;
+                    SaveCfgBool("debloat", "bgAppsOff", on);
+                    NoiseControl.SetBgAppsOff(on);
+                });
+
+            expNoise.AddActionRow("开机启动项无损管理器（任务管理器 StartupApproved 同源）",
+                "读写系统原生启停标志位，绝不粗暴删除原始注册表命令，与任务管理器 100% 双向同步",
+                "管理启动项…", BtnKind.Default, Theme.S(114), delegate { ShowStartupDialog(); });
+            sWb.Block(expNoise, 0);
+
+            p.Add(sWb);
+            RefreshWorkbenchSummaries();
+        }
+
+        Panel BuildDnsToolboxPanel()
+        {
+            var box = new Panel();
+            box.BackColor = Theme.Panel;
+            Buffered(box);
+
+            lblDnsCurrent = new TxtLbl();
+            lblDnsCurrent.BackColor = Theme.Panel;
+            lblDnsCurrent.ForeColor = Theme.TextDim;
+            lblDnsCurrent.Font = Theme.F(8.8f);
+            lblDnsCurrent.AutoEllipsis = true;
+            lblDnsCurrent.Text = NetToolbox.CurrentDnsSummary();
+            box.Controls.Add(lblDnsCurrent);
+
+            dnsBenchList = NetToolbox.DefaultPresets();
+            cbDnsPick = new RoundCombo();
+            cbDnsPick.SetCorner(Theme.Panel);
+            cbDnsPick.Width = Theme.S(250);
+            PopulateDnsCombo(dnsBenchList, 1);
+            box.Controls.Add(cbDnsPick);
+
+            var btnPing = new FlatBtn();
+            btnPing.Text = "并发测速排序";
+            btnPing.Corner = Theme.Panel;
+            btnPing.Size = new Size(Theme.S(106), Theme.S(32));
+            btnPing.Click += delegate
+            {
+                btnPing.Enabled = false;
+                btnPing.Text = "测速中…";
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate
+                {
+                    var res = NetToolbox.BenchmarkAll();
+                    // 保持第 0 项 DHCP 不动，其余按实测毫秒升序排列（超时排末尾）
+                    var sorted = new List<DnsPresetResult>();
+                    if (res.Count > 0) sorted.Add(res[0]);
+                    var rest = new List<DnsPresetResult>();
+                    for (int i = 1; i < res.Count; i++) rest.Add(res[i]);
+                    rest.Sort(delegate(DnsPresetResult a, DnsPresetResult b)
+                    {
+                        int la = a.LatencyMs < 0 ? 99999 : a.LatencyMs;
+                        int lb = b.LatencyMs < 0 ? 99999 : b.LatencyMs;
+                        return la.CompareTo(lb);
+                    });
+                    sorted.AddRange(rest);
+                    if (!closing && IsHandleCreated && !IsDisposed)
+                    {
+                        BeginInvoke((Action)delegate
+                        {
+                            dnsBenchList = sorted;
+                            PopulateDnsCombo(sorted, sorted.Count > 1 ? 1 : 0);
+                            btnPing.Enabled = true;
+                            btnPing.Text = "并发测速排序";
+                            string bestInfo = (sorted.Count > 1 && sorted[1].LatencyMs >= 0)
+                                ? ("最快节点：" + sorted[1].Name + " (" + sorted[1].LatencyMs + " ms)")
+                                : "测速完成";
+                            Log("[网络工具箱] DNS 并发延迟实测完毕 · " + bestInfo);
+                        });
+                    }
+                });
+            };
+            box.Controls.Add(btnPing);
+
+            var btnApplyDns = new FlatBtn();
+            btnApplyDns.Text = "切换网卡 DNS";
+            btnApplyDns.Kind = BtnKind.Primary;
+            btnApplyDns.Corner = Theme.Panel;
+            btnApplyDns.Size = new Size(Theme.S(106), Theme.S(32));
+            btnApplyDns.Click += delegate
+            {
+                int idx = cbDnsPick.SelectedIndex;
+                if (dnsBenchList == null || idx < 0 || idx >= dnsBenchList.Count) return;
+                DnsPresetResult pick = dnsBenchList[idx];
+                btnApplyDns.Enabled = false;
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate
+                {
+                    string msg = NetToolbox.ApplyDns(pick.Primary, pick.Secondary);
+                    string summary = NetToolbox.CurrentDnsSummary();
+                    if (!closing && IsHandleCreated && !IsDisposed)
+                    {
+                        BeginInvoke((Action)delegate
+                        {
+                            btnApplyDns.Enabled = true;
+                            if (lblDnsCurrent != null) lblDnsCurrent.Text = summary;
+                            Log(msg);
+                        });
+                    }
+                });
+            };
+            box.Controls.Add(btnApplyDns);
+
+            var btnFlush = new FlatBtn();
+            btnFlush.Text = "刷新缓存/快修";
+            btnFlush.Corner = Theme.Panel;
+            btnFlush.Size = new Size(Theme.S(108), Theme.S(32));
+            btnFlush.Click += delegate
+            {
+                btnFlush.Enabled = false;
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate
+                {
+                    string msg = NetToolbox.FlushAndRepair(false);
+                    if (!closing && IsHandleCreated && !IsDisposed)
+                    {
+                        BeginInvoke((Action)delegate
+                        {
+                            btnFlush.Enabled = true;
+                            Log(msg);
+                        });
+                    }
+                });
+            };
+            box.Controls.Add(btnFlush);
+
+            Action layoutDns = delegate
+            {
+                lblDnsCurrent.SetBounds(0, Theme.S(2), Math.Max(Theme.S(120), box.Width), Theme.S(20));
+                int rowY = Theme.S(30);
+                cbDnsPick.Location = new Point(0, rowY);
+                int bx = cbDnsPick.Right + Theme.S(8);
+                btnPing.Location = new Point(bx, rowY);
+                btnApplyDns.Location = new Point(btnPing.Right + Theme.S(8), rowY);
+                btnFlush.Location = new Point(btnApplyDns.Right + Theme.S(8), rowY);
+            };
+            box.Resize += delegate { layoutDns(); };
+            layoutDns();
+            return box;
+        }
+
+        void PopulateDnsCombo(List<DnsPresetResult> list, int selectIdx)
+        {
+            if (cbDnsPick == null || list == null) return;
+            cbDnsPick.Items.Clear();
+            for (int i = 0; i < list.Count; i++)
+            {
+                DnsPresetResult d = list[i];
+                string lat = string.IsNullOrEmpty(d.Primary) ? ""
+                           : (d.LatencyMs >= 0 ? (" [" + d.LatencyMs + " ms]") : "");
+                string ipPart = string.IsNullOrEmpty(d.Primary) ? "ISP 默认" : d.Primary;
+                cbDnsPick.Items.Add(d.Name + " (" + ipPart + ")" + lat);
+            }
+            if (selectIdx >= 0 && selectIdx < cbDnsPick.Items.Count)
+                cbDnsPick.SelectedIndex = selectIdx;
+        }
+
+        void ApplyInlineKnobByKey(string key, int rawVal)
+        {
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                OptKnob found = null;
+                foreach (var k in Program.Knobs())
+                {
+                    if (k.Key == key) { found = k; break; }
+                }
+                if (found == null) return;
+                Program.SetKnob(found, rawVal);
+                string res = Program.ApplyKnob(found);
+                if (!closing && IsHandleCreated && !IsDisposed)
+                {
+                    BeginInvoke((Action)delegate
+                    {
+                        Cfg = Program.Cfg;
+                        if (!string.IsNullOrEmpty(res)) Log("[即时调优] " + res);
+                        RefreshWorkbenchSummaries();
+                        RefreshGridAsync();
+                    });
+                }
+            });
+        }
+
+        static string DedupDotSegments(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            string[] raw = s.Split(new string[] { " · " }, StringSplitOptions.RemoveEmptyEntries);
+            var uniq = new List<string>();
+            for (int i = 0; i < raw.Length; i++)
+            {
+                string seg = raw[i].Trim();
+                if (seg.Length > 0 && !uniq.Contains(seg)) uniq.Add(seg);
+            }
+            return string.Join(" · ", uniq.ToArray());
+        }
+
+        void RefreshWorkbenchSummaries()
+        {
+            try
+            {
+                if (expPower != null && !expPower.IsDisposed)
+                {
+                    string ps = Cfg.PowerScheme == "ultimate" ? "卓越性能" : (Cfg.PowerScheme == "balanced" ? "平衡" : "高性能");
+                    int liveCp = LowLatencyKit.GetCoreParkingMin();
+                    int showCp = liveCp >= 0 ? liveCp : Cfg.CoreParkMin;
+                    expPower.GroupSummary = "当前方案：" + ps + " · 量子 " + Cfg.SchedSep + " · 实测最小活动核 " + showCp + "%";
+                    expPower.StatusBadge = showCp >= 100 ? "防停核已开" : "可开启防停核";
+                    expPower.BadgeColor = showCp >= 100 ? Theme.Ok : Theme.Accent;
+                    expPower.Invalidate();
+                }
+                if (expLowLat != null && !expLowLat.IsDisposed)
+                {
+                    bool mpoOff = LowLatencyKit.IsMpoDisabled();
+                    string msiSum = DedupDotSegments(LowLatencyKit.GetMsiSummary());
+                    expLowLat.GroupSummary = "HAGS " + (Cfg.HagsOn ? "开" : "关") + " · DWM MPO " + (mpoOff ? "已禁用" : "系统默认")
+                        + (msiSum.Length > 0 ? " · " + msiSum : "");
+                    expLowLat.StatusBadge = mpoOff ? "MPO 已禁" : "硬件就绪";
+                    expLowLat.BadgeColor = Theme.Ok;
+                    expLowLat.Invalidate();
+                }
+                if (expMemory != null && !expMemory.IsDisposed)
+                {
+                    var ms = MemCleaner.QuerySnapshot();
+                    if (memBarOpt != null && !memBarOpt.IsDisposed) memBarOpt.SetSnapshot(ms);
+                    expMemory.GroupSummary = "Standby 备用缓存 " + ms.StandbyMb + " MB · 纯空闲 " + ms.FreeMb + " MB · 进游戏净化：" + (Cfg.MemPurgeOnGame ? "开启" : "手动");
+                    expMemory.StatusBadge = Cfg.MemPurgeOnGame ? "自动净化" : "手动净化";
+                    expMemory.BadgeColor = Cfg.MemPurgeOnGame ? Theme.Ok : Theme.Accent;
+                    expMemory.Invalidate();
+                }
+                if (expEco != null && !expEco.IsDisposed)
+                {
+                    int act = EcoGovernor.ActiveThrottledCount;
+                    expEco.GroupSummary = "游戏期压制：" + (Cfg.EcoQosEnable ? "开启" : "关闭") + " · 当前受控后台进程 " + act + " 个";
+                    expEco.StatusBadge = act > 0 ? ("压制中 " + act) : (Cfg.EcoQosEnable ? "智能守护开" : "已停用");
+                    expEco.BadgeColor = Cfg.EcoQosEnable ? Theme.Ok : Theme.TextDim;
+                    expEco.Invalidate();
+                }
+                if (expNet != null && !expNet.IsDisposed)
+                {
+                    expNet.GroupSummary = "Nagle " + (Cfg.NagleOff ? "已禁用" : "默认") + " · " + NetToolbox.CurrentDnsSummary();
+                    expNet.StatusBadge = Cfg.NagleOff ? "低延迟栈" : "默认栈";
+                    expNet.BadgeColor = Cfg.NagleOff ? Theme.Ok : Theme.Accent;
+                    expNet.Invalidate();
+                }
+            }
+            catch { }
+        }
+
+        void DoQuickPurgeRam(FlatBtn triggerBtn, bool includeWorkingSet)
+        {
+            string origText = triggerBtn != null ? triggerBtn.Text : "";
+            if (triggerBtn != null) { triggerBtn.Enabled = false; triggerBtn.Text = "净化中…"; }
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                long freed = MemCleaner.PurgeStandby(includeWorkingSet);
+                var snap = MemCleaner.QuerySnapshot();
+                int memPct = Program.GetMem();
+                if (!closing && IsHandleCreated && !IsDisposed)
+                {
+                    BeginInvoke((Action)delegate
+                    {
+                        if (triggerBtn != null && !triggerBtn.IsDisposed)
+                        {
+                            triggerBtn.Enabled = true;
+                            triggerBtn.Text = origText;
+                        }
+                        if (memBarOpt != null && !memBarOpt.IsDisposed) memBarOpt.SetSnapshot(snap);
+                        if (memBarMon != null && !memBarMon.IsDisposed) memBarMon.SetSnapshot(snap);
+                        if (barMem != null && memPct >= 0) { barMem.Value = memPct; barMem.RightText = memPct + "%"; }
+                        RefreshWorkbenchSummaries();
+                        Log("[内存净化] 已排空备用页与闲置工作集，释放约 " + freed + " MB（当前纯空闲 " + snap.FreeMb + " MB）");
+                    });
+                }
+            });
+        }
+
+        void DoScanAndCleanShaders(FlatBtn triggerBtn)
+        {
+            if (triggerBtn != null) { triggerBtn.Enabled = false; triggerBtn.Text = "扫描中…"; }
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                ShaderCacheReport rep = ShaderCleaner.Scan();
+                if (!closing && IsHandleCreated && !IsDisposed)
+                {
+                    BeginInvoke((Action)delegate
+                    {
+                        if (triggerBtn != null && !triggerBtn.IsDisposed)
+                        {
+                            triggerBtn.Enabled = true;
+                            triggerBtn.Text = "扫描并清理…";
+                        }
+                        if (rep.FileCount == 0)
+                        {
+                            ModernDialog.Notice(this, "着色器缓存扫描", "当前未发现积压的陈旧着色器缓存文件，无需清理。");
+                            return;
+                        }
+                        if (!ModernDialog.Confirm(this, "安全清理着色器缓存",
+                            "扫描结果：\n" + rep.Summary + "\n\n清理说明：仅删除未被占用的历史缓存文件，正在运行的游戏与桌面合成器热缓存受系统文件锁保护自动跳过。\n首次重新进游戏会重新编译少量新缓存，适合在升级显卡驱动或游戏微卡顿时执行。",
+                            "立即清理", false)) return;
+
+                        if (triggerBtn != null) { triggerBtn.Enabled = false; triggerBtn.Text = "清理中…"; }
+                        System.Threading.ThreadPool.QueueUserWorkItem(delegate
+                        {
+                            string doneMsg = ShaderCleaner.Clean();
+                            if (!closing && IsHandleCreated && !IsDisposed)
+                            {
+                                BeginInvoke((Action)delegate
+                                {
+                                    if (triggerBtn != null && !triggerBtn.IsDisposed)
+                                    {
+                                        triggerBtn.Enabled = true;
+                                        triggerBtn.Text = "扫描并清理…";
+                                    }
+                                    Log(doneMsg);
+                                    ModernDialog.Notice(this, "着色器缓存清理完成", doneMsg);
+                                });
+                            }
+                        });
+                    });
+                }
+            });
+        }
+
+        void ShowMsiDialog()
+        {
+            var devs = LowLatencyKit.GetMsiDevices();
+            string rbar = LowLatencyKit.DetectResizableBarHw();
+
+            using (var dlg = new Form())
+            {
+                dlg.FormBorderStyle = FormBorderStyle.None;
+                dlg.StartPosition = FormStartPosition.CenterParent;
+                dlg.ShowInTaskbar = false;
+                dlg.BackColor = Theme.Bg;
+                dlg.ForeColor = Theme.Text;
+                dlg.Font = Theme.F(9.5f);
+                dlg.KeyPreview = true;
+                dlg.ClientSize = new Size(Theme.S(620), Theme.S(440));
+                dlg.HandleCreated += delegate { Theme.ApplyChrome(dlg.Handle); };
+
+                var head = new Panel();
+                head.Dock = DockStyle.Top;
+                head.Height = Theme.S(48);
+                head.BackColor = Theme.Panel;
+                head.Paint += delegate(object s, PaintEventArgs e)
+                {
+                    e.Graphics.Clear(Theme.Panel);
+                    Theme.DrawTxt(e.Graphics, "PCIe MSI 中断模式与 Resizable BAR 硬件核验", Theme.FM(11f),
+                        new Rectangle(Theme.S(22), 0, head.Width - Theme.S(80), head.Height), Theme.Text,
+                        TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                    using (var pLine = new Pen(Theme.LineSoft, 1f))
+                        e.Graphics.DrawLine(pLine, 0, head.Height - 1, head.Width, head.Height - 1);
+                };
+
+                var foot = new Panel();
+                foot.Dock = DockStyle.Bottom;
+                foot.Height = Theme.S(52);
+                foot.BackColor = Theme.Panel;
+                foot.Paint += delegate(object s, PaintEventArgs e)
+                {
+                    e.Graphics.Clear(Theme.Panel);
+                    using (var pLine = new Pen(Theme.LineSoft, 1f))
+                        e.Graphics.DrawLine(pLine, 0, 0, foot.Width, 0);
+                };
+                var btnCloseDlg = new FlatBtn();
+                btnCloseDlg.Text = "完成";
+                btnCloseDlg.Kind = BtnKind.Primary;
+                btnCloseDlg.Corner = Theme.Panel;
+                btnCloseDlg.Size = new Size(Theme.S(88), Theme.S(30));
+                foot.Resize += delegate { btnCloseDlg.Location = new Point(foot.Width - Theme.S(22) - btnCloseDlg.Width, Theme.S(11)); };
+                btnCloseDlg.Click += delegate { dlg.DialogResult = DialogResult.OK; };
+                foot.Controls.Add(btnCloseDlg);
+
+                var pg = new Pg();
+                pg.Dock = DockStyle.Fill;
+
+                var sRbar = new Sec("Resizable BAR 显存映射核验（只读）");
+                sRbar.Body("硬件 PCIe BAR 状态：" + rbar + "\n注：Resizable BAR 需在主板 BIOS 开启 Above 4G Decoding 与 Re-Size BAR Support，软件层不做强行篡改以保安全。");
+                pg.Add(sRbar);
+
+                var sMsi = new Sec("显卡与物理网卡 PCIe MSI 信号中断");
+                if (devs.Count == 0)
+                {
+                    sMsi.Body("未枚举到支持 MessageSignaledInterruptProperties 的独立 PCIe 显卡/网卡节点。");
+                }
+                else
+                {
+                    sMsi.Body("MSI（Message Signaled Interrupts）用内存写入替代传统共享引脚线中断，能显著降低显卡与网卡驱动的 DPC 尖峰延迟。修改前自动备份注册表，重启后生效。");
+                    for (int i = 0; i < devs.Count; i++)
+                    {
+                        MsiDevInfo dev = devs[i];
+                        var sw = new ToggleSwitch();
+                        sw.Corner = Theme.Panel;
+                        sw.SetSilent(dev.MsiSupported);
+                        sw.CheckedChanged += delegate
+                        {
+                            bool ok = LowLatencyKit.SetDeviceMsi(dev, sw.Checked);
+                            if (ok) dev.MsiSupported = sw.Checked;
+                            else sw.SetSilent(dev.MsiSupported);
+                            RefreshWorkbenchSummaries();
+                            RefreshGridAsync();
+                        };
+                        string limTxt = dev.IrqLimit > 0 ? (" · 队列上限 " + dev.IrqLimit) : "";
+                        sMsi.Row("[" + dev.Category + "] " + dev.Name + limTxt, sw, sw.Width);
+                    }
+                }
+                pg.Add(sMsi);
+
+                dlg.Controls.Add(pg);
+                dlg.Controls.Add(foot);
+                dlg.Controls.Add(head);
+                dlg.Shown += delegate { pg.Reflow(); };
+                dlg.KeyDown += delegate(object s, KeyEventArgs ke) { if (ke.KeyCode == Keys.Escape) dlg.DialogResult = DialogResult.Cancel; };
+                Fx.FadeOnClose(dlg);
+                dlg.ShowDialog(this);
+            }
+        }
+
+        void ShowStartupDialog()
+        {
+            var entries = StartupMgr.ListAll();
+            using (var dlg = new Form())
+            {
+                dlg.FormBorderStyle = FormBorderStyle.None;
+                dlg.StartPosition = FormStartPosition.CenterParent;
+                dlg.ShowInTaskbar = false;
+                dlg.BackColor = Theme.Bg;
+                dlg.ForeColor = Theme.Text;
+                dlg.Font = Theme.F(9.5f);
+                dlg.KeyPreview = true;
+                dlg.ClientSize = new Size(Theme.S(660), Theme.S(500));
+                dlg.HandleCreated += delegate { Theme.ApplyChrome(dlg.Handle); };
+
+                var head = new Panel();
+                head.Dock = DockStyle.Top;
+                head.Height = Theme.S(48);
+                head.BackColor = Theme.Panel;
+                head.Paint += delegate(object s, PaintEventArgs e)
+                {
+                    e.Graphics.Clear(Theme.Panel);
+                    Theme.DrawTxt(e.Graphics, "开机启动项治理（与 Windows 任务管理器双向同步）", Theme.FM(11f),
+                        new Rectangle(Theme.S(22), 0, head.Width - Theme.S(80), head.Height), Theme.Text,
+                        TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                    using (var pLine = new Pen(Theme.LineSoft, 1f))
+                        e.Graphics.DrawLine(pLine, 0, head.Height - 1, head.Width, head.Height - 1);
+                };
+
+                var foot = new Panel();
+                foot.Dock = DockStyle.Bottom;
+                foot.Height = Theme.S(52);
+                foot.BackColor = Theme.Panel;
+                foot.Paint += delegate(object s, PaintEventArgs e)
+                {
+                    e.Graphics.Clear(Theme.Panel);
+                    using (var pLine = new Pen(Theme.LineSoft, 1f))
+                        e.Graphics.DrawLine(pLine, 0, 0, foot.Width, 0);
+                };
+                var btnDone = new FlatBtn();
+                btnDone.Text = "完成";
+                btnDone.Kind = BtnKind.Primary;
+                btnDone.Corner = Theme.Panel;
+                btnDone.Size = new Size(Theme.S(88), Theme.S(30));
+                foot.Resize += delegate { btnDone.Location = new Point(foot.Width - Theme.S(22) - btnDone.Width, Theme.S(11)); };
+                btnDone.Click += delegate { dlg.DialogResult = DialogResult.OK; };
+                foot.Controls.Add(btnDone);
+
+                var pg = new Pg();
+                pg.Dock = DockStyle.Fill;
+
+                var sBox = new Sec("");
+                sBox.EdgeToEdge = true;
+                var expList = new SettingExpander("已检测到的开机自启程序（共 " + entries.Count + " 项）",
+                    "切换右侧胶囊开关即可无损禁用或重新启用，原始启动命令完整保留", 5, true);
+                if (entries.Count == 0)
+                {
+                    var emptyLbl = new TxtLbl();
+                    emptyLbl.Text = "当前未检测到非核心第三方开机启动项。";
+                    emptyLbl.ForeColor = Theme.TextDim;
+                    emptyLbl.Height = Theme.S(28);
+                    expList.AddCustomBlock(emptyLbl, Theme.S(28));
+                }
+                else
+                {
+                    for (int i = 0; i < entries.Count; i++)
+                    {
+                        StartupEntry ent = entries[i];
+                        ToggleSwitch rowSw = null;
+                        rowSw = expList.AddToggleRow(ent.Name + "  [" + ent.Scope + "]",
+                            ent.Command, ent.Enabled, delegate(bool wantOn)
+                            {
+                                if (!StartupMgr.SetEnabled(ent, wantOn))
+                                    rowSw.SetSilent(ent.Enabled);
+                            });
+                    }
+                }
+                sBox.Block(expList, 0);
+                pg.Add(sBox);
+
+                dlg.Controls.Add(pg);
+                dlg.Controls.Add(foot);
+                dlg.Controls.Add(head);
+                dlg.Shown += delegate { pg.Reflow(); };
+                dlg.KeyDown += delegate(object s, KeyEventArgs ke) { if (ke.KeyCode == Keys.Escape) dlg.DialogResult = DialogResult.Cancel; };
+                Fx.FadeOnClose(dlg);
+                dlg.ShowDialog(this);
+            }
         }
 
         // 显示器设备列表（含**已禁用**的：光靠 EnumDisplayDevices 看不到被禁用的设备，见 MonMgr 注释）
@@ -11040,15 +13296,13 @@ namespace Fluxion
                 try { foreach (MonDev x in MonMgr.All()) if (x.OnDesktop) onDesk++; } catch { }
                 if (d.OnDesktop && onDesk <= 1 && !Cfg.ResLinkSoloOff)
                 {
-                    MessageBox.Show(this, "「" + d.Panel + "」是当前唯一活动显示器，默认禁止停用以防黑屏。\n\n"
-                        + "如需用于单屏拉伸，请先在「设置 → 分辨率与多屏联动」中勾选「允许禁用唯一在用屏」。",
-                        "禁用显示器", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    ModernDialog.Notice(this, "禁用显示器保护", "「" + d.Panel + "」是当前唯一活动显示器，默认禁止停用以防黑屏。\n\n"
+                        + "如需用于单屏拉伸，请先在「设置 → 分辨率与多屏联动」中勾选「允许禁用唯一在用屏」。");
                     return;
                 }
                 string extra = d.Primary ? "\n\n⚠ 该设备为当前主屏，停用后桌面将移至副屏。" : "";
-                if (MessageBox.Show(this, "确定在设备管理器中停用「" + d.Panel + "」吗？" + extra
-                    + "\n\n可随时点击「全部启用」恢复。", "禁用显示器",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+                if (!ModernDialog.Confirm(this, "禁用显示器", "确定在设备管理器中停用「" + d.Panel + "」吗？" + extra
+                    + "\n\n可随时点击「全部启用」恢复。", "确认停用", true)) return;
             }
             bool ok = MonMgr.SetEnabled(d, on);
             Log((on ? "启用" : "禁用") + "显示器 " + d.Line
@@ -11167,24 +13421,52 @@ namespace Fluxion
             btnInstall.Click += delegate { DoInstallCurrent(); };
             btnUninstall = new FlatBtn();
             btnUninstall.Text = "卸载补丁";
+            btnUninstall.Kind = BtnKind.Subtle;
             btnUninstall.Width = Theme.S(140);
             btnUninstall.Click += delegate { DoUninstallCurrent(); };
             sPick.Buttons(btnInstall, btnUninstall);
             AddDetail(p, sPick, 0);
 
-            // ---------- 游戏信息（概览 · 2026-10-22）----------
-            //  以前概览页在"无需安装"的游戏上只有一张适配方案卡，底下全是灰底还能翻 ——
-            //  空翻的观感比内容少更廉价。这里放游戏自身的事实（都是库/扫描里现成的）：
-            //  平台 / 入口程序 / 安装目录 / 累计时长 · 最近游玩。纯展示，无操作。
-            var sGi = new Sec("游戏信息");
+            // ---------- 启动器与游戏信息（概览 · 一站式启动控制中心）----------
+            btnIgnored = null;
+            btnWebCover = btnSetCover = btnPasteCover = btnClearCover = null;
+            var sGi = new Sec("启动器与游戏信息");
+            cbLaunchMode = new RoundCombo();
+            cbLaunchMode.DropDownStyle = ComboBoxStyle.DropDownList;
+            cbLaunchMode.Items.AddRange(new object[] {
+                "自动推荐（优先免平台直启）",
+                "免平台直启 EXE（零平台弹窗）",
+                "平台静默唤起（Steam -silent / 协议）"
+            });
+            cbLaunchMode.SelectedIndex = 0;
+            cbLaunchMode.SelectedIndexChanged += delegate
+            {
+                if (launchModeSyncing || selected == null) return;
+                int idx = cbLaunchMode.SelectedIndex;
+                string mode = idx == 1 ? "direct" : (idx == 2 ? "platform" : "auto");
+                LauncherUi.SetMode(selected, mode);
+                Log("启动方式已设为「" + cbLaunchMode.Items[idx] + "」：" + selected.Title);
+                FillGameList();
+                RefreshFgSummary();
+            };
+            sGi.Row("启动方式", cbLaunchMode, Theme.S(300));
+
             lblGi = sGi.Body("");
             lblGi.Font = Theme.F(9.5f);
             lblGi.ForeColor = Theme.TextDim;
-            //  每游戏「启动参数」的**可见入口**（2026-10-31）：对话框第 148 轮就做好了，
-            //  但入口只埋在右键菜单里 —— 用户直接问"填参数的地方在哪"
-            //  （现实需求：鸣潮 3.7 起直启 exe 必须带 -krqlv=uhd 这类画质档参数）。
-            //  状态行 + 编辑按钮放进「游戏信息」卡，选中游戏就能看到；保存后经 RefreshFgSummary 回显。
-            //  与右键菜单同一闸（!ShareBuild）：分享构建没有编辑入口，就别摆一行"未设置"干瞪眼。
+
+            var btnLaunchNow = new FlatBtn();
+            btnLaunchNow.Text = "▶ 立即畅玩";
+            btnLaunchNow.Kind = BtnKind.Primary;
+            btnLaunchNow.Width = Theme.S(118);
+            btnLaunchNow.Click += delegate { DoLaunchGame(); };
+
+            var btnOpenDirGi = new FlatBtn();
+            btnOpenDirGi.Text = "打开目录";
+            btnOpenDirGi.Kind = BtnKind.Subtle;
+            btnOpenDirGi.Width = Theme.S(88);
+            btnOpenDirGi.Click += delegate { DoOpenGameDir(); };
+
             if (!Program.ShareBuild)
             {
                 lblGiArgs = sGi.Body("");
@@ -11192,31 +13474,33 @@ namespace Fluxion
                 lblGiArgs.ForeColor = Theme.TextDim;
 
                 btnLaunchCfg = new FlatBtn();
-                btnLaunchCfg.Text = "启动参数与环境变量…";
-                btnLaunchCfg.Width = Theme.S(150);
+                btnLaunchCfg.Text = "启动参数…";
+                btnLaunchCfg.Kind = BtnKind.Subtle;
+                btnLaunchCfg.Width = Theme.S(104);
                 btnLaunchCfg.Click += delegate { ShowLaunchConfigDialog(); };
 
-                btnWebCover = new FlatBtn();
-                btnWebCover.Text = "联网搜封面";
-                btnWebCover.Width = Theme.S(104);
-                btnWebCover.Click += delegate { DoWebCover(); };
+                var btnCoverMenu = new FlatBtn();
+                btnCoverMenu.Text = "封面管理 ▾";
+                btnCoverMenu.Kind = BtnKind.Ghost;
+                btnCoverMenu.Width = Theme.S(98);
+                btnCoverMenu.Click += delegate
+                {
+                    ThemedMenu m = MenuFactory.New();
+                    m.Items.Add("联网搜索高清封面", null, delegate { DoWebCover(); });
+                    m.Items.Add("选择本地图片…", null, delegate { DoSetCover(); });
+                    m.Items.Add("粘贴剪贴板图片（Ctrl+V）", null, delegate { DoPasteCover(); });
+                    m.Items.Add("重新下载官方封面", null, delegate { DoRedownloadCover(); });
+                    m.Items.Add(new ToolStripSeparator());
+                    m.Items.Add("清除自定义封面", null, delegate { DoClearCover(); });
+                    m.PrepareLayout();
+                    m.Show(btnCoverMenu, new Point(0, btnCoverMenu.Height + Theme.S(4)));
+                };
 
-                btnSetCover = new FlatBtn();
-                btnSetCover.Text = "本地选图…";
-                btnSetCover.Width = Theme.S(96);
-                btnSetCover.Click += delegate { DoSetCover(); };
-
-                btnPasteCover = new FlatBtn();
-                btnPasteCover.Text = "粘贴图片";
-                btnPasteCover.Width = Theme.S(92);
-                btnPasteCover.Click += delegate { DoPasteCover(); };
-
-                btnClearCover = new FlatBtn();
-                btnClearCover.Text = "移除封面";
-                btnClearCover.Width = Theme.S(92);
-                btnClearCover.Click += delegate { DoClearCover(); };
-
-                sGi.Buttons(btnLaunchCfg, btnWebCover, btnSetCover, btnPasteCover, btnClearCover);
+                sGi.Buttons(btnLaunchNow, btnLaunchCfg, btnOpenDirGi, btnCoverMenu);
+            }
+            else
+            {
+                sGi.Buttons(btnLaunchNow, btnOpenDirGi);
             }
             AddDetail(p, sGi, 0);
 
@@ -11232,26 +13516,27 @@ namespace Fluxion
             lblDlssLib = s2.Body("");
             lblDlssLib.Font = Theme.F(9.5f);
             lblDlssLib.ForeColor = Theme.TextDim;
-            btnDownload = new FlatBtn(); btnDownload.Text = "下载运行时"; btnDownload.Width = Theme.S(112);
+            btnDownload = new FlatBtn(); btnDownload.Text = "下载运行时"; btnDownload.Kind = BtnKind.Primary; btnDownload.Width = Theme.S(112);
             btnDownload.Click += delegate { DoDownload(); };
-            var btnResidue = new FlatBtn(); btnResidue.Text = "清理残留"; btnResidue.Width = Theme.S(96);
-            btnResidue.Click += delegate { DoCleanResidue(); };
-            var btnDlssSwap = new FlatBtn(); btnDlssSwap.Text = "管理 DLSS 运行库…"; btnDlssSwap.Width = Theme.S(142);
-            btnDlssSwap.Click += delegate { ShowDlssRuntimeDialog(); };
-            s2.Buttons(btnDownload, btnResidue, btnDlssSwap);
-            var btnOn = new FlatBtn(); btnOn.Text = "开启选中"; btnOn.Kind = BtnKind.Success; btnOn.Width = Theme.S(96);
-            btnOn.Click += delegate { DoFgInstall(); };
-            var btnOff = new FlatBtn(); btnOff.Text = "关闭选中"; btnOff.Kind = BtnKind.Danger; btnOff.Width = Theme.S(96);
-            btnOff.Click += delegate { DoFgUninstall(); };
-            var btnSwitch = new FlatBtn(); btnSwitch.Text = "换入口重试"; btnSwitch.Width = Theme.S(96);
-            btnSwitch.Click += delegate { DoSwitchEntry(); };
-            var btnDiag = new FlatBtn(); btnDiag.Text = "运行诊断"; btnDiag.Width = Theme.S(96);
+            var btnDiag = new FlatBtn(); btnDiag.Text = "运行诊断"; btnDiag.Kind = BtnKind.Subtle; btnDiag.Width = Theme.S(92);
             btnDiag.Click += delegate { DoFgDiagnose(); };
-            btnIgnored = new FlatBtn(); btnIgnored.Text = "忽略清单"; btnIgnored.Width = Theme.S(96);
-            btnIgnored.Click += delegate { ShowIgnoredDialog(); };
-            var btnParkStray = new FlatBtn(); btnParkStray.Text = "停放遗留项"; btnParkStray.Width = Theme.S(112);
-            btnParkStray.Click += delegate { DoParkStrays(); };
-            s2.Buttons(btnOn, btnOff, btnSwitch, btnDiag, btnIgnored, btnParkStray);
+            var btnDlssSwap = new FlatBtn(); btnDlssSwap.Text = "管理 DLSS 库…"; btnDlssSwap.Kind = BtnKind.Subtle; btnDlssSwap.Width = Theme.S(126);
+            btnDlssSwap.Click += delegate { ShowDlssRuntimeDialog(); };
+            var btnDiagMore = new FlatBtn(); btnDiagMore.Text = "高级维护 ▾"; btnDiagMore.Kind = BtnKind.Ghost; btnDiagMore.Width = Theme.S(98);
+            btnDiagMore.Click += delegate
+            {
+                ThemedMenu m = MenuFactory.New();
+                m.Items.Add("开启选中补丁", null, delegate { DoFgInstall(); });
+                m.Items.Add("关闭选中补丁", null, delegate { DoFgUninstall(); });
+                m.Items.Add("切换入口重试", null, delegate { DoSwitchEntry(); });
+                m.Items.Add(new ToolStripSeparator());
+                m.Items.Add("清理反作弊残留", null, delegate { DoCleanResidue(); });
+                m.Items.Add("停放遗留代理项…", null, delegate { DoParkStrays(); });
+                m.Items.Add("忽略清单管理…", null, delegate { ShowIgnoredDialog(); });
+                m.PrepareLayout();
+                m.Show(btnDiagMore, new Point(0, btnDiagMore.Height + Theme.S(4)));
+            };
+            s2.Buttons(btnDownload, btnDiag, btnDlssSwap, btnDiagMore);
             lblD3d12 = s2.BodyFixed("d3d12 入口：检查中…", 1);
             lblPatrol = s2.BodyFixed("入口巡检：检查中…", 1);
             AddDetail(p, s2, 2);
@@ -11335,20 +13620,11 @@ namespace Fluxion
             cbSr040.SelectedIndexChanged += delegate { Save040Tuning(); };
             s040.Row("超分 INT8 SuperResolution", cbSr040, Theme.S(280));
 
-            btnUpRelease = new FlatBtn(); btnUpRelease.Text = "从 GitHub 取新版"; btnUpRelease.Width = Theme.S(140);
-            btnUpRelease.Click += delegate { DoUpstreamFetch(); };
-            var btn040Src = new FlatBtn(); btn040Src.Text = "下载源 / 资源包"; btn040Src.Width = Theme.S(140);
-            btn040Src.Click += delegate { DoUpstreamSettings(); };
-            var btn040Purge = new FlatBtn(); btn040Purge.Text = "彻底清理"; btn040Purge.Kind = BtnKind.Danger; btn040Purge.Width = Theme.S(104);
-            btn040Purge.Click += delegate { Do040Purge(); };
-            s040.Buttons(btnUpRelease, btn040Src, btn040Purge);
-            var btn040Apply = new FlatBtn(); btn040Apply.Text = "应用参数到已装游戏"; btn040Apply.Width = Theme.S(160);
+            var btn040Apply = new FlatBtn(); btn040Apply.Text = "应用参数到已装游戏"; btn040Apply.Kind = BtnKind.Primary; btn040Apply.Width = Theme.S(154);
             btn040Apply.Click += delegate { Do040Tuning(); };
-            var btn040Check = new FlatBtn(); btn040Check.Text = "生效检查"; btn040Check.Width = Theme.S(104);
-            btn040Check.Click += delegate { DoFgLogCheck(); };
-            var btnNetDisk = new FlatBtn(); btnNetDisk.Text = "网盘下载源"; btnNetDisk.Width = Theme.S(150);
-            btnNetDisk.Click += delegate { DoNetDiskSources(); };
-            var btnPackImport = new FlatBtn(); btnPackImport.Text = "导入资源包…"; btnPackImport.Width = Theme.S(120);
+            btnUpRelease = new FlatBtn(); btnUpRelease.Text = "从 GitHub 取新版"; btnUpRelease.Kind = BtnKind.Subtle; btnUpRelease.Width = Theme.S(132);
+            btnUpRelease.Click += delegate { DoUpstreamFetch(); };
+            var btnPackImport = new FlatBtn(); btnPackImport.Text = "导入资源包…"; btnPackImport.Kind = BtnKind.Subtle; btnPackImport.Width = Theme.S(108);
             btnPackImport.Click += delegate
             {
                 string folder = ModernFolderPicker.PickFolder(this.Handle,
@@ -11369,7 +13645,19 @@ namespace Fluxion
                 if (zips.Count == 1) { StartPackImport(new List<string> { zips[0] }); return; }
                 ShowPackZipList(zips, folder);                      // 多个包 → 列表挑一个
             };
-            s040.Buttons(btn040Apply, btn040Check, btnPackImport, btnNetDisk);
+            var btn040More = new FlatBtn(); btn040More.Text = "更多 ▾"; btn040More.Kind = BtnKind.Ghost; btn040More.Width = Theme.S(82);
+            btn040More.Click += delegate
+            {
+                ThemedMenu m = MenuFactory.New();
+                m.Items.Add("帧生成生效检查", null, delegate { DoFgLogCheck(); });
+                m.Items.Add("下载源与组件选项…", null, delegate { DoUpstreamSettings(); });
+                m.Items.Add("网盘镜像下载源…", null, delegate { DoNetDiskSources(); });
+                m.Items.Add(new ToolStripSeparator());
+                m.Items.Add("彻底清理 0.4.x 文件…", null, delegate { Do040Purge(); });
+                m.PrepareLayout();
+                m.Show(btn040More, new Point(0, btn040More.Height + Theme.S(4)));
+            };
+            s040.Buttons(btn040Apply, btnUpRelease, btnPackImport, btn040More);
             AddDetail(p, s040, 1);
 
             sNvSec = new Sec("方案 B · DLSS MFG Bridge");
@@ -11528,6 +13816,7 @@ namespace Fluxion
             var s0 = new Sec("");
             var btnFetchAll = new FlatBtn();
             btnFetchAll.Text = "补全封面";
+            btnFetchAll.Kind = BtnKind.Subtle;
             btnFetchAll.Width = Theme.S(86);
             btnFetchAll.Corner = Theme.Bg;
             btnFetchAll.Click += delegate { DoFetchAllCovers(); };
@@ -11550,6 +13839,7 @@ namespace Fluxion
             grid.CellH = Theme.S(255);                   // 卡片 243 + 上下各 6
             grid.Tag = s2;                               // 高度变化时通知所属分区重排
             grid.ScanRequested += delegate { RunScan(true); };   // 空态主按钮 = 页头那颗的同款入口
+            grid.AddRequested = delegate(Control anchor) { DoAddGameMenu(anchor); };
             libGrid = grid;
             s2.Block(grid, Theme.S(255));
             AddLib(p, s2);
@@ -11562,12 +13852,26 @@ namespace Fluxion
             actBar.Dock = DockStyle.Bottom;
             actBar.Height = Theme.S(52);
             actBar.Visible = false;
-            actBar.Install += delegate(DlssgGame g) { SelectGame(g, false); DoInstallCurrent(); FillGameList(); };
+            actBar.Install += delegate(DlssgGame g)
+            {
+                SelectGame(g, false);
+                if (LauncherUi.IsLauncherCapsule(g) && !Program.ShareBuild)
+                    ShowLaunchConfigDialog();
+                else
+                {
+                    DoInstallCurrent();
+                    FillGameList();
+                }
+            };
             actBar.Launch += delegate(DlssgGame g) { SelectGame(g, false); DoLaunchGame(); };
             actBar.Details += delegate(DlssgGame g) { SelectGame(g, true); };
             actBar.PickScheme += delegate(DlssgGame g)
             {
                 ShowSchemeMenuAt(g, actBar, new Point(Theme.S(18), -Theme.S(4)));
+            };
+            actBar.PickLaunchMode += delegate(DlssgGame g)
+            {
+                ShowLaunchModeMenuAt(g, actBar, new Point(Theme.S(18), -Theme.S(4)));
             };
             content.Controls.Add(actBar);
         }
@@ -11821,6 +14125,18 @@ namespace Fluxion
             s1.Block(tlp, Theme.S(120));
             p.Add(s1);
 
+            var sMemMon = new Sec("物理内存构成与实时净化");
+            memBarMon = new MemoryBar();
+            memBarMon.Corner = Theme.Panel;
+            try { memBarMon.SetSnapshot(MemCleaner.QuerySnapshot()); } catch { }
+            sMemMon.Block(memBarMon, Theme.S(46));
+            var btnMonStandby = new FlatBtn(); btnMonStandby.Text = "仅排空备用页"; btnMonStandby.Kind = BtnKind.Subtle; btnMonStandby.Width = Theme.S(112);
+            btnMonStandby.Click += delegate { DoQuickPurgeRam(btnMonStandby, false); };
+            var btnMonDeep = new FlatBtn(); btnMonDeep.Text = "深度净化内存"; btnMonDeep.Kind = BtnKind.Primary; btnMonDeep.Width = Theme.S(112);
+            btnMonDeep.Click += delegate { DoQuickPurgeRam(btnMonDeep, true); };
+            sMemMon.Buttons(btnMonDeep, btnMonStandby);
+            p.Add(sMemMon);
+
             var s2 = new Sec("运行日志");
             logSec = s2;                        // 高度自适应要用（见 ResizeLogBox）
             log = new LogView();
@@ -11880,7 +14196,7 @@ namespace Fluxion
 
             var s0 = new Sec("界面主题");
             cbTheme = new RoundCombo();
-            cbTheme.Items.AddRange(new object[] { "浅色 · 宣纸石白", "深色 · 曜石石墨" });
+            cbTheme.Items.AddRange(new object[] { "浅色 · 画廊冷瓷", "深色 · 曜石靛蓝" });
             cbTheme.SelectedIndex = (Cfg != null && Cfg.UiTheme == "dark") ? 1 : 0;
             cbTheme.SelectedIndexChanged += delegate {
                 BeginInvoke(new Action(delegate {
@@ -12158,25 +14474,30 @@ namespace Fluxion
             var sd = new Sec("数据与配置存储");
             sd.Body("当前位置：" + Program.DataDir + "（卸载程序不会删除此目录）");
             var btnMoveDir = new FlatBtn(); btnMoveDir.Text = "更改数据目录…"; btnMoveDir.Kind = BtnKind.Primary;
-            btnMoveDir.Width = Theme.S(140);
+            btnMoveDir.Width = Theme.S(136);
             btnMoveDir.Click += delegate { DoChangeDataDir(); };
-            var btnOpenDir = new FlatBtn(); btnOpenDir.Text = "打开目录"; btnOpenDir.Width = Theme.S(88);
+            var btnOpenDir = new FlatBtn(); btnOpenDir.Text = "打开目录"; btnOpenDir.Kind = BtnKind.Subtle; btnOpenDir.Width = Theme.S(88);
             btnOpenDir.Click += delegate
             {
                 try { Process.Start("explorer.exe", "\"" + Program.DataDir + "\""); }
                 catch (Exception ex) { Log("打开目录失败: " + ex.Message); }
             };
-            var btnLogs = new FlatBtn(); btnLogs.Text = "打开日志"; btnLogs.Width = Theme.S(88);
-            btnLogs.Click += delegate
+            var btnDataMore = new FlatBtn(); btnDataMore.Text = "备份与日志 ▾"; btnDataMore.Kind = BtnKind.Ghost; btnDataMore.Width = Theme.S(104);
+            btnDataMore.Click += delegate
             {
-                try { Process.Start("explorer.exe", "\"" + Path.Combine(Program.DataDir, "logs") + "\""); }
-                catch (Exception ex) { Log("打开目录失败: " + ex.Message); }
+                ThemedMenu m = MenuFactory.New();
+                m.Items.Add("导出配置备份…", null, delegate { DoExportConfig(); });
+                m.Items.Add("导入配置备份…", null, delegate { DoImportConfig(); });
+                m.Items.Add(new ToolStripSeparator());
+                m.Items.Add("打开运行日志目录", null, delegate
+                {
+                    try { Process.Start("explorer.exe", "\"" + Path.Combine(Program.DataDir, "logs") + "\""); }
+                    catch (Exception ex) { Log("打开目录失败: " + ex.Message); }
+                });
+                m.PrepareLayout();
+                m.Show(btnDataMore, new Point(0, btnDataMore.Height + Theme.S(4)));
             };
-            var btnExport = new FlatBtn(); btnExport.Text = "导出配置…"; btnExport.Width = Theme.S(100);
-            btnExport.Click += delegate { DoExportConfig(); };
-            var btnImport = new FlatBtn(); btnImport.Text = "导入配置…"; btnImport.Width = Theme.S(100);
-            btnImport.Click += delegate { DoImportConfig(); };
-            sd.Buttons(btnMoveDir, btnOpenDir, btnLogs, btnExport, btnImport);
+            sd.Buttons(btnMoveDir, btnOpenDir, btnDataMore);
             p.Add(sd);
 
             var sj = new Sec("备份与回收");
@@ -13564,7 +15885,7 @@ namespace Fluxion
             if (System.Threading.Interlocked.CompareExchange(ref guardBusyFlag, 1, 0) != 0) return;
             System.Threading.ThreadPool.QueueUserWorkItem(delegate
             {
-                try { Program.GuardTick(); }
+                try { Program.GuardTick(); MemCleaner.CheckAutoPurge(); }
                 catch (Exception ex) { Program.Log("TickGuard: " + ex.GetType().Name + " " + ex.Message); }
                 finally { guardBusyFlag = 0; }
             });
@@ -13575,7 +15896,7 @@ namespace Fluxion
             //  降频：只有"正停在仪表盘页/实时监控页 + 窗口可见 + 没最小化"时才每 4 秒采样。
             //  实时曲线只有看得见才有意义；后台时 nvidia-smi 每 4 秒拉一次纯属浪费（实测 41ms/次），
             //  降到每 8 个 tick（约 32 秒）一次，高温告警仍然有效。
-            bool watching = !closing && (page == P_DASH || page == P_MON) && Visible && WindowState != FormWindowState.Minimized;
+            bool watching = !closing && (page == P_DASH || page == P_MON || page == P_OPT) && Visible && WindowState != FormWindowState.Minimized;
             if (!watching)
             {
                 sysIdleSkip++;
@@ -13588,6 +15909,7 @@ namespace Fluxion
                 {
                     int c = Program.GetCpu(), m = Program.GetMem(), g = Program.GetGpuPct(), t = Program.GetGpuTemp();
                     int ct = Program.GetCpuTemp();
+                    MemListSnapshot mSnap = MemCleaner.QuerySnapshot();
                     if (!closing && barCpu != null)
                     {
                         // BeginInvoke：UI 线程被同步 IO 钉住时池线程不必陪着等（2026-09-30 体检）
@@ -13613,6 +15935,8 @@ namespace Fluxion
                             if (m >= 0 && spMem != null) spMem.Push(m);
                             if (t >= 0 && spGpuTemp != null) spGpuTemp.Push(t);
                             if (ct >= 0 && spCpuTemp != null) spCpuTemp.Push(ct);
+                            if (memBarOpt != null && !memBarOpt.IsDisposed) memBarOpt.SetSnapshot(mSnap);
+                            if (memBarMon != null && !memBarMon.IsDisposed) memBarMon.SetSnapshot(mSnap);
                         }));
                     }
                     CheckAlarms(c, m, t);
@@ -14018,6 +16342,19 @@ namespace Fluxion
                     cbScheme.Items.Set(3, "DLSS MFG " + Dlssg040.Ver + " · 进阶内核");
                 }
 
+                if (cbLaunchMode != null)
+                {
+                    launchModeSyncing = true;
+                    try
+                    {
+                        string lm = LauncherUi.GetMode(selected);
+                        int wantLm = lm == "direct" ? 1 : (lm == "platform" ? 2 : 0);
+                        if (cbLaunchMode.SelectedIndex != wantLm) cbLaunchMode.SelectedIndex = wantLm;
+                        cbLaunchMode.Enabled = selected != null;
+                    }
+                    finally { launchModeSyncing = false; }
+                }
+
                 if (lblGi != null)
                 {
                     if (selected == null) SetBody(lblGi, "");
@@ -14043,7 +16380,13 @@ namespace Fluxion
                             }
                             catch { }
                         }
-                        string line = "平台：" + Lib.PlatformLabel(selected.Platform)
+                        string boostNote = "";
+                        if (!Program.ShareBuild && Cfg != null)
+                        {
+                            boostNote = " · 启动加速：" + (Cfg.MemPurgeOnGame ? "自动净化内存" : "按需净化")
+                                + (Cfg.EcoQosEnable ? " / EcoQoS 就绪" : "");
+                        }
+                        string line = "平台与启动：" + Lib.PlatformLabel(selected.Platform) + " · " + LauncherUi.ModeLabel(selected) + boostNote
                             + "\n入口程序：" + exe
                             + "\n安装目录：" + (dir == null || dir.Length == 0 ? "—" : dir);
                         string tail = "";
@@ -14551,10 +16894,16 @@ namespace Fluxion
                     if (onlyHidden) { if (!g.Hidden) continue; }
                     else if (g.Hidden && !showHidden) continue;            // 私密不进「全部」
                     if (g.Private && fid != "private") continue;           // 私密不进「全部」
+                    string gp = (g.Platform == null ? "" : g.Platform).Trim().ToLowerInvariant();
+                    bool isHoyo = (gp == "hoyo" || gp == "mihoyo" || gp == "hoyoplay");
+                    bool isLocalLike = (gp == "local" || gp == "kuro" || gp.Length == 0);
                     if (fid == "fav" && !g.Favorite) continue;
                     if (fid == "private" && !g.Private) continue;
-                    if (fid == "genre" && (g.Genre == null || g.Genre.Length == 0)) continue;
-                    if ((fid == "steam" || fid == "epic" || fid == "wegame" || fid == "local") && g.Platform != fid) continue;
+                    if (fid == "steam" && gp != "steam") continue;
+                    if (fid == "wegame" && gp != "wegame") continue;
+                    if (fid == "hoyo" && !isHoyo) continue;
+                    if (fid == "epic" && gp != "epic") continue;
+                    if (fid == "local" && !isLocalLike) continue;
                     if (q.Length > 0 && !FuzzyHit(g, q)) continue;
                     shown.Add(g);
                 }
@@ -14562,8 +16911,8 @@ namespace Fluxion
 
                 libGrid.Placeholder = games.Count == 0
                     ? (scanRunning
-                        ? "正在扫描游戏…|装好的游戏会自动出现在这里，不用手动添加"
-                        : "还没有游戏|点下面的按钮开始扫描，或直接把游戏文件夹拖进来")
+                        ? "正在扫描全平台游戏库…|自动检索 Steam · WeGame · 米哈游 · Epic 与本机游戏目录"
+                        : "一键接管你的全平台游戏库|自动发现 Steam · WeGame · 米哈游 · Epic 游戏，或把桌面快捷方式 (.lnk / .exe) 拖入窗口")
                     : "";
                 libGrid.ScanEnabled = !scanRunning;
 
@@ -14619,6 +16968,11 @@ namespace Fluxion
                             if (tile.Game != null) { SelectGame(tile.Game, false); DoLaunchGame(); }
                         };
                         t.SchemeMenu += ShowSchemeMenuFor;
+                        t.LaunchModeMenu += delegate(CoverTile tile)
+                        {
+                            if (tile != null && tile.Game != null)
+                                ShowLaunchModeMenuAt(tile.Game, tile, new Point(Theme.S(10), Math.Max(Theme.S(8), tile.Height - Theme.S(34))));
+                        };
                         t.RightClicked += delegate(DlssgGame gm)
                         {
                             if (gm != null)
@@ -14629,6 +16983,7 @@ namespace Fluxion
                         };
                     }
                     else if (t.Game != g) t.Rebind(g);
+                    else t.InvalidateBadges();
                     //  复用卡也要跟上当前格宽（窗口/列数变过之后，旧卡的尺寸可能还停在上一档）
                     if (t.Width != libGrid.CardW || t.Height != libGrid.CardH)
                         t.Size = new Size(libGrid.CardW, libGrid.CardH);
@@ -14684,14 +17039,17 @@ namespace Fluxion
                     {
                         DlssgGame g = games[i];
                         if (g == null) continue;
+                        if (onlyHidden) { if (!g.Hidden) continue; }
+                        else if (g.Hidden && !showHidden) continue;
+                        if (g.Private) { cnt[7]++; continue; }
                         cnt[0]++;
                         if (g.Favorite) cnt[1]++;
-                        if (g.Private) cnt[2]++;
-                        if (g.Genre != null && g.Genre.Length > 0) cnt[3]++;
-                        if (g.Platform == "steam") cnt[4]++;
-                        else if (g.Platform == "epic") cnt[5]++;
-                        else if (g.Platform == "wegame") cnt[6]++;
-                        else if (g.Platform == "local") cnt[7]++;
+                        string gp = (g.Platform == null ? "" : g.Platform).Trim().ToLowerInvariant();
+                        if (gp == "steam") cnt[2]++;
+                        else if (gp == "wegame") cnt[3]++;
+                        else if (gp == "hoyo" || gp == "mihoyo" || gp == "hoyoplay") cnt[4]++;
+                        else if (gp == "epic") cnt[5]++;
+                        else cnt[6]++;
                     }
                     string[] labels = new string[PlatNames.Length];
                     for (int i = 0; i < PlatNames.Length; i++) labels[i] = PlatNames[i] == null ? "" : PlatNames[i].ToString();
@@ -14730,12 +17088,19 @@ namespace Fluxion
                 sideGameCount = list.Count;
                 if (sideList.Parent != null) sideList.Parent.Invalidate();   // 标题右侧的数字
             }
+            if (navMenu != null && !navMenu.IsDisposed && navMenu.GameBadgeCount != list.Count)
+            {
+                navMenu.GameBadgeCount = list.Count;
+                navMenu.Invalidate();
+            }
             //  空态分两种：库里确实没有游戏（叫用户去扫描）／有但全被隐藏或忽略（说清原因，
             //  否则用户看着一行"没有游戏"会以为扫描坏了）
-            sideList.EmptyText = (games == null || games.Count == 0)
-                ? "还没有游戏 · 去「游戏库」扫描"
-                : "没有可显示的游戏（已隐藏或忽略）";
+            sideList.EmptyText = scanRunning ? "扫描中…"
+                : ((games == null || games.Count == 0)
+                    ? "还没有游戏 · 点击扫描"
+                    : "没有可显示的游戏（已隐藏或忽略）");
             sideList.SetItems(list, selected == null ? "" : Lib.IdOf(selected));
+            RefreshDashSpotlight();
         }
 
         //  点卡片 = **选中**（底部升起操作条），不跳页；双击才启动；要完整参数点操作条上的「详细设置」。
@@ -14908,6 +17273,7 @@ namespace Fluxion
             }
             if (g == null) ShowLibView(true);
             else if (goDetail) { if (page != P_FG) Switch(P_FG); ShowLibView(false); }
+            RefreshDashSpotlight();
             RefreshFgSummary();
         }
 
@@ -14957,6 +17323,7 @@ namespace Fluxion
         void ShowRowMenu(Point screen)
         {
             if (selected == null) return;
+            DlssgGame gm = selected;
             ThemedMenu m = MenuFactory.New();
             Action<string, string> add = delegate(string text, string act)
             {
@@ -14964,25 +17331,46 @@ namespace Fluxion
                 it.Click += delegate { OnCardMenu(act); };
                 m.Items.Add(it);
             };
-            add("启动游戏", "launch");
-            add("打开详情页", "detail");
-            add("打开目录", "opendir");
-            if (!Program.ShareBuild)
-            {
-                m.Items.Add(new ToolStripSeparator());
-                add(Lib.HasDx12Arg(selected) ? "关闭 DX12 模式启动" : "开启 DX12 模式启动", "dx12");
-                add("检测运行模式", "dxapi");
-                add("启动参数与环境变量…", "launchcfg");
-                add("帧生成参数…", "fgcfg");
-            }
+
+            var miPlay = new ToolStripMenuItem("▶ 立即畅玩（" + LauncherUi.ModeLabel(gm) + "）");
+            miPlay.Font = Theme.FB(9.5f);
+            miPlay.Click += delegate { OnCardMenu("launch"); };
+            m.Items.Add(miPlay);
+
+            var miMode = new ToolStripMenuItem("启动方式");
+            string curMode = LauncherUi.GetMode(gm);
+            var miAuto = new ToolStripMenuItem("自动推荐（优先免平台直启）");
+            miAuto.Checked = (curMode == "auto" || curMode.Length == 0);
+            miAuto.Click += delegate { ApplyLaunchModeChoice(gm, "auto", "自动推荐"); };
+            miMode.DropDownItems.Add(miAuto);
+
+            var miDirect = new ToolStripMenuItem("免平台直启 EXE（零平台弹窗）");
+            miDirect.Checked = (curMode == "direct");
+            miDirect.Click += delegate { ApplyLaunchModeChoice(gm, "direct", "免平台直启 EXE"); };
+            miMode.DropDownItems.Add(miDirect);
+
+            var miPlat = new ToolStripMenuItem("平台静默唤起（Steam -silent / 协议）");
+            miPlat.Checked = (curMode == "platform");
+            miPlat.Click += delegate { ApplyLaunchModeChoice(gm, "platform", "平台静默唤起"); };
+            miMode.DropDownItems.Add(miPlat);
+            m.Items.Add(miMode);
+
+            add(gm.Favorite ? "取消收藏" : "★ 收藏置顶", "fav");
+
             m.Items.Add(new ToolStripSeparator());
-            add(selected.Favorite ? "取消收藏" : "收藏", "fav");
-            add("重命名…", "rename");
-            add(selected.Private ? "取消私密" : "私密", "priv");
-            add(selected.Hidden ? "取消隐藏" : "隐藏", "hid");
+            add("打开详情与帧生成…", "detail");
+            add("打开安装目录", "opendir");
             if (!Program.ShareBuild)
             {
-                m.Items.Add(new ToolStripSeparator());
+                add("启动参数与环境变量…", "launchcfg");
+                add(Lib.HasDx12Arg(gm) ? "关闭 DX12 模式启动" : "开启 DX12 模式启动", "dx12");
+                add("帧生成参数…", "fgcfg");
+                add("检测运行模式", "dxapi");
+            }
+
+            m.Items.Add(new ToolStripSeparator());
+            if (!Program.ShareBuild)
+            {
                 var miCover = new ToolStripMenuItem("封面设置");
                 Action<string, string> addSub = delegate(string text, string act)
                 {
@@ -14998,8 +17386,21 @@ namespace Fluxion
                 addSub("清除自定义封面", "clearcover");
                 m.Items.Add(miCover);
             }
-            m.Items.Add(new ToolStripSeparator());
-            add("从列表移除", "remove");
+
+            var miManage = new ToolStripMenuItem("更多管理");
+            Action<string, string> addMgr = delegate(string text, string act)
+            {
+                var it = new ToolStripMenuItem(text);
+                it.Click += delegate { OnCardMenu(act); };
+                miManage.DropDownItems.Add(it);
+            };
+            addMgr("重命名…", "rename");
+            addMgr(gm.Private ? "取消私密" : "设为私密", "priv");
+            addMgr(gm.Hidden ? "取消隐藏" : "隐藏此游戏", "hid");
+            miManage.DropDownItems.Add(new ToolStripSeparator());
+            addMgr("从列表移除…", "remove");
+            m.Items.Add(miManage);
+
             m.PrepareLayout();
             m.Show(screen);
         }
@@ -15569,10 +17970,107 @@ namespace Fluxion
                 delegate(string pick) { DoAddGameExe(pick); });
         }
 
+        void SelectAddedByDir(string dir)
+        {
+            if (string.IsNullOrEmpty(dir) || games == null) return;
+            foreach (DlssgGame gm in games)
+            {
+                if (gm != null && string.Equals(gm.Dir, dir, StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectGame(gm, false);
+                    return;
+                }
+            }
+        }
+
+        void DoAddGameMenu(Control anchor)
+        {
+            ThemedMenu m = MenuFactory.New();
+            m.Items.Add("从桌面快捷方式添加 (.lnk / .url)…", null, delegate { DoAddDesktopShortcut(); });
+            m.Items.Add("选择游戏安装文件夹…", null, delegate { DoAddGame(); });
+            m.Items.Add(new ToolStripSeparator());
+            m.Items.Add("添加自动扫描根目录…", null, delegate { DoAddScanRoot(); });
+            m.Items.Add("立即扫描全平台游戏库", null, delegate { RunScan(true); });
+            m.PrepareLayout();
+            if (anchor != null && !anchor.IsDisposed)
+                m.Show(anchor, new Point(0, anchor.Height + Theme.S(4)));
+            else
+                m.Show(Cursor.Position);
+        }
+
+        void DoAddDesktopShortcut()
+        {
+            List<string> raw = null;
+            try { raw = Lib.ListDesktopShortcuts(true); } catch { raw = new List<string>(); }
+            var candidates = new List<string>();
+            var displayMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (raw != null)
+            {
+                foreach (string sc in raw)
+                {
+                    if (string.IsNullOrEmpty(sc)) continue;
+                    DlssgGame rg = null;
+                    try { rg = Lib.ResolveGameFromFile(sc); } catch { }
+                    if (rg != null && !string.IsNullOrEmpty(rg.Dir))
+                    {
+                        candidates.Add(sc);
+                        displayMap[sc] = "[" + LauncherUi.PlatformShort(rg.Platform) + "] "
+                            + rg.Title + "  ·  " + Path.GetFileName(sc);
+                    }
+                }
+                if (candidates.Count == 0)
+                {
+                    foreach (string sc in raw)
+                    {
+                        if (string.IsNullOrEmpty(sc)) continue;
+                        candidates.Add(sc);
+                        displayMap[sc] = Path.GetFileNameWithoutExtension(sc) + "  (" + Path.GetExtension(sc) + ")";
+                    }
+                }
+            }
+            if (candidates.Count == 0)
+            {
+                MessageBox.Show(this,
+                    "未在桌面或开始菜单发现可用的游戏快捷方式（.lnk / .url）。\n\n可直接把游戏快捷方式或主程序 .exe 拖入窗口，或使用「选择游戏安装文件夹…」添加。",
+                    "从快捷方式添加游戏", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            ShowSimplePickList("从快捷方式添加游戏（共发现 " + candidates.Count + " 项）",
+                candidates,
+                delegate(string pth)
+                {
+                    string lbl;
+                    return displayMap.TryGetValue(pth, out lbl) ? lbl : Path.GetFileNameWithoutExtension(pth);
+                },
+                delegate(string pick)
+                {
+                    DlssgGame added;
+                    string msg = Lib.AddGameFromFile(pick, out added);
+                    Log("添加快捷方式游戏：" + msg);
+                    string wantDir = added != null ? added.Dir : "";
+                    string wantTitle = added != null ? added.Title : Path.GetFileNameWithoutExtension(pick);
+                    Foot("已添加游戏 · " + wantTitle);
+                    MergeScanThen(games, delegate
+                    {
+                        FillGameList();
+                        SelectAddedByDir(wantDir);
+                        RefreshFgSummary();
+                    });
+                });
+        }
+
         void DoAddGameExe(string exe)
         {
-            Log("添加自定义游戏：" + Dlssg.AddCustomGame(exe));
-            MergeScanThen(games, delegate { FillGameList(); RefreshFgSummary(); });
+            DlssgGame added;
+            string msg = Lib.AddGameFromFile(exe, out added);
+            Log("添加自定义游戏：" + msg);
+            string wantDir = added != null ? added.Dir : "";
+            MergeScanThen(games, delegate
+            {
+                FillGameList();
+                SelectAddedByDir(wantDir);
+                RefreshFgSummary();
+            });
         }
 
         Panel WrapThemedListBox(ListBox lb)
@@ -16293,21 +18791,37 @@ namespace Fluxion
 
         // 清理反作弊隔离残留（v2.1.0）：反作弊把被拦的代理改名成 xxx.dll.<数字> —— 文件不会被加载，
         // 却白占 15 MB，用户还会误以为"装上了但没生效"。
-        // 一键启动（非官方启动器：直接跑 exe，绕开官方启动器的文件完整性校验弹窗）
+        // 一键加速启动（支持免平台直启 EXE 与 Steam -silent / 平台协议静默唤起）
         void DoLaunchGame()
         {
             if (selected == null) { Log("  请先选中游戏（双击卡片也可启动）"); return; }
-            PreApplyResLink(selected);          // 先摆好显示状态，再拉游戏（见方法头注释）
-            string err = Lib.Launch(selected);
+            DlssgGame targetGame = selected;
+            PreApplyResLink(targetGame);        // 先摆好显示状态，再拉游戏（见方法头注释）
+
+            if (!Program.ShareBuild && Cfg != null && Cfg.MemPurgeOnGame)
+            {
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate
+                {
+                    try
+                    {
+                        long freed = MemCleaner.PurgeStandby(false);
+                        if (freed > 0) Program.Log("[启动加速] 已在进游戏瞬间异步排空备用内存约 " + freed + " MB");
+                    }
+                    catch { }
+                });
+            }
+
+            string statusMsg;
+            string err = Lib.LaunchGame(targetGame, out statusMsg);
             // 自动定位不到启动文件：让用户指认一次（选择永久记住，之后点启动直接命中）
             if (err != null && err.StartsWith(Lib.NeedLocate, StringComparison.Ordinal))
             {
-                Log("  没能自动定位「" + selected.Title + "」的启动文件，请在弹出的窗口里指认它的主程序（exe）");
-                string picked = PickLaunchExe(selected);
+                Log("  没能自动定位「" + targetGame.Title + "」的启动文件，请在弹出的窗口里指认它的主程序（exe）");
+                string picked = PickLaunchExe(targetGame);
                 if (picked.Length > 0)
                 {
                     Log("  已记住启动文件：" + picked);
-                    err = Lib.Launch(selected);
+                    err = Lib.LaunchGame(targetGame, out statusMsg);
                 }
                 else
                 {
@@ -16317,20 +18831,24 @@ namespace Fluxion
                     return;
                 }
             }
-            if (err.Length > 0) { Log("  " + err); return; }
-            string what = (selected.Platform == "steam" && selected.AppId != null && selected.AppId.Length > 0)
-                ? "steam://rungameid/" + selected.AppId
-                : Lib.LaunchTargetOf(selected);     // 与真正被启动的那条路径一致（exe 可能在子目录里）
-            //  ★ 2026-10-31：日志打的是**实际生效**的参数（磁盘设置 + 内置预设合成后的结果）——
-            //    只打内存 g.LaunchArgs 时，预设生效了日志却看不出来，等于让人猜。
-            string largs = Lib.EffectiveLaunchArgs(selected);
-            Log("  已启动：" + selected.Title + "   (" + what + (largs.Length > 0 ? " " + largs : "") + ")");
-            FillGameList();     // 刷新「最近游玩」排序
+            if (!string.IsNullOrEmpty(err))
+            {
+                Log("  " + err);
+                Foot(err);
+                return;
+            }
+            string largs = Lib.EffectiveLaunchArgs(targetGame);
+            string summary = !string.IsNullOrEmpty(statusMsg)
+                ? statusMsg
+                : ("已启动：" + targetGame.Title + (largs.Length > 0 ? " (" + largs + ")" : ""));
+            Log("  " + summary);
+            Foot(summary);
+            FillGameList();     // 刷新「最近游玩」排序与首屏聚光灯
             // 带 DX12 参数启动时自动验证（用户要求：必须有反馈，别让人猜有没有生效）
             if (largs.IndexOf(Lib.ArgDx12, StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 Log("  正在确认运行模式（读游戏的 Player.log，最多 90 秒）…");
-                StartDx12Verify(selected);
+                StartDx12Verify(targetGame);
             }
         }
 
@@ -18888,6 +21406,12 @@ namespace Fluxion
             return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp";
         }
 
+        static bool IsGameDropFile(string p)
+        {
+            string ext = Path.GetExtension(p == null ? "" : p).ToLowerInvariant();
+            return ext == ".lnk" || ext == ".url" || ext == ".exe";
+        }
+
         //  光标下最深的控件，再向上找第一张卡片
 
         bool packBusy;
@@ -18911,14 +21435,8 @@ namespace Fluxion
             if (paths.Count == 0) return;
 
             //  单张图片 → 设为封面（2026-10-22，2026-10-23 放宽）：
-            //  ⚠ 卡片自己不能设 AllowDrop：卡片会被 FillGameList 反复重建，OLE 的
-            //  RegisterDragDrop 会在同一 HWND 上重复注册，抛「DragDrop 注册失败。」。
-            //  所以统一在窗口这一层分流 —— WM_DROPFILES 不带落点，用光标位置做命中测试；
-            //  没落在任何卡片上就给**当前选中的游戏**（以前这时会掉进插件包导入，
-            //  把一张 png 当插件包解，报一堆无关错误）。
             if (paths.Count == 1 && IsImageFile(paths[0]))
             {
-                //  第 123 轮：库里没有卡片了，拖图就设成**当前选中**那一行的封面
                 DlssgGame tgt = selected;
                 if (tgt != null)
                 {
@@ -18932,6 +21450,54 @@ namespace Fluxion
                     return;
                 }
             }
+
+            //  桌面快捷方式 (.lnk / .url) 或游戏主程序 (.exe) 拖入 → 直接解析并加入游戏库！
+            var gameFiles = new List<string>();
+            var restPaths = new List<string>();
+            foreach (string pth in paths)
+            {
+                if (IsGameDropFile(pth)) gameFiles.Add(pth);
+                else restPaths.Add(pth);
+            }
+            if (gameFiles.Count > 0)
+            {
+                string lastDir = "";
+                string lastTitle = "";
+                int okCount = 0;
+                foreach (string gf in gameFiles)
+                {
+                    DlssgGame resolved;
+                    string msg = Lib.AddGameFromFile(gf, out resolved);
+                    Log("拖入游戏：" + msg);
+                    if (resolved != null && !string.IsNullOrEmpty(resolved.Dir))
+                    {
+                        lastDir = resolved.Dir;
+                        lastTitle = resolved.Title;
+                        okCount++;
+                    }
+                }
+                if (okCount > 0)
+                {
+                    Foot(okCount == 1
+                        ? ("已加入游戏库 · " + lastTitle)
+                        : ("已加入游戏库 · 新增 " + okCount + " 款游戏"));
+                    MergeScanThen(games, delegate
+                    {
+                        FillGameList();
+                        SelectAddedByDir(lastDir);
+                        if (page != P_FG) Switch(P_FG);
+                        ShowLibView(true);
+                        RefreshFgSummary();
+                    });
+                }
+                else
+                {
+                    Foot("未能从拖入文件识别出有效游戏（详见运行日志）");
+                }
+                if (restPaths.Count == 0) return;
+                paths = restPaths;
+            }
+
             StartPackImport(paths);
         }
 

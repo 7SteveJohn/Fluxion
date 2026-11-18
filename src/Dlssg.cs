@@ -46,8 +46,10 @@ namespace Fluxion
         public bool Ignored;                // 在忽略清单里（仍会显示在列表中，可一键恢复收录）
         public int ScanDepth;               // 扫描候选深度（启动器根=0）：同分时更深者优先
         // ---- 游戏库（v2.5.0，见 Lib.cs）----
-        public string Platform = "local";   // steam / epic / wegame / battle / ubisoft / ea / gog / local
+        public string Platform = "local";   // steam / epic / wegame / hoyo / battle / ubisoft / ea / gog / local
         public string AppId = "";           // Steam appid（用于 steam:// 启动与封面下载）
+        public string PlatformId = "";      // 平台原生游戏 ID（WeGame rail game_id / Epic AppName / 米哈游 GameBiz）
+        public string LaunchMode = "auto";  // 启动方式：auto（智能推荐）/ direct（免平台直启）/ platform（平台静默唤起）
         public string Genre = "";           // 题材标签（"二次元"）
         public string Id = "";              // 稳定 ID（平台_哈希）：封面文件名与库标记用
         public bool Favorite;               // 收藏
@@ -493,7 +495,9 @@ namespace Fluxion
             foreach (var sub in SafeDirs(dir))
             {
                 string bn = Path.GetFileName(sub).ToLowerInvariant();
-                if (bn == "redist" || bn == "redistributable" || bn == "directx" || bn == "engine") continue;
+                if (bn == "redist" || bn == "redistributable" || bn == "directx" || bn == "engine"
+                    || bn.EndsWith("_data") || bn == "plugins" || bn == "tcls"
+                    || bn == "wegamelauncher" || bn == "rail_files" || bn == "tiny_cache" || bn == "cross") continue;
                 CollectCandidates(sub, depth + 1, cands, seen, maxDepth);
             }
         }
@@ -1649,6 +1653,11 @@ namespace Fluxion
             catch (Exception ex) { Program.Log("games.json 写入失败: " + ex.Message); return false; }
         }
 
+        public static List<DlssgGame> ScanGames(Action<string> progress = null)
+        {
+            return Lib.ScanAll(progress);
+        }
+
         // 由用户选的 exe 构造条目：能力字段现探，且向上再探两级（用户可能选到 bin\x64 里的真主程序）
         static DlssgGame CustomFromExe(string exePath)
         {
@@ -1658,13 +1667,15 @@ namespace Fluxion
             {
                 g = new DlssgGame();
                 g.Dir = dir;
-                g.Title = Path.GetFileName(dir);
+                g.Title = NiceTitle(dir);
             }
+            g.Dir = Lib.BackSlashes(g.Dir);
             g.Exe = Path.GetFileName(exePath);
             string up = dir;
             for (int i = 0; i < 2 && Path.GetDirectoryName(up) != up; i++)
             {
                 up = Path.GetDirectoryName(up);
+                if (string.IsNullOrEmpty(up)) break;
                 var gu = Inspect(up, false);
                 if (gu == null) continue;
                 g.HasFrameGen |= gu.HasFrameGen;
@@ -1672,23 +1683,51 @@ namespace Fluxion
                 g.HasFsr3 |= gu.HasFsr3;
                 if (gu.Installed && !g.Installed) { g.Installed = true; g.Entry = gu.Entry; }
             }
+            if (IsStructuralName(g.Title)) g.Title = NiceTitle(dir);
             g.Custom = true;
             return g;
         }
 
-        public static string AddCustomGame(string exePath)
+        public static string AddCustomGame(string path)
         {
-            if (!File.Exists(exePath)) return "文件不存在: " + exePath;
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return "文件不存在: " + path;
+            DlssgGame resolved = Lib.ResolveGameFromFile(path);
+            if (resolved != null && !string.IsNullOrEmpty(resolved.Dir))
+                return AddCustomGame(resolved);
+            string ext = (Path.GetExtension(path) ?? "").ToLowerInvariant();
+            if (ext != ".exe") return "无法从快捷方式解析游戏程序: " + Path.GetFileName(path);
+            return AddCustomGame(CustomFromExe(path));
+        }
+
+        public static string AddCustomGame(DlssgGame g)
+        {
+            if (g == null || string.IsNullOrEmpty(g.Dir) || !Directory.Exists(g.Dir))
+                return "无效的游戏目录";
+            g.Dir = Lib.BackSlashes(g.Dir);
+            g.Custom = true;
             var customs = LoadCustomGames();
             foreach (var c in customs)
-                if (Eq(c.Dir, Path.GetDirectoryName(exePath)))
-                    return c.Title + " 已在列表里";
-            var g = CustomFromExe(exePath);
+                if (Eq(c.Dir, g.Dir))
+                    return (string.IsNullOrEmpty(c.Title) ? g.Title : c.Title) + " 已在列表里";
             customs.Add(g);
             var ig = LoadIgnoredDirs();
             for (int i = ig.Count - 1; i >= 0; i--) if (Eq(ig[i], g.Dir)) ig.RemoveAt(i);  // 曾手动移除过的目录，加回来即解除忽略
             SaveGamesStore(customs, ig);
-            return g.Title + "  (" + g.Exe + ")" + (g.HasFrameGen ? "，集成 DLSS 帧生成" : "");
+            try
+            {
+                GameMeta m = MetaStore.GetOrCreate(MetaStore.KeyOf(g));
+                if (!string.IsNullOrEmpty(g.Title) && string.IsNullOrEmpty(m.Name)) m.Name = g.Title;
+                if (!string.IsNullOrEmpty(g.Platform) && g.Platform != "local") m.Platform = g.Platform;
+                if (!string.IsNullOrEmpty(g.AppId)) m.AppId = g.AppId;
+                if (!string.IsNullOrEmpty(g.PlatformId)) m.PlatformId = g.PlatformId;
+                if (!string.IsNullOrEmpty(g.LaunchArgs) && string.IsNullOrEmpty(m.LaunchArgs)) m.LaunchArgs = g.LaunchArgs;
+                if (!string.IsNullOrEmpty(g.LaunchMode) && g.LaunchMode != "auto") m.LaunchMode = g.LaunchMode;
+                MetaStore.Save(m);
+            }
+            catch { }
+            return g.Title + (string.IsNullOrEmpty(g.Exe) ? "" : "  (" + g.Exe + ")")
+                 + " [" + Lib.PlatformLabel(g.Platform) + "]"
+                 + (g.HasFrameGen ? "，集成 DLSS 帧生成" : "");
         }
 
         public static string RemoveGame(DlssgGame g)
@@ -1748,7 +1787,36 @@ namespace Fluxion
                     if (!Contain(seen, g.Dir)) { res.Add(g); seen.Add(g.Dir); }
                 }
             foreach (var c in customs)
-                if (!Contain(seen, c.Dir)) { res.Add(c); seen.Add(c.Dir); }
+            {
+                if (Contain(seen, c.Dir)) continue;
+                try
+                {
+                    GameMeta cm;
+                    if (MetaStore.Load().TryGetValue(MetaStore.KeyOf(c), out cm) && cm != null)
+                    {
+                        if (!string.IsNullOrEmpty(cm.Name)) c.Title = cm.Name;
+                        if (!string.IsNullOrEmpty(cm.Platform)) c.Platform = cm.Platform;
+                        if (!string.IsNullOrEmpty(cm.AppId)) c.AppId = cm.AppId;
+                        if (!string.IsNullOrEmpty(cm.PlatformId)) c.PlatformId = cm.PlatformId;
+                        if (!string.IsNullOrEmpty(cm.LaunchMode)) c.LaunchMode = cm.LaunchMode;
+                        c.Favorite = cm.Favorite;
+                        c.Private = cm.Private;
+                        c.Hidden = cm.Hidden;
+                        c.LastPlayed = cm.LastPlayed;
+                        c.LaunchArgs = cm.LaunchArgs ?? "";
+                        c.LaunchEnv = cm.LaunchEnv ?? "";
+                        c.FgMax = cm.FgMax;
+                        c.FgPreset = cm.FgPreset ?? "";
+                        c.FgOpt = cm.FgOpt;
+                    }
+                    if (string.IsNullOrEmpty(c.Id)) c.Id = Lib.IdOf(c);
+                    if (string.IsNullOrEmpty(c.Genre) && PlatformScan.Genre2DHit(c.Title, c.Dir + " " + c.Exe))
+                        c.Genre = "二次元";
+                }
+                catch { }
+                res.Add(c);
+                seen.Add(c.Dir);
+            }
 
             // ★ 判定统一在这里算一遍（每次扫描都重算 → 后续新加的游戏自动生效）
             //   ① 每一条都重新探测能力字段（不再只探"手动添加"的条目）：
@@ -1776,7 +1844,9 @@ namespace Fluxion
                             g.HasUpscaler = p.HasUpscaler;
                             g.HasFsr3 = p.HasFsr3;
                             g.Installed = p.Installed;
-                            bool curIsLauncher = g.Exe != null && (g.Exe.IndexOf("launcher", StringComparison.OrdinalIgnoreCase) >= 0 || g.Exe.IndexOf("prelauncher", StringComparison.OrdinalIgnoreCase) >= 0);
+                            bool curIsLauncher = g.Platform != "wegame" && g.Exe != null
+                                && (g.Exe.IndexOf("launcher", StringComparison.OrdinalIgnoreCase) >= 0
+                                    || g.Exe.IndexOf("prelauncher", StringComparison.OrdinalIgnoreCase) >= 0);
                             bool pickIsLauncher = p.Exe != null && (p.Exe.IndexOf("launcher", StringComparison.OrdinalIgnoreCase) >= 0 || p.Exe.IndexOf("prelauncher", StringComparison.OrdinalIgnoreCase) >= 0);
                             if (g.Exe == null || g.Exe.Length == 0 || (curIsLauncher && p.Exe != null && !pickIsLauncher)) g.Exe = p.Exe;
                         }
@@ -1829,18 +1899,22 @@ namespace Fluxion
                 string pickSoft = null;
                 long bestSoft = 0;
 
+                string dirStem = Norm(Path.GetFileName(dir.TrimEnd('\\', '/')));
+                string pickExact = null;
+                long bestExact = 0;
+
                 foreach (var f in exeFiles)
                 {
                     try
                     {
                         string nm = Path.GetFileName(f).ToLowerInvariant();
-                        // 永不采纳：卸载器 / 安装器 / 运行库安装器 / 崩溃上报 / CEF 子进程 / 补丁器
-                        if (nm.Contains("unins") || nm.Contains("setup") || nm.Contains("crash")
+                        // 永不采纳：卸载器 / 安装器 / 运行库安装器 / 崩溃上报 / CEF 子进程 / 补丁器 / 辅助工具
+                        if (nm.Contains("unins") || nm.Contains("卸载") || nm.Contains("setup") || nm.Contains("crash")
                             || nm.Contains("redist") || nm.Contains("safemode")
                             || nm.Contains("bootstrap") || nm.Contains("install")
                             || nm.Contains("update") || nm.Contains("patch")
-                            || nm.Contains("reporter") || nm.Contains("cef")
-                            || nm.Contains("agent") || nm.Contains("helper")) continue;
+                            || nm.Contains("reporter") || nm.Contains("cef") || nm.Contains("zfgamebrowser")
+                            || nm.Contains("agent") || nm.Contains("helper") || PlatformScan.IsHelperExe(f)) continue;
 
                         long len = new FileInfo(f).Length;
                         // 启动器降级为备选：多数游戏的真主程序在 bin\x64 等子目录里
@@ -1849,10 +1923,17 @@ namespace Fluxion
                             if (len > bestSoft) { bestSoft = len; pickSoft = f; }
                             continue;
                         }
+                        string fStem = Norm(Path.GetFileNameWithoutExtension(f));
+                        if (dirStem.Length >= 3 && fStem == dirStem && len > bestExact)
+                        {
+                            bestExact = len;
+                            pickExact = f;
+                        }
                         if (len > best) { best = len; pick = f; }
                     }
                     catch { }
                 }
+                if (pickExact != null) return pickExact;
                 return pick != null ? pick : pickSoft;
             }
             catch { return null; }
@@ -3641,6 +3722,54 @@ namespace Fluxion
 
     public static class GameIcon
     {
+        public const int SHIL_LARGE = 0x0;
+        public const int SHIL_SMALL = 0x1;
+        public const int SHIL_EXTRALARGE = 0x2;
+        public const int SHIL_JUMBO = 0x4;
+        const uint SHGFI_SYSICONINDEX = 0x00004000;
+        const int ILD_TRANSPARENT = 0x00000001;
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        struct SHFILEINFO
+        {
+            public IntPtr hIcon;
+            public int iIcon;
+            public uint dwAttributes;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+            public string szDisplayName;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
+            public string szTypeName;
+        }
+
+        [ComImport]
+        [Guid("46EB5926-582E-4017-9FDF-E8998DAA0950")]
+        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        interface IImageList
+        {
+            [PreserveSig]
+            int Add(IntPtr hbmImage, IntPtr hbmMask, ref int pi);
+            [PreserveSig]
+            int ReplaceIcon(int i, IntPtr hicon, ref int pi);
+            [PreserveSig]
+            int SetOverlayImage(int iImage, int iOverlay);
+            [PreserveSig]
+            int Replace(int i, IntPtr hbmImage, IntPtr hbmMask);
+            [PreserveSig]
+            int AddMasked(IntPtr hbmImage, int crMask, ref int pi);
+            [PreserveSig]
+            int Draw(IntPtr pimldp);
+            [PreserveSig]
+            int Remove(int i);
+            [PreserveSig]
+            int GetIcon(int i, int flags, out IntPtr picon);
+        }
+
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+        static extern IntPtr SHGetFileInfo(string pszPath, uint dwFileAttributes, ref SHFILEINFO psfi, uint cbFileInfo, uint uFlags);
+
+        [DllImport("shell32.dll", EntryPoint = "#727", PreserveSig = true)]
+        static extern int SHGetImageList(int iImageList, ref Guid riid, out IImageList ppv);
+
         [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         static extern int PrivateExtractIcons(string lpszFile, int nIconIndex, int cxIcon, int cyIcon,
                                               IntPtr[] phicon, int[] piconid, int nIcons, int flags);
@@ -3648,34 +3777,206 @@ namespace Fluxion
         [DllImport("user32.dll", SetLastError = true)]
         static extern bool DestroyIcon(IntPtr hIcon);
 
-        public static System.Drawing.Bitmap Extract(string exePath, int size)
+        static readonly object shellLock = new object();
+
+        // 从 .ico 文件直接解码最大尺寸帧（优先直读内嵌 256x256 PNG 帧，保真 32bpp Alpha）
+        static System.Drawing.Bitmap ExtractIcoBest(string icoPath)
         {
-            System.Drawing.Bitmap best = null;
-            // 从大到小试；只要拿到一张就够，但若前面拿到的很小、后面要到大图就换（取实际最大）
-            foreach (int want in new int[] { 256, 128, 64, 48, 32 })
+            try
             {
-                IntPtr h = IntPtr.Zero;
+                if (string.IsNullOrEmpty(icoPath) || !File.Exists(icoPath)) return null;
+                byte[] data = File.ReadAllBytes(icoPath);
+                if (data == null || data.Length < 22) return null;
+                if (data[0] != 0 || data[1] != 0 || data[2] != 1 || data[3] != 0) return null;
+                int count = data[4] | (data[5] << 8);
+                if (count <= 0 || count > 64) return null;
+
+                int bestIdx = -1;
+                int bestScore = -1;
+                for (int i = 0; i < count; i++)
+                {
+                    int off = 6 + i * 16;
+                    if (off + 16 > data.Length) break;
+                    int iw = data[off] == 0 ? 256 : (int)data[off];
+                    int ih = data[off + 1] == 0 ? 256 : (int)data[off + 1];
+                    int bpp = data[off + 6] | (data[off + 7] << 8);
+                    int bytesInRes = data[off + 8] | (data[off + 9] << 8) | (data[off + 10] << 16) | (data[off + 11] << 24);
+                    int imgOff = data[off + 12] | (data[off + 13] << 8) | (data[off + 14] << 16) | (data[off + 15] << 24);
+                    if (bytesInRes <= 0 || imgOff < 0 || imgOff + bytesInRes > data.Length) continue;
+                    bool isPng = bytesInRes > 8 && data[imgOff] == 0x89 && data[imgOff + 1] == 0x50
+                              && data[imgOff + 2] == 0x4E && data[imgOff + 3] == 0x47;
+                    int score = iw * ih * 10 + (isPng ? 5000 : 0) + bpp;
+                    if (score > bestScore) { bestScore = score; bestIdx = i; }
+                }
+                if (bestIdx >= 0)
+                {
+                    int boff = 6 + bestIdx * 16;
+                    int blen = data[boff + 8] | (data[boff + 9] << 8) | (data[boff + 10] << 16) | (data[boff + 11] << 24);
+                    int bpos = data[boff + 12] | (data[boff + 13] << 8) | (data[boff + 14] << 16) | (data[boff + 15] << 24);
+                    if (blen > 8 && data[bpos] == 0x89 && data[bpos + 1] == 0x50 && data[bpos + 2] == 0x4E && data[bpos + 3] == 0x47)
+                    {
+                        using (var ms = new MemoryStream(data, bpos, blen))
+                        using (var img = System.Drawing.Image.FromStream(ms))
+                            return new System.Drawing.Bitmap(img);
+                    }
+                }
+                using (var ico = new System.Drawing.Icon(icoPath, 256, 256))
+                    return ico.ToBitmap();
+            }
+            catch { return null; }
+        }
+
+        // Win32 SHGetFileInfo + SHGetImageList(SHIL_JUMBO = 0x4, shell32 #727) 提取 256x256 高清图标
+        static System.Drawing.Bitmap ExtractShellJumboRaw(string filePath, int listType)
+        {
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return null;
+            lock (shellLock)
+            {
+                IImageList imgList = null;
+                IntPtr hIcon = IntPtr.Zero;
                 try
                 {
-                    var hs = new IntPtr[1];
-                    var ids = new int[1];
-                    if (PrivateExtractIcons(exePath, 0, want, want, hs, ids, 1, 0) <= 0) continue;
-                    h = hs[0];
-                    if (h == IntPtr.Zero) continue;
-                    System.Drawing.Bitmap b;
-                    using (var ico = System.Drawing.Icon.FromHandle(h))
-                        b = ico.ToBitmap();
-                    if (b == null) continue;
-                    if (best == null || b.Width > best.Width)
+                    var sfi = new SHFILEINFO();
+                    IntPtr r = SHGetFileInfo(filePath, 0, ref sfi, (uint)Marshal.SizeOf(sfi), SHGFI_SYSICONINDEX);
+                    if (r == IntPtr.Zero || sfi.iIcon < 0) return null;
+                    Guid iid = new Guid("46EB5926-582E-4017-9FDF-E8998DAA0950");
+                    int hr = SHGetImageList(listType, ref iid, out imgList);
+                    if (hr != 0 || imgList == null) return null;
+                    int hr2 = imgList.GetIcon(sfi.iIcon, ILD_TRANSPARENT, out hIcon);
+                    if (hr2 != 0 || hIcon == IntPtr.Zero) return null;
+                    System.Drawing.Bitmap raw;
+                    using (var ico = System.Drawing.Icon.FromHandle(hIcon))
+                        raw = ico.ToBitmap();
+                    return NormalizeJumboBounds(raw);
+                }
+                catch { return null; }
+                finally
+                {
+                    if (hIcon != IntPtr.Zero) { try { DestroyIcon(hIcon); } catch { } }
+                    if (imgList != null) { try { Marshal.FinalReleaseComObject(imgList); } catch { } }
+                }
+            }
+        }
+
+        // 修正旧式 32/48px 图标在 SHIL_JUMBO 256x256 画布中偏居左上角的问题：
+        // 若非透明像素全部挤在左上角 <=96x96 象限，裁回有效方框再居中缩放；真正的 256x256 图标原样保留。
+        static System.Drawing.Bitmap NormalizeJumboBounds(System.Drawing.Bitmap raw)
+        {
+            if (raw == null) return null;
+            try
+            {
+                int w = raw.Width;
+                int h = raw.Height;
+                int minX = w, minY = h, maxX = -1, maxY = -1;
+                for (int y = 0; y < h; y += 2)
+                {
+                    for (int x = 0; x < w; x += 2)
+                    {
+                        if (raw.GetPixel(x, y).A > 8)
+                        {
+                            if (x < minX) minX = x;
+                            if (y < minY) minY = y;
+                            if (x > maxX) maxX = x;
+                            if (y > maxY) maxY = y;
+                        }
+                    }
+                }
+                if (maxX < 0 || maxY < 0) { raw.Dispose(); return null; }
+                if (w >= 200 && h >= 200 && maxX <= 96 && maxY <= 96 && minX <= 16 && minY <= 16)
+                {
+                    int bound = Math.Max(maxX + 2, maxY + 2);
+                    int side = bound <= 34 ? 32 : (bound <= 50 ? 48 : (bound <= 66 ? 64 : 96));
+                    side = Math.Min(side, Math.Min(w, h));
+                    var cropped = raw.Clone(new System.Drawing.Rectangle(0, 0, side, side),
+                                            System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                    raw.Dispose();
+                    return cropped;
+                }
+                return raw;
+            }
+            catch { return raw; }
+        }
+
+        public static System.Drawing.Bitmap ExtractJumbo(string filePath, int size = 256)
+        {
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return null;
+            if (size <= 0) size = 256;
+            System.Drawing.Bitmap best = null;
+            string ext = (Path.GetExtension(filePath) ?? "").ToLowerInvariant();
+            if (ext == ".ico") best = ExtractIcoBest(filePath);
+            if (best == null || best.Width < 128)
+            {
+                System.Drawing.Bitmap jb = ExtractShellJumboRaw(filePath, SHIL_JUMBO);
+                if (jb != null)
+                {
+                    if (best == null || jb.Width >= best.Width)
                     {
                         if (best != null) best.Dispose();
-                        best = b;
+                        best = jb;
                     }
-                    else b.Dispose();
-                    if (best.Width >= 256) break;
+                    else jb.Dispose();
                 }
-                catch { }
-                finally { if (h != IntPtr.Zero) { try { DestroyIcon(h); } catch { } } }
+            }
+            if (best == null)
+            {
+                System.Drawing.Bitmap xl = ExtractShellJumboRaw(filePath, SHIL_EXTRALARGE);
+                if (xl != null) best = xl;
+            }
+            if (best == null) return Extract(filePath, size);
+            try { return best.Width == size && best.Height == size ? new System.Drawing.Bitmap(best) : Scale(best, size, size); }
+            finally { best.Dispose(); }
+        }
+
+        public static System.Drawing.Bitmap Extract(string exePath, int size)
+        {
+            if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath)) return null;
+            System.Drawing.Bitmap best = null;
+            string ext = (Path.GetExtension(exePath) ?? "").ToLowerInvariant();
+            if (ext == ".ico") best = ExtractIcoBest(exePath);
+
+            // 优先走 PrivateExtractIcons 拿原生 PE 图标组
+            if (best == null && ext != ".lnk")
+            {
+                foreach (int want in new int[] { 256, 128, 64, 48, 32 })
+                {
+                    IntPtr h = IntPtr.Zero;
+                    try
+                    {
+                        var hs = new IntPtr[1];
+                        var ids = new int[1];
+                        if (PrivateExtractIcons(exePath, 0, want, want, hs, ids, 1, 0) <= 0) continue;
+                        h = hs[0];
+                        if (h == IntPtr.Zero) continue;
+                        System.Drawing.Bitmap b;
+                        using (var ico = System.Drawing.Icon.FromHandle(h))
+                            b = ico.ToBitmap();
+                        if (b == null) continue;
+                        if (best == null || b.Width > best.Width)
+                        {
+                            if (best != null) best.Dispose();
+                            best = b;
+                        }
+                        else b.Dispose();
+                        if (best.Width >= 256) break;
+                    }
+                    catch { }
+                    finally { if (h != IntPtr.Zero) { try { DestroyIcon(h); } catch { } } }
+                }
+            }
+
+            // 若未拿到 256x256 高清图标（如 Vista PNG 压缩帧、非 0 号主图标、.lnk 快捷方式），升级走 SHIL_JUMBO (#727)
+            if (best == null || (size >= 96 && best.Width < 128))
+            {
+                System.Drawing.Bitmap jb = ExtractShellJumboRaw(exePath, SHIL_JUMBO);
+                if (jb != null)
+                {
+                    if (best == null || jb.Width > best.Width)
+                    {
+                        if (best != null) best.Dispose();
+                        best = jb;
+                    }
+                    else jb.Dispose();
+                }
             }
 
             if (best == null)

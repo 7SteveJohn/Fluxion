@@ -5,6 +5,9 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Management;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.ServiceProcess;
 using System.Text;
@@ -18,9 +21,9 @@ using Microsoft.Win32;
 //  ⚠ 这三行是 exe「右键 → 属性 → 详细信息」里给人看的版本号，2026-10-23 才接上程序版本：
 //    以前停在改名前的 3.3.2.0，安装包写 1.2.2、文件属性写 3.3.2.0，分享出去一眼就对不上。
 //    改版本号时**四处一起改**：Core.cs AppVersion ↔ 这三行 ↔ iss 的 #define ↔ VersionInfoVersion。
-[assembly: System.Reflection.AssemblyVersion("1.3.2.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.3.2.0")]
-[assembly: System.Reflection.AssemblyInformationalVersion("1.3.2")]
+[assembly: System.Reflection.AssemblyVersion("1.3.3.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.3.3.0")]
+[assembly: System.Reflection.AssemblyInformationalVersion("1.3.3")]
 
 namespace Fluxion
 {
@@ -100,6 +103,51 @@ namespace Fluxion
         public static extern bool EmptyWorkingSet(IntPtr hProcess);
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool GetLogicalProcessorInformation(IntPtr buffer, ref uint returnLength);
+
+        // ---- 内核内存页列表管理（Standby List 净化 / 页统计）与进程 EcoQoS 电源节流 ----
+        [DllImport("ntdll.dll")]
+        public static extern int NtSetSystemInformation(int infoClass, ref int infoData, int infoLen);
+        [DllImport("ntdll.dll")]
+        public static extern int NtQuerySystemInformation(int infoClass, IntPtr infoBuf, int infoLen, out int retLen);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct LUID
+        {
+            public uint LowPart;
+            public int HighPart;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct TOKEN_PRIVILEGES
+        {
+            public uint PrivilegeCount;
+            public LUID Luid;
+            public uint Attributes;
+        }
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        public static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess, out IntPtr TokenHandle);
+        [DllImport("advapi32.dll", CharSet = CharSet.Unicode, EntryPoint = "LookupPrivilegeValueW", SetLastError = true)]
+        public static extern bool LookupPrivilegeValue(string lpSystemName, string lpName, out LUID lpLuid);
+        [DllImport("advapi32.dll", SetLastError = true)]
+        public static extern bool AdjustTokenPrivileges(IntPtr TokenHandle, bool DisableAllPrivileges,
+            ref TOKEN_PRIVILEGES NewState, uint BufferLength, IntPtr PreviousState, IntPtr ReturnLength);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct PROCESS_POWER_THROTTLING_STATE
+        {
+            public uint Version;
+            public uint ControlMask;
+            public uint StateMask;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, int dwProcessId);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool CloseHandle(IntPtr hObject);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool SetProcessInformation(IntPtr hProcess, int ProcessInformationClass,
+            ref PROCESS_POWER_THROTTLING_STATE ProcessInformation, int ProcessInformationSize);
 
         [StructLayout(LayoutKind.Sequential)]
         public struct MEMORYSTATUSEX
@@ -2085,6 +2133,19 @@ namespace Fluxion
         public bool UpdateCheck = true;
         public string UpdateCheckAt = "";          // 上次真正发出请求的日期（yyyy-MM-dd），节流用
 
+        // ---- GitHub 系统性能优化全景模块配置（Standby 内存净化 / 硬核低延迟 / EcoQoS / 后台降噪）----
+        public bool MemPurgeOnGame = true;         // 进游戏自动净化 Standby List 备用内存页
+        public bool MemAutoPurge = false;          // 低空闲物理内存阈值后台自动净化（默认关，按需开）
+        public int MemAutoPurgeFreeMb = 2048;      // 可用物理内存低于该值(MB)且备用页充足时触发净化
+        public bool MpoOff = false;                // 禁用 DWM MPO 多平面叠加（OverlayTestMode=5）
+        public int CoreParkMin = 100;              // CPU 核心停放最小活动核比例(%)，100=禁止停核
+        public bool EcoQosEnable = true;           // 游戏期 EcoQoS 智能压制后台浏览器/WebHelper 并守护游戏主进程
+        public List<string> EcoQosTargets = new List<string>();
+        public bool WidgetsOff = false;            // 关闭 Win11 小组件后台驻留（Widgets / WebView2）
+        public bool CopilotOff = false;            // 关闭 Windows Copilot 后台驻留
+        public bool TelemetryMin = false;          // 收敛诊断遥测收集（AllowTelemetry=0）
+        public bool BgAppsOff = false;             // 限制 UWP 后台常驻唤醒（GlobalUserDisabled=1）
+
         // 上次 Load 的说明（由 Main 记入日志）
         public static string LoadNote = "";
 
@@ -2370,6 +2431,29 @@ namespace Fluxion
                     c.NvAaaVsync = GetInt(nvk, "aaaVsync", 0x60925292);
                     c.NvCompTexQuality = GetInt(nvk, "compTextureQuality", 0x14);
                     c.NvBgFpsLimit = GetInt(nvk, "backgroundFpsLimit", 0);
+                }
+                // ---- 新增性能优化配置段读取（缺省向后兼容旧 config.json）----
+                if (power != null) c.CoreParkMin = Math.Max(0, Math.Min(100, GetInt(power, "coreParkMin", 100)));
+                if (gpu != null) c.MpoOff = GetBool(gpu, "mpoOff", false);
+                if (mem != null)
+                {
+                    c.MemPurgeOnGame = GetBool(mem, "purgeStandbyOnGame", true);
+                    c.MemAutoPurge = GetBool(mem, "autoPurge", false);
+                    c.MemAutoPurgeFreeMb = Math.Max(512, Math.Min(16384, GetInt(mem, "autoPurgeFreeMb", 2048)));
+                }
+                if (gbp != null)
+                {
+                    c.EcoQosEnable = GetBool(gbp, "ecoQos", true);
+                    var eqList = GetList(gbp, "ecoQosTargets");
+                    if (eqList.Count > 0) c.EcoQosTargets = eqList;
+                }
+                var debloatSec = GetDict(root, "debloat");
+                if (debloatSec != null)
+                {
+                    c.WidgetsOff = GetBool(debloatSec, "widgetsOff", false);
+                    c.CopilotOff = GetBool(debloatSec, "copilotOff", false);
+                    c.TelemetryMin = GetBool(debloatSec, "telemetryMin", false);
+                    c.BgAppsOff = GetBool(debloatSec, "bgAppsOff", false);
                 }
             }
             catch { }
@@ -3268,7 +3352,7 @@ namespace Fluxion
         // v1.0.0 = Fluxion 品牌首发（2026-09-20 由 GameBoost-DLSSG 全套改名而来）。
         // ⚠ 版本号在这里重开：改名换了安装包的 AppId，Windows 视作全新产品，
         //   旧的 3.6.x 线不再有升级关系（旧版需手动卸载）。两处版本号必须一起改（build.py --pkg 会校验）。
-        public const string AppVersion = "1.3.2";
+        public const string AppVersion = "1.3.3";
         public const string ShareVersion = "1.0.0";
         // ⚠ 必须用 #if 直接选常量（不能用运行时三元）：这样每个二进制里只留自己那条版本串，
         //   交付后可以直接在 exe 里搜 "SHARE-BUILD" 来证明「这份到底是不是分享构建」。
@@ -4876,7 +4960,13 @@ namespace Fluxion
             if (Cfg.UsbSuspendOff)
             {
                 RunCmd("powercfg", "/setacvalueindex SCHEME_CURRENT 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0");
-                Log("已禁用 USB 选择性暂停");
+                int usbFixed = LowLatencyKit.ApplyUsbControllerGuard(true);
+                Log("已禁用 USB 选择性暂停" + (usbFixed > 0 ? (" + 加固 " + usbFixed + " 个 USB 控制器防休眠") : ""));
+            }
+            if (Cfg.CoreParkMin > 0)
+            {
+                int parkMin = (Cfg.AdaptiveEnable && IsLaptop && Cfg.CoreParkMin >= 100) ? 50 : Cfg.CoreParkMin;
+                LowLatencyKit.SetCoreParkingMin(parkMin);
             }
             if (Cfg.PcieAspmOff)
             {
@@ -4911,6 +5001,10 @@ namespace Fluxion
                 BackupReg(gbPath, "AutoGameModeEnabled");
                 WriteReg(gbPath, "AutoGameModeEnabled", 1, RegistryValueKind.DWord);
                 Log("已确保 Windows 游戏模式开启 (AutoGameModeEnabled=1)");
+            }
+            if (Cfg.MpoOff)
+            {
+                LowLatencyKit.SetMpoDisabled(true);
             }
             if (Cfg.NvProfiles)
             {
@@ -5498,7 +5592,17 @@ namespace Fluxion
                     catch { }
                 }
             }
-            Log("[游戏加速包] 挂起进程 " + suspended + " 个 / 内存整理 " + trimmed + " 个(约 " + freedMB + " MB) / 已暂停更新服务 " + wuWasRunning.Count + " 个（游戏退出自动恢复）");
+            long standbyFreedMb = 0;
+            if (Cfg.MemPurgeOnGame)
+            {
+                standbyFreedMb = MemCleaner.PurgeStandby(false);
+            }
+            int ecoCount = 0;
+            if (Cfg.EcoQosEnable)
+            {
+                ecoCount = EcoGovernor.ApplyForGame();
+            }
+            Log("[游戏加速包] 挂起进程 " + suspended + " 个 / EcoQoS 压制后台 " + ecoCount + " 个 / 内存整理 " + trimmed + " 个(工作集约 " + freedMB + " MB" + (standbyFreedMb > 0 ? (" + 备用页 " + standbyFreedMb + " MB") : "") + ") / 暂停更新服务 " + wuWasRunning.Count + " 个（退出自动恢复）");
         }
 
         public static void GameBoostStop()
@@ -5512,10 +5616,11 @@ namespace Fluxion
                 try { p.Dispose(); } catch { }
             }
             suspendedProcs.Clear();
+            int ecoRestored = EcoGovernor.RestoreAll();
             int wuRestarted = wuWasRunning.Count;
             foreach (var sn in wuWasRunning) StartService(sn);
             wuWasRunning.Clear();
-            Log("[游戏加速包] 已恢复挂起进程 " + resumed + " 个 / 重启更新服务 " + wuRestarted + " 个");
+            Log("[游戏加速包] 已恢复挂起进程 " + resumed + " 个 / 解除 EcoQoS 压制 " + ecoRestored + " 个 / 重启更新服务 " + wuRestarted + " 个");
         }
 
         // 启动时兜底：把上次异常退出可能残留的挂起进程唤醒（对正常运行进程无副作用）
@@ -6120,6 +6225,48 @@ namespace Fluxion
                 Values = new int[] { -1, 10, 20, 30, 50 }, Value = c.NetThrottle
             });
 
+            // ---------- 硬核低延迟 / 内存净化 / EcoQoS ----------
+            l.Add(new OptKnob
+            {
+                Key = "gpu.mpoOff", Sec = "gpu", Name = "mpoOff", IsBool = true, Apply = "hags", Restart = true,
+                Group = "Windows · 硬核低延迟",
+                Title = "DWM 多平面叠加（MPO）",
+                Short = "DWM MPO",
+                Hint = "MPO 在部分多屏不同刷新率或无边框全屏切换时易引发黑屏闪烁、微卡顿（NVIDIA 官方曾发过 MPO Disable 注册表补丁）。若遇切屏黑屏/双屏掉帧建议禁用；正常且依赖窗口化独立翻转则保持开启。",
+                Labels = new string[] { "保持开启（Windows 默认）", "禁用 MPO（OverlayTestMode=5）" },
+                Values = new int[] { 0, 1 }, Value = c.MpoOff ? 1 : 0
+            });
+            l.Add(new OptKnob
+            {
+                Key = "power.coreParkMin", Sec = "power", Name = "coreParkMin", Apply = "proc",
+                Group = "Windows · 硬核低延迟",
+                Title = "CPU 核心停放（最小活动核比例）",
+                Short = "防停核",
+                Hint = "设为 100% 即禁止系统将物理/逻辑核心置入 C6 停放态，消除竞技网游突发负载时的微秒级核心唤醒尖峰；笔记本日常续航场景可选 50% 或 10%。",
+                Labels = new string[] { "100%（禁止停核，推荐台式机）", "50%（均衡）", "10%（允许停核省电）" },
+                Values = new int[] { 100, 50, 10 }, Value = c.CoreParkMin
+            });
+            l.Add(new OptKnob
+            {
+                Key = "gameBoost.ecoQos", Sec = "gameBoost", Name = "ecoQos", IsBool = true, Apply = "sched",
+                Group = "游戏期智能联动",
+                Title = "后台 EcoQoS 效能模式压制",
+                Short = "EcoQoS",
+                Hint = "游戏运行期间自动对主游戏进程关闭电源节流，同时将后台浏览器与平台渲染进程（Edge/Chrome/SteamWebHelper 等）打入 Windows EcoQoS 效能模式（混合架构自动收拢至 E 核），不断网不掉线。",
+                Labels = new string[] { "开启（推荐）", "关闭" },
+                Values = new int[] { 1, 0 }, Value = c.EcoQosEnable ? 1 : 0
+            });
+            l.Add(new OptKnob
+            {
+                Key = "memory.purgeStandbyOnGame", Sec = "memory", Name = "purgeStandbyOnGame", IsBool = true, Apply = "proc",
+                Group = "游戏期智能联动",
+                Title = "进游戏自动净化 Standby 备用内存页",
+                Short = "备用页净化",
+                Hint = "对标 ISLC / MemReduct：Windows 长时间运行后空闲物理内存常被历史文件缓存（Standby List）占满，新加载大地图时被迫实时回收引发微顿。开启后进游戏自动排空低效备用页。",
+                Labels = new string[] { "开启（推荐）", "仅手动净化" },
+                Values = new int[] { 1, 0 }, Value = c.MemPurgeOnGame ? 1 : 0
+            });
+
             return l;
         }
 
@@ -6158,6 +6305,10 @@ namespace Fluxion
                 case "前台响应优先级": return "network.systemResponsiveness";
                 case "Nagle 算法(小包延迟)": return "network.nagleOff";
                 case "网络流量节流": return "network.throttlingIndex";
+                case "DWM 多平面叠加(MPO)": return "gpu.mpoOff";
+                case "CPU 核心停放(防停核)": return "power.coreParkMin";
+                case "游戏期 EcoQoS 智能压制": return "gameBoost.ecoQos";
+                case "备用内存页(Standby List)": return "memory.purgeStandbyOnGame";
             }
             return null;
         }
@@ -6257,6 +6408,11 @@ namespace Fluxion
                         return NvDrs.ApplyGameProfiles(FpsList(), Cfg.MmoGames, Cfg.AaaGames, Cfg.GachaGames);
                     case "hags":
                         {
+                            if (k.Key == "gpu.mpoOff")
+                            {
+                                LowLatencyKit.SetMpoDisabled(Cfg.MpoOff);
+                                return "DWM MPO=" + (Cfg.MpoOff ? "已禁用(OverlayTestMode=5)" : "系统默认") + "（注销或重启生效）";
+                            }
                             string hp = "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers";
                             BackupReg(hp, "HwSchMode");
                             WriteReg(hp, "HwSchMode", Cfg.HagsOn ? 2 : 1, RegistryValueKind.DWord);
@@ -6264,12 +6420,21 @@ namespace Fluxion
                         }
                     case "sched":
                         {
+                            if (k.Key == "gameBoost.ecoQos")
+                                return "游戏期 EcoQoS 智能压制=" + (Cfg.EcoQosEnable ? "开启" : "关闭");
                             string sp = "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\PriorityControl";
                             BackupReg(sp, "Win32PrioritySeparation");
                             WriteReg(sp, "Win32PrioritySeparation", Cfg.SchedSep, RegistryValueKind.DWord);
                             return "Win32PrioritySeparation=" + Cfg.SchedSep;
                         }
                     case "proc":
+                        if (k.Key == "power.coreParkMin")
+                        {
+                            LowLatencyKit.SetCoreParkingMin(Cfg.CoreParkMin);
+                            return "CPU 核心停放最小活动核=" + Cfg.CoreParkMin + "%";
+                        }
+                        if (k.Key == "memory.purgeStandbyOnGame")
+                            return "进游戏自动净化备用页=" + (Cfg.MemPurgeOnGame ? "开启" : "仅手动");
                         RunCmd("powercfg", "/setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMIN " + Cfg.MinProc);
                         RunCmd("powercfg", "/setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMAX " + Cfg.MaxProc);
                         RunCmd("powercfg", "/setactive SCHEME_CURRENT");
@@ -6771,10 +6936,13 @@ namespace Fluxion
                 try { Log("[NVAPI] " + NvDrs.ResetGameProfiles(new List<string>[] { FpsList(), Cfg.MmoGames, Cfg.AaaGames, Cfg.GachaGames })); }
                 catch (Exception ex) { Log("[NVAPI] 还原失败: " + ex.Message); }
             }
+            // 硬核低延迟与后台降噪项还原为 Windows 出厂默认
+            try { LowLatencyKit.RestoreDefaults(); } catch { }
+            try { NoiseControl.RestoreDefaults(); } catch { }
             Log("—— 恢复系统默认完成（多数项即时生效，HAGS/电源计划建议重启）——");
         }
 
-        static void DeleteRegValue(string path, string name)
+        public static void DeleteRegValue(string path, string name)
         {
             try
             {
@@ -7490,6 +7658,52 @@ namespace Fluxion
                 Status = dvChanged ? "⚠️ 驱动已更新(见说明)" : (dvBase.Length > 0 ? "✅ 已记录" : "✅ 未建基线")
             });
 
+            // ---- GitHub 硬核低延迟 / 内存净化 / EcoQoS / 硬件中断核验项 ----
+            bool mpoDisabled = LowLatencyKit.IsMpoDisabled();
+            list.Add(new StatusItem
+            {
+                Item = "DWM 多平面叠加(MPO)",
+                Current = mpoDisabled ? "已禁用 (OverlayTestMode=5)" : "开启 (系统默认)",
+                Expected = Cfg.MpoOff ? "禁用(5)" : "按需（切屏黑屏/双屏掉帧可禁用）",
+                Status = Cfg.MpoOff ? (mpoDisabled ? "✅ 已禁用" : "⚠️ 未应用") : (mpoDisabled ? "🟡 已禁用" : "✅ 默认开")
+            });
+
+            int cpCur = LowLatencyKit.GetCoreParkingMin();
+            list.Add(new StatusItem
+            {
+                Item = "CPU 核心停放(防停核)",
+                Current = cpCur >= 0 ? ("最小活动核 " + cpCur + "%") : "未读取(默认方案)",
+                Expected = "最小活动核 " + Cfg.CoreParkMin + "%",
+                Status = cpCur < 0 ? "🟡 待确认" : (cpCur >= Cfg.CoreParkMin ? "✅ 已生效" : "⚠️ 未达标")
+            });
+
+            string msiSummary = LowLatencyKit.GetMsiSummary();
+            bool msiAllOk = msiSummary.IndexOf("传统线中断") < 0;
+            list.Add(new StatusItem
+            {
+                Item = "PCIe MSI 中断模式(显卡/网卡)",
+                Current = msiSummary,
+                Expected = "GPU 与活动网卡均启用 MSI 信号中断",
+                Status = msiAllOk ? "✅ 已启用" : "🟡 可启用"
+            });
+
+            var memSnap = MemCleaner.QuerySnapshot();
+            list.Add(new StatusItem
+            {
+                Item = "备用内存页(Standby List)",
+                Current = "备用页 " + memSnap.StandbyMb + " MB · 空闲 " + memSnap.FreeMb + " MB",
+                Expected = Cfg.MemPurgeOnGame ? "进游戏自动净化" : "按需手动净化",
+                Status = Cfg.MemPurgeOnGame ? "✅ 已联动" : "🟡 手动档"
+            });
+
+            list.Add(new StatusItem
+            {
+                Item = "游戏期 EcoQoS 智能压制",
+                Current = Cfg.EcoQosEnable ? ("开启（受控进程 " + EcoGovernor.ActiveThrottledCount + " 个）") : "已关闭",
+                Expected = "开启（游戏防节流 + 后台进 E 核）",
+                Status = Cfg.EcoQosEnable ? "✅ 已就绪" : "🟡 已关闭"
+            });
+
             // 把可调旋钮挂到对应行上（体检表双击 → 直接改取值）
             AttachKnobKeys(list);
 
@@ -7582,6 +7796,23 @@ namespace Fluxion
                             + (rok ? "（重启后 WSL2 / Docker / 模拟器恢复可用）"
                                    : " —— ⚠️ 回读为 " + (got == null ? "未设置" : got) + "，未确认"));
                         ok++;
+                    }
+                    else if (type == "dns")
+                    {
+                        string nicName = e.ContainsKey("Path") ? Convert.ToString(e["Path"]) : "";
+                        string mode = e.ContainsKey("Value") ? Convert.ToString(e["Value"]) : "dhcp";
+                        if (nicName.Length > 0)
+                        {
+                            if (mode == "dhcp" || mode.Length == 0)
+                                NetToolbox.ApplyDnsToAdapter(nicName, "", "", false);
+                            else
+                            {
+                                string[] sp = mode.Split(',');
+                                NetToolbox.ApplyDnsToAdapter(nicName, sp[0], sp.Length > 1 ? sp[1] : "", false);
+                            }
+                            log("已还原网卡「" + nicName + "」DNS 设置");
+                            ok++;
+                        }
                     }
                 }
                 catch { fail++; }
@@ -7821,6 +8052,1200 @@ namespace Fluxion
             }
             catch (Exception ex) { sb.AppendLine("FAIL: " + ex.ToString()); }
             File.WriteAllText(Path.Combine(DataDir, "selftest.txt"), sb.ToString(), Encoding.UTF8);
+        }
+    }
+
+    // ============================================================================
+    //  模块 1：Standby List 备用内存页深度净化引擎（对标 henrypp/memreduct & ISLC）
+    // ============================================================================
+    public class MemListSnapshot
+    {
+        public long TotalMb;
+        public long UsedMb;
+        public long StandbyMb;
+        public long ModifiedMb;
+        public long FreeMb;
+        public bool KernelListOk;
+    }
+
+    public static class MemCleaner
+    {
+        const int SystemMemoryListInformation = 80;
+        const int MemoryEmptyWorkingSets = 2;
+        const int MemoryFlushModifiedList = 3;
+        const int MemoryPurgeStandbyList = 4;
+        const int MemoryPurgeLowPriorityStandbyList = 5;
+        const uint TOKEN_ADJUST_PRIVILEGES = 0x0020;
+        const uint TOKEN_QUERY = 0x0008;
+        const uint SE_PRIVILEGE_ENABLED = 0x00000002;
+
+        static bool privPrepared = false;
+        static DateTime lastAutoPurgeAt = DateTime.MinValue;
+
+        public static void EnsurePrivileges()
+        {
+            if (privPrepared) return;
+            privPrepared = true;
+            try
+            {
+                IntPtr hTok;
+                if (!Native.OpenProcessToken(Process.GetCurrentProcess().Handle,
+                    TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, out hTok)) return;
+                try
+                {
+                    EnableSinglePrivilege(hTok, "SeProfileSingleProcessPrivilege");
+                    EnableSinglePrivilege(hTok, "SeIncreaseQuotaPrivilege");
+                }
+                finally { Native.CloseHandle(hTok); }
+            }
+            catch { }
+        }
+
+        static void EnableSinglePrivilege(IntPtr hTok, string privName)
+        {
+            try
+            {
+                Native.LUID luid;
+                if (!Native.LookupPrivilegeValue(null, privName, out luid)) return;
+                var tp = new Native.TOKEN_PRIVILEGES();
+                tp.PrivilegeCount = 1;
+                tp.Luid = luid;
+                tp.Attributes = SE_PRIVILEGE_ENABLED;
+                Native.AdjustTokenPrivileges(hTok, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero);
+            }
+            catch { }
+        }
+
+        // 微秒级读取物理内存三段构成（活跃占用 / Standby 备用缓存 / 纯空闲 Zero+Free）
+        public static MemListSnapshot QuerySnapshot()
+        {
+            var r = new MemListSnapshot();
+            long availMb = 0;
+            try
+            {
+                var ms = new Native.MEMORYSTATUSEX();
+                ms.dwLength = (uint)Marshal.SizeOf(typeof(Native.MEMORYSTATUSEX));
+                if (Native.GlobalMemoryStatusEx(ref ms) && ms.ullTotalPhys > 0)
+                {
+                    r.TotalMb = (long)(ms.ullTotalPhys / (1024UL * 1024UL));
+                    availMb = (long)(ms.ullAvailPhys / (1024UL * 1024UL));
+                    r.UsedMb = Math.Max(0L, r.TotalMb - availMb);
+                }
+            }
+            catch { }
+
+            EnsurePrivileges();
+            IntPtr buf = IntPtr.Zero;
+            try
+            {
+                buf = Marshal.AllocHGlobal(256);
+                for (int k = 0; k < 256; k++) Marshal.WriteByte(buf, k, 0);
+                int ptrSz = IntPtr.Size;
+                int retLen = 0;
+                // Win8~Win11 结构体含 22 个 ULONG_PTR，旧系统可能为 21 个
+                int status = Native.NtQuerySystemInformation(SystemMemoryListInformation, buf, 22 * ptrSz, out retLen);
+                if (status != 0 && retLen >= 13 * ptrSz && retLen <= 256)
+                    status = Native.NtQuerySystemInformation(SystemMemoryListInformation, buf, retLen, out retLen);
+                if (status != 0)
+                    status = Native.NtQuerySystemInformation(SystemMemoryListInformation, buf, 21 * ptrSz, out retLen);
+
+                if (status == 0)
+                {
+                    long zeroPages = ReadPtrU64(buf, 0 * ptrSz);
+                    long freePages = ReadPtrU64(buf, 1 * ptrSz);
+                    long modPages = ReadPtrU64(buf, 2 * ptrSz);
+                    long standbyPages = 0;
+                    for (int p = 0; p < 8; p++)
+                        standbyPages += ReadPtrU64(buf, (5 + p) * ptrSz);
+
+                    r.FreeMb = ((zeroPages + freePages) * 4096L) / (1024L * 1024L);
+                    r.ModifiedMb = (modPages * 4096L) / (1024L * 1024L);
+                    r.StandbyMb = (standbyPages * 4096L) / (1024L * 1024L);
+                    r.KernelListOk = true;
+                }
+            }
+            catch { }
+            finally
+            {
+                if (buf != IntPtr.Zero) Marshal.FreeHGlobal(buf);
+            }
+
+            if (!r.KernelListOk && availMb > 0)
+            {
+                // 非管理员或受限令牌下内核页表不可读：用总可用内存平滑兜底
+                r.FreeMb = availMb;
+                r.StandbyMb = 0;
+            }
+            return r;
+        }
+
+        static long ReadPtrU64(IntPtr buf, int byteOffset)
+        {
+            if (IntPtr.Size == 8) return Marshal.ReadInt64(buf, byteOffset);
+            return (long)(uint)Marshal.ReadInt32(buf, byteOffset);
+        }
+
+        // 执行内存净化：includeWorkingSet=true 时连同后台工作集 + 修改页一并刷盘净化（手动深度净化）；
+        // includeWorkingSet=false 时仅排空 Standby List（进游戏/后台阈值自动净化，零卡顿）。
+        public static long PurgeStandby(bool includeWorkingSet)
+        {
+            EnsurePrivileges();
+            var before = QuerySnapshot();
+            try
+            {
+                if (includeWorkingSet)
+                {
+                    int cmdWs = MemoryEmptyWorkingSets;
+                    Native.NtSetSystemInformation(SystemMemoryListInformation, ref cmdWs, sizeof(int));
+                    int cmdMod = MemoryFlushModifiedList;
+                    Native.NtSetSystemInformation(SystemMemoryListInformation, ref cmdMod, sizeof(int));
+                }
+                int cmdSb = MemoryPurgeStandbyList;
+                int rc = Native.NtSetSystemInformation(SystemMemoryListInformation, ref cmdSb, sizeof(int));
+                if (rc != 0)
+                {
+                    int cmdLow = MemoryPurgeLowPriorityStandbyList;
+                    Native.NtSetSystemInformation(SystemMemoryListInformation, ref cmdLow, sizeof(int));
+                }
+            }
+            catch { }
+
+            var after = QuerySnapshot();
+            long freedStandby = Math.Max(0L, before.StandbyMb - after.StandbyMb);
+            long freedUsed = includeWorkingSet ? Math.Max(0L, before.UsedMb - after.UsedMb) : 0L;
+            long totalFreed = freedStandby + freedUsed;
+            if (totalFreed == 0 && after.FreeMb > before.FreeMb)
+                totalFreed = after.FreeMb - before.FreeMb;
+            return totalFreed;
+        }
+
+        // 守护定时器低频调用：当开启后台自动净化且纯空闲内存跌破阈值、备用页充裕时静默排空（冷却 90s）
+        public static long CheckAutoPurge()
+        {
+            if (Program.Cfg == null || !Program.Cfg.MemAutoPurge) return 0;
+            if ((DateTime.Now - lastAutoPurgeAt).TotalSeconds < 90) return 0;
+            var snap = QuerySnapshot();
+            if (!snap.KernelListOk) return 0;
+            if (snap.FreeMb < Program.Cfg.MemAutoPurgeFreeMb && snap.StandbyMb >= 1024)
+            {
+                lastAutoPurgeAt = DateTime.Now;
+                long freed = PurgeStandby(false);
+                if (freed > 0)
+                    Program.Log("[内存守护] 纯空闲物理内存仅剩 " + snap.FreeMb + " MB，已自动净化备用页释放 " + freed + " MB");
+                return freed;
+            }
+            return 0;
+        }
+    }
+
+    // ============================================================================
+    //  模块 2：硬核低延迟调优与硬件中断核验（DWM MPO / PCIe MSI / ReBAR / USB / 防停核）
+    // ============================================================================
+    public class MsiDevInfo
+    {
+        public string Category = "";     // "显卡" / "网卡"
+        public string Name = "";
+        public string InstancePath = ""; // SYSTEM\CurrentControlSet\Enum\PCI\...
+        public bool MsiSupported;
+        public int IrqLimit;             // 0 = 无限制或未设置
+    }
+
+    public static class LowLatencyKit
+    {
+        const string DwmRegPath = "HKLM:\\SOFTWARE\\Microsoft\\Windows\\Dwm";
+        const string SubProcessorGuid = "54533251-82be-4824-96c1-47b60b740d00";
+        const string CpMinCoresGuid = "0cc5b647-c1df-4637-891a-dec35c318583";
+
+        // ---- 1) DWM 多平面叠加 (MPO) ----
+        public static bool IsMpoDisabled()
+        {
+            object v = Program.ReadReg(DwmRegPath, "OverlayTestMode");
+            return v is int && (int)v == 5;
+        }
+
+        public static void SetMpoDisabled(bool disable)
+        {
+            Program.BackupReg(DwmRegPath, "OverlayTestMode");
+            if (disable)
+            {
+                Program.WriteReg(DwmRegPath, "OverlayTestMode", 5, RegistryValueKind.DWord);
+                Program.Log("[低延迟] 已禁用 DWM MPO 多平面叠加 (OverlayTestMode=5，注销或重启后生效)");
+            }
+            else
+            {
+                Program.DeleteRegValue(DwmRegPath, "OverlayTestMode");
+                Program.Log("[低延迟] 已恢复 DWM MPO 为系统默认开启状态");
+            }
+        }
+
+        // ---- 2) CPU 核心停放解锁与最小活动核控制 (CPMINCORES) ----
+        public static int GetCoreParkingMin()
+        {
+            try
+            {
+                // 必须用 /qh（含隐藏电源设置），否则未解锁隐藏属性前 /q 输出为空
+                string q = Program.RunCmd("powercfg", "/qh SCHEME_CURRENT " + SubProcessorGuid + " " + CpMinCoresGuid);
+                foreach (string raw in q.Split('\n'))
+                {
+                    string line = raw.Trim();
+                    if (line.Contains("当前交流电源设置索引") || line.Contains("Current AC Power Setting Index"))
+                    {
+                        var mh = Regex.Match(line, @"0x([0-9a-fA-F]+)");
+                        if (mh.Success) return Convert.ToInt32(mh.Groups[1].Value, 16);
+                    }
+                }
+            }
+            catch { }
+            return -1;
+        }
+
+        public static void SetCoreParkingMin(int minPercent)
+        {
+            int pct = Math.Max(0, Math.Min(100, minPercent));
+            try
+            {
+                // 先解除隐藏属性，让用户在系统高级电源选项中也能直观看到「处理器性能核心搁置最小核心数」
+                Program.RunCmd("powercfg", "-attributes " + SubProcessorGuid + " " + CpMinCoresGuid + " -ATTRIB_HIDE");
+                Program.RunCmd("powercfg", "/setacvalueindex SCHEME_CURRENT " + SubProcessorGuid + " " + CpMinCoresGuid + " " + pct);
+                Program.RunCmd("powercfg", "/setactive SCHEME_CURRENT");
+                Program.Log("[低延迟] CPU 核心停放最小活动核已设为 " + pct + "%");
+            }
+            catch (Exception ex) { Program.Log("[低延迟] 设置核心停放失败: " + ex.Message); }
+        }
+
+        // ---- 3) PCIe MSI (Message Signaled Interrupts) 显卡与物理网卡状态枚举与切换 ----
+        public static List<MsiDevInfo> GetMsiDevices()
+        {
+            var res = new List<MsiDevInfo>();
+            try
+            {
+                using (var pciRoot = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Enum\PCI"))
+                {
+                    if (pciRoot == null) return res;
+                    foreach (string venDev in pciRoot.GetSubKeyNames())
+                    {
+                        using (var vdKey = pciRoot.OpenSubKey(venDev))
+                        {
+                            if (vdKey == null) continue;
+                            foreach (string inst in vdKey.GetSubKeyNames())
+                            {
+                                using (var ik = vdKey.OpenSubKey(inst))
+                                {
+                                    if (ik == null) continue;
+                                    // Win11 PCI 枚举键只有 ClassGUID，不一定写明文 Class
+                                    string cls = Convert.ToString(ik.GetValue("Class") ?? "");
+                                    string cguid = Convert.ToString(ik.GetValue("ClassGUID") ?? "");
+                                    bool isGpu = cls.Equals("Display", StringComparison.OrdinalIgnoreCase)
+                                              || cguid.Equals("{4d36e968-e325-11ce-bfc1-08002be10318}", StringComparison.OrdinalIgnoreCase);
+                                    bool isNet = cls.Equals("Net", StringComparison.OrdinalIgnoreCase)
+                                              || cguid.Equals("{4d36e972-e325-11ce-bfc1-08002be10318}", StringComparison.OrdinalIgnoreCase);
+                                    if (!isGpu && !isNet) continue;
+
+                                    // 仅纳入当前在位的活动硬件实例（存在 Control 子键或绑定了活动驱动 Service）
+                                    bool isPresent = false;
+                                    try { using (var ck = ik.OpenSubKey("Control")) if (ck != null) isPresent = true; } catch { }
+                                    if (!isPresent) continue;
+
+                                    string desc = CleanDevDesc(Convert.ToString(ik.GetValue("DeviceDesc") ?? ""));
+                                    if (desc.Length == 0) continue;
+                                    if (desc.IndexOf("Virtual", StringComparison.OrdinalIgnoreCase) >= 0
+                                        || desc.IndexOf("Hyper-V", StringComparison.OrdinalIgnoreCase) >= 0
+                                        || desc.IndexOf("VMware", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+
+                                    bool msiSupported = false;
+                                    int irqLim = 0;
+                                    bool msiReadable = false;
+                                    try
+                                    {
+                                        using (var msiKey = ik.OpenSubKey(@"Device Parameters\Interrupt Management\MessageSignaledInterruptProperties"))
+                                        {
+                                            if (msiKey != null)
+                                            {
+                                                msiReadable = true;
+                                                object msiVal = msiKey.GetValue("MSISupported");
+                                                object limVal = msiKey.GetValue("MessageNumberLimit");
+                                                msiSupported = (msiVal is int && (int)msiVal == 1);
+                                                irqLim = (limVal is int) ? (int)limVal : 0;
+                                            }
+                                        }
+                                    }
+                                    catch { }
+
+                                    if (!msiReadable) continue;
+                                    var item = new MsiDevInfo();
+                                    item.Category = isGpu ? "显卡" : "网卡";
+                                    item.Name = desc;
+                                    item.InstancePath = @"SYSTEM\CurrentControlSet\Enum\PCI\" + venDev + @"\" + inst;
+                                    item.MsiSupported = msiSupported;
+                                    item.IrqLimit = irqLim;
+                                    res.Add(item);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return res;
+        }
+
+        static string CleanDevDesc(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return "";
+            int semi = raw.LastIndexOf(';');
+            return (semi >= 0 && semi + 1 < raw.Length) ? raw.Substring(semi + 1).Trim() : raw.Trim();
+        }
+
+        public static string GetMsiSummary()
+        {
+            var devs = GetMsiDevices();
+            if (devs.Count == 0) return "未枚举到独立 PCIe 显卡/网卡中断项";
+            var parts = new List<string>();
+            foreach (var d in devs)
+            {
+                parts.Add(d.Category + " " + (d.MsiSupported ? "MSI 已开" : "传统线中断"));
+            }
+            return string.Join(" · ", parts.ToArray());
+        }
+
+        public static bool SetDeviceMsi(MsiDevInfo dev, bool enable)
+        {
+            if (dev == null || string.IsNullOrEmpty(dev.InstancePath)) return false;
+            try
+            {
+                string regPath = @"HKLM:\" + dev.InstancePath + @"\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties";
+                Program.BackupReg(regPath, "MSISupported");
+                Program.WriteReg(regPath, "MSISupported", enable ? 1 : 0, RegistryValueKind.DWord);
+                object check = Program.ReadReg(regPath, "MSISupported");
+                bool ok = (check is int) && ((int)check == (enable ? 1 : 0));
+                Program.Log("[低延迟] PCIe MSI 设置 [" + dev.Name + "] → " + (enable ? "启用(1)" : "关闭(0)")
+                    + (ok ? "（重启生效）" : "（写入未确认，需管理员/SYSTEM权限）"));
+                return ok;
+            }
+            catch (Exception ex)
+            {
+                Program.Log("[低延迟] PCIe MSI 写入异常: " + ex.Message);
+                return false;
+            }
+        }
+
+        // ---- 4) Resizable BAR 硬件显存映射只读验证 ----
+        static string rbarHwCache = null;
+        public static string DetectResizableBarHw()
+        {
+            if (rbarHwCache != null) return rbarHwCache;
+            try
+            {
+                long maxRangeMb = 0;
+                using (var s = new ManagementObjectSearcher("SELECT StartingAddress, EndingAddress FROM Win32_DeviceMemoryAddress"))
+                {
+                    foreach (ManagementObject o in s.Get())
+                    {
+                        try
+                        {
+                            ulong st = Convert.ToUInt64(o["StartingAddress"]);
+                            ulong ed = Convert.ToUInt64(o["EndingAddress"]);
+                            if (ed > st)
+                            {
+                                long mb = (long)((ed - st + 1UL) / (1024UL * 1024UL));
+                                if (mb > maxRangeMb) maxRangeMb = mb;
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                if (maxRangeMb >= 512)
+                    rbarHwCache = "已开启（最大连续 BAR 窗口 " + (maxRangeMb >= 1024 ? ((maxRangeMb / 1024) + " GB") : (maxRangeMb + " MB")) + "）";
+                else if (maxRangeMb > 0)
+                    rbarHwCache = "标准 256MB 窗口（主板 BIOS 未开 Above 4G / ReBAR 或显卡不支持）";
+                else
+                    rbarHwCache = "未读到 PCIe BAR 映射表";
+            }
+            catch { rbarHwCache = "只读探测跳过"; }
+            return rbarHwCache;
+        }
+
+        // ---- 5) USB 控制器与根集线器防节能断连 ----
+        public static int ApplyUsbControllerGuard(bool disablePowerSave)
+        {
+            int count = 0;
+            try
+            {
+                using (var usbRoot = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Enum\USB"))
+                {
+                    if (usbRoot == null) return 0;
+                    foreach (string vidPid in usbRoot.GetSubKeyNames())
+                    {
+                        // 重点覆盖 ROOT_HUB 与控制器节点，不乱改普通 U 盘存储子项
+                        if (vidPid.IndexOf("ROOT_HUB", StringComparison.OrdinalIgnoreCase) < 0
+                            && vidPid.IndexOf("VID_", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                        using (var vpKey = usbRoot.OpenSubKey(vidPid))
+                        {
+                            if (vpKey == null) continue;
+                            foreach (string inst in vpKey.GetSubKeyNames())
+                            {
+                                string wdfPath = @"SYSTEM\CurrentControlSet\Enum\USB\" + vidPid + @"\" + inst + @"\Device Parameters\WDF";
+                                using (var wk = Registry.LocalMachine.OpenSubKey(wdfPath))
+                                {
+                                    if (wk == null || wk.GetValue("IdleInWorkingState") == null) continue;
+                                }
+                                string fullReg = @"HKLM:\" + wdfPath;
+                                Program.BackupReg(fullReg, "IdleInWorkingState");
+                                Program.WriteReg(fullReg, "IdleInWorkingState", disablePowerSave ? 0 : 1, RegistryValueKind.DWord);
+                                count++;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return count;
+        }
+
+        public static void RestoreDefaults()
+        {
+            Program.DeleteRegValue(DwmRegPath, "OverlayTestMode");
+        }
+    }
+
+    // ============================================================================
+    //  模块 3：游戏期 EcoQoS（效能模式）智能进程压制引擎
+    // ============================================================================
+    public static class EcoGovernor
+    {
+        const int ProcessPowerThrottling = 4;
+        const uint PROCESS_POWER_THROTTLING_EXECUTION_SPEED = 0x1;
+        const uint PROCESS_SET_INFORMATION = 0x0200;
+        const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
+        class SavedProcState
+        {
+            public int Pid;
+            public string Name = "";
+            public ProcessPriorityClass OrigPriority = ProcessPriorityClass.Normal;
+        }
+
+        static readonly object sync = new object();
+        static readonly List<SavedProcState> throttled = new List<SavedProcState>();
+
+        public static readonly string[] DefaultHogProcesses = new string[]
+        {
+            "msedge", "msedgewebview2", "chrome", "firefox", "brave",
+            "steamwebhelper", "EpicWebHelper", "OriginWebHelperService", "EADesktop",
+            "Battle.net", "WeGame", "cloudmusic", "QQMusic", "baidunetdisk", "quark"
+        };
+
+        public static int ActiveThrottledCount
+        {
+            get { lock (sync) { return throttled.Count; } }
+        }
+
+        static bool SetEcoQos(int pid, bool enableEco, bool forceHighQos)
+        {
+            IntPtr hProc = IntPtr.Zero;
+            try
+            {
+                hProc = Native.OpenProcess(PROCESS_SET_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+                if (hProc == IntPtr.Zero) return false;
+                var state = new Native.PROCESS_POWER_THROTTLING_STATE();
+                state.Version = 1;
+                if (enableEco)
+                {
+                    state.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+                    state.StateMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+                }
+                else if (forceHighQos)
+                {
+                    state.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+                    state.StateMask = 0;
+                }
+                else
+                {
+                    state.ControlMask = 0;
+                    state.StateMask = 0;
+                }
+                return Native.SetProcessInformation(hProc, ProcessPowerThrottling,
+                    ref state, Marshal.SizeOf(typeof(Native.PROCESS_POWER_THROTTLING_STATE)));
+            }
+            catch { return false; }
+            finally
+            {
+                if (hProc != IntPtr.Zero) Native.CloseHandle(hProc);
+            }
+        }
+
+        // 进入游戏：游戏主进程显式禁用电源节流（HighQoS），后台浏览器/WebHelper 开启 EcoQoS + BelowNormal
+        public static int ApplyForGame()
+        {
+            lock (sync)
+            {
+                RestoreAllInternal();
+                var gameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (string gp in Program.AllGameProcesses())
+                {
+                    if (string.IsNullOrEmpty(gp)) continue;
+                    string clean = gp.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? gp.Substring(0, gp.Length - 4) : gp;
+                    gameSet.Add(clean);
+                }
+
+                var hogSet = new HashSet<string>(DefaultHogProcesses, StringComparer.OrdinalIgnoreCase);
+                if (Program.Cfg != null && Program.Cfg.EcoQosTargets != null)
+                {
+                    foreach (string t in Program.Cfg.EcoQosTargets)
+                    {
+                        if (!string.IsNullOrEmpty(t))
+                            hogSet.Add(t.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? t.Substring(0, t.Length - 4) : t);
+                    }
+                }
+
+                int myPid = 0;
+                try { myPid = Process.GetCurrentProcess().Id; } catch { }
+
+                int count = 0;
+                try
+                {
+                    foreach (var p in Process.GetProcesses())
+                    {
+                        try
+                        {
+                            if (p.Id == myPid || p.Id <= 4) continue;
+                            string pn = p.ProcessName;
+                            if (gameSet.Contains(pn))
+                            {
+                                // 守护游戏主进程：关闭电源节流（无边框切后台时也不被 Win11 降频塞进小核）
+                                SetEcoQos(p.Id, false, true);
+                                continue;
+                            }
+                            if (!hogSet.Contains(pn)) continue;
+
+                            ProcessPriorityClass origPrio = ProcessPriorityClass.Normal;
+                            try { origPrio = p.PriorityClass; } catch { }
+                            if (SetEcoQos(p.Id, true, false))
+                            {
+                                try { p.PriorityClass = ProcessPriorityClass.BelowNormal; } catch { }
+                                var st = new SavedProcState();
+                                st.Pid = p.Id;
+                                st.Name = pn;
+                                st.OrigPriority = origPrio;
+                                throttled.Add(st);
+                                count++;
+                            }
+                        }
+                        catch { }
+                        finally { try { p.Dispose(); } catch { } }
+                    }
+                }
+                catch { }
+                return count;
+            }
+        }
+
+        public static int RestoreAll()
+        {
+            lock (sync) { return RestoreAllInternal(); }
+        }
+
+        static int RestoreAllInternal()
+        {
+            int n = 0;
+            foreach (var st in throttled)
+            {
+                try
+                {
+                    using (var p = Process.GetProcessById(st.Pid))
+                    {
+                        if (!string.Equals(p.ProcessName, st.Name, StringComparison.OrdinalIgnoreCase)) continue;
+                        SetEcoQos(st.Pid, false, false);
+                        try { p.PriorityClass = st.OrigPriority; } catch { }
+                        n++;
+                    }
+                }
+                catch { }
+            }
+            throttled.Clear();
+            return n;
+        }
+    }
+
+    // ============================================================================
+    //  模块 4：开机自启无损治理（任务管理器 StartupApproved 同源）& 系统后台降噪
+    // ============================================================================
+    public class StartupEntry
+    {
+        public string Name = "";
+        public string Command = "";
+        public string Scope = "";         // "当前用户" / "本机全局" / "启动文件夹"
+        public string ApprovedRegPath = "";
+        public bool IsHKLM;
+        public bool Enabled = true;
+    }
+
+    public static class StartupMgr
+    {
+        static readonly string[] CoreSafeNames = new string[]
+        {
+            "SecurityHealth", "WindowsDefender", "RtkAudUService", "Fluxion"
+        };
+
+        public static List<StartupEntry> ListAll()
+        {
+            var list = new List<StartupEntry>();
+            ScanRegRun(list, false,
+                @"Software\Microsoft\Windows\CurrentVersion\Run",
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run",
+                "当前用户");
+            ScanRegRun(list, true,
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run",
+                "本机全局");
+            ScanRegRun(list, true,
+                @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run",
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run32",
+                "本机全局(32位)");
+            ScanStartupFolder(list);
+            return list;
+        }
+
+        static void ScanRegRun(List<StartupEntry> dst, bool hklm, string runSubKey, string appSubKey, string scopeLabel)
+        {
+            try
+            {
+                RegistryKey root = hklm ? Registry.LocalMachine : Registry.CurrentUser;
+                using (var rk = root.OpenSubKey(runSubKey, false))
+                {
+                    if (rk == null) return;
+                    using (var ak = root.OpenSubKey(appSubKey, false))
+                    {
+                        foreach (string valName in rk.GetValueNames())
+                        {
+                            if (string.IsNullOrEmpty(valName)) continue;
+                            bool skip = false;
+                            foreach (string safe in CoreSafeNames)
+                                if (valName.IndexOf(safe, StringComparison.OrdinalIgnoreCase) >= 0) { skip = true; break; }
+                            if (skip) continue;
+
+                            string cmd = Convert.ToString(rk.GetValue(valName) ?? "").Trim();
+                            if (cmd.Length == 0) continue;
+
+                            bool enabled = true;
+                            if (ak != null)
+                            {
+                                byte[] bin = ak.GetValue(valName) as byte[];
+                                if (bin != null && bin.Length >= 1 && (bin[0] & 1) == 1)
+                                    enabled = false;
+                            }
+
+                            var e = new StartupEntry();
+                            e.Name = valName;
+                            e.Command = cmd;
+                            e.Scope = scopeLabel;
+                            e.ApprovedRegPath = appSubKey;
+                            e.IsHKLM = hklm;
+                            e.Enabled = enabled;
+                            dst.Add(e);
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        static void ScanStartupFolder(List<StartupEntry> dst)
+        {
+            try
+            {
+                string dir = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
+                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return;
+                string appSub = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder";
+                using (var ak = Registry.CurrentUser.OpenSubKey(appSub, false))
+                {
+                    foreach (string f in Directory.GetFiles(dir))
+                    {
+                        string fn = Path.GetFileName(f);
+                        if (string.IsNullOrEmpty(fn) || fn.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)) continue;
+                        bool enabled = true;
+                        if (ak != null)
+                        {
+                            byte[] bin = ak.GetValue(fn) as byte[];
+                            if (bin != null && bin.Length >= 1 && (bin[0] & 1) == 1)
+                                enabled = false;
+                        }
+                        var e = new StartupEntry();
+                        e.Name = fn;
+                        e.Command = f;
+                        e.Scope = "启动文件夹";
+                        e.ApprovedRegPath = appSub;
+                        e.IsHKLM = false;
+                        e.Enabled = enabled;
+                        dst.Add(e);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        // 与 Windows 任务管理器 100% 同源的 12 字节 StartupApproved 写入（不删原始 Run 键！）
+        public static bool SetEnabled(StartupEntry entry, bool enable)
+        {
+            if (entry == null || string.IsNullOrEmpty(entry.ApprovedRegPath)) return false;
+            try
+            {
+                RegistryKey root = entry.IsHKLM ? Registry.LocalMachine : Registry.CurrentUser;
+                using (var ak = root.CreateSubKey(entry.ApprovedRegPath))
+                {
+                    if (ak == null) return false;
+                    byte[] data = new byte[12];
+                    if (enable)
+                    {
+                        data[0] = 0x02;
+                    }
+                    else
+                    {
+                        data[0] = 0x03;
+                        byte[] ft = BitConverter.GetBytes(DateTime.UtcNow.ToFileTimeUtc());
+                        Buffer.BlockCopy(ft, 0, data, 4, Math.Min(8, ft.Length));
+                    }
+                    ak.SetValue(entry.Name, data, RegistryValueKind.Binary);
+                }
+                entry.Enabled = enable;
+                Program.Log("[开机自启] " + entry.Name + "（" + entry.Scope + "）→ " + (enable ? "已启用" : "已禁用"));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Program.Log("[开机自启] 修改失败 [" + entry.Name + "]: " + ex.Message);
+                return false;
+            }
+        }
+    }
+
+    public static class NoiseControl
+    {
+        const string ExplorerAdv = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced";
+        const string DshPolicy = "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Dsh";
+        const string CopilotUserPolicy = "HKCU:\\Software\\Policies\\Microsoft\\Windows\\WindowsCopilot";
+        const string DataCollectionPolicy = "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection";
+        const string BgAppsKey = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications";
+
+        public static bool IsWidgetsOff()
+        {
+            object v = Program.ReadReg(ExplorerAdv, "TaskbarDa");
+            if (v is int && (int)v == 0) return true;
+            object p = Program.ReadReg(DshPolicy, "AllowNewsAndInterests");
+            return p is int && (int)p == 0;
+        }
+
+        public static void SetWidgetsOff(bool off)
+        {
+            Program.BackupReg(ExplorerAdv, "TaskbarDa");
+            Program.BackupReg(DshPolicy, "AllowNewsAndInterests");
+            Program.WriteReg(ExplorerAdv, "TaskbarDa", off ? 0 : 1, RegistryValueKind.DWord);
+            if (off)
+            {
+                Program.WriteReg(DshPolicy, "AllowNewsAndInterests", 0, RegistryValueKind.DWord);
+                Program.KillProcess("Widgets");
+                Program.Log("[后台降噪] 已关闭 Windows 小组件后台驻留（释放 Widgets/WebView2 内存）");
+            }
+            else
+            {
+                Program.DeleteRegValue(DshPolicy, "AllowNewsAndInterests");
+                Program.Log("[后台降噪] 已恢复 Windows 小组件默认状态");
+            }
+        }
+
+        public static bool IsCopilotOff()
+        {
+            object v = Program.ReadReg(CopilotUserPolicy, "TurnOffWindowsCopilot");
+            return v is int && (int)v == 1;
+        }
+
+        public static void SetCopilotOff(bool off)
+        {
+            Program.BackupReg(CopilotUserPolicy, "TurnOffWindowsCopilot");
+            Program.BackupReg(ExplorerAdv, "ShowCopilotButton");
+            if (off)
+            {
+                Program.WriteReg(CopilotUserPolicy, "TurnOffWindowsCopilot", 1, RegistryValueKind.DWord);
+                Program.WriteReg(ExplorerAdv, "ShowCopilotButton", 0, RegistryValueKind.DWord);
+                Program.Log("[后台降噪] 已禁用 Windows Copilot 驻留入口");
+            }
+            else
+            {
+                Program.DeleteRegValue(CopilotUserPolicy, "TurnOffWindowsCopilot");
+                Program.WriteReg(ExplorerAdv, "ShowCopilotButton", 1, RegistryValueKind.DWord);
+                Program.Log("[后台降噪] 已恢复 Windows Copilot 默认设置");
+            }
+        }
+
+        public static bool IsTelemetryMin()
+        {
+            object v = Program.ReadReg(DataCollectionPolicy, "AllowTelemetry");
+            return v is int && (int)v == 0;
+        }
+
+        public static void SetTelemetryMin(bool min)
+        {
+            Program.BackupReg(DataCollectionPolicy, "AllowTelemetry");
+            if (min)
+            {
+                Program.WriteReg(DataCollectionPolicy, "AllowTelemetry", 0, RegistryValueKind.DWord);
+                Program.Log("[后台降噪] 已将诊断遥测策略收敛至最低档 (AllowTelemetry=0)");
+            }
+            else
+            {
+                Program.DeleteRegValue(DataCollectionPolicy, "AllowTelemetry");
+                Program.Log("[后台降噪] 已恢复系统默认诊断遥测策略");
+            }
+        }
+
+        public static bool IsBgAppsOff()
+        {
+            object v = Program.ReadReg(BgAppsKey, "GlobalUserDisabled");
+            return v is int && (int)v == 1;
+        }
+
+        public static void SetBgAppsOff(bool off)
+        {
+            Program.BackupReg(BgAppsKey, "GlobalUserDisabled");
+            Program.WriteReg(BgAppsKey, "GlobalUserDisabled", off ? 1 : 0, RegistryValueKind.DWord);
+            Program.Log("[后台降噪] UWP 商店应用后台常驻唤醒 → " + (off ? "已禁止" : "已恢复默认"));
+        }
+
+        public static void RestoreDefaults()
+        {
+            Program.DeleteRegValue(DshPolicy, "AllowNewsAndInterests");
+            Program.DeleteRegValue(CopilotUserPolicy, "TurnOffWindowsCopilot");
+            Program.DeleteRegValue(DataCollectionPolicy, "AllowTelemetry");
+            Program.WriteReg(BgAppsKey, "GlobalUserDisabled", 0, RegistryValueKind.DWord);
+        }
+    }
+
+    // ============================================================================
+    //  模块 5：游戏网络与公共 DNS 并发延迟测速工具箱
+    // ============================================================================
+    public class DnsPresetResult
+    {
+        public string Name = "";
+        public string Primary = "";
+        public string Secondary = "";
+        public string Note = "";
+        public int LatencyMs = -1; // -1 = 未测或超时
+    }
+
+    public static class NetToolbox
+    {
+        public static List<DnsPresetResult> DefaultPresets()
+        {
+            var list = new List<DnsPresetResult>();
+            list.Add(new DnsPresetResult { Name = "DHCP 自动获取", Primary = "", Secondary = "", Note = "运营商/路由器默认分配" });
+            list.Add(new DnsPresetResult { Name = "阿里公共 DNS", Primary = "223.5.5.5", Secondary = "223.6.6.6", Note = "国内综合解析极快 · 推荐首选" });
+            list.Add(new DnsPresetResult { Name = "腾讯 DNSPod", Primary = "119.29.29.29", Secondary = "182.254.116.116", Note = "WeGame / 腾讯系国服 CDN 优选" });
+            list.Add(new DnsPresetResult { Name = "114 公共 DNS", Primary = "114.114.114.114", Secondary = "114.114.115.115", Note = "三大运营商骨干网稳健节点" });
+            list.Add(new DnsPresetResult { Name = "Cloudflare", Primary = "1.1.1.1", Secondary = "1.0.0.1", Note = "Steam / Epic / 国际服纯净解析" });
+            list.Add(new DnsPresetResult { Name = "Google DNS", Primary = "8.8.8.8", Secondary = "8.8.4.4", Note = "全球权威节点（视出口线路）" });
+            return list;
+        }
+
+        static bool IsVirtualAdapter(NetworkInterface ni)
+        {
+            string blob = ((ni.Name ?? "") + " " + (ni.Description ?? "")).ToLowerInvariant();
+            string[] bad = new string[] { "virtual", "vmware", "hyper-v", "loopback", "tap-", "wintun", "tun", "clash", "mihomo", "zerotier", "tailscale", "bluetooth" };
+            foreach (string b in bad)
+                if (blob.IndexOf(b, StringComparison.Ordinal) >= 0) return true;
+            return false;
+        }
+
+        public static NetworkInterface ActivePhysicalAdapter()
+        {
+            try
+            {
+                NetworkInterface fallback = null;
+                foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (ni.OperationalStatus != OperationalStatus.Up) continue;
+                    if (ni.NetworkInterfaceType != NetworkInterfaceType.Ethernet
+                        && ni.NetworkInterfaceType != NetworkInterfaceType.Wireless80211) continue;
+                    if (IsVirtualAdapter(ni)) continue;
+                    var ipProps = ni.GetIPProperties();
+                    if (ipProps != null && ipProps.GatewayAddresses != null && ipProps.GatewayAddresses.Count > 0)
+                        return ni;
+                    if (fallback == null) fallback = ni;
+                }
+                return fallback;
+            }
+            catch { return null; }
+        }
+
+        public static string CurrentDnsSummary()
+        {
+            var ni = ActivePhysicalAdapter();
+            if (ni == null) return "未检测到活动物理网卡";
+            try
+            {
+                var dnsList = new List<string>();
+                foreach (var ip in ni.GetIPProperties().DnsAddresses)
+                {
+                    if (ip.AddressFamily == AddressFamily.InterNetwork)
+                        dnsList.Add(ip.ToString());
+                }
+                string dnsStr = dnsList.Count > 0 ? string.Join(", ", dnsList.ToArray()) : "自动(DHCP)";
+                return ni.Name + " · 当前 DNS: " + dnsStr;
+            }
+            catch { return ni.Name; }
+        }
+
+        // 多线程并发实测所有预设 DNS 节点（TCP 53 握手优先，ICMP Ping 兜底，单次总耗时 ≤1.3 秒）
+        public static List<DnsPresetResult> BenchmarkAll()
+        {
+            var list = DefaultPresets();
+            var threads = new List<System.Threading.Thread>();
+            for (int i = 0; i < list.Count; i++)
+            {
+                DnsPresetResult item = list[i];
+                if (string.IsNullOrEmpty(item.Primary)) continue;
+                var th = new System.Threading.Thread(delegate()
+                {
+                    item.LatencyMs = ProbeDnsHost(item.Primary);
+                });
+                th.IsBackground = true;
+                th.Start();
+                threads.Add(th);
+            }
+            foreach (var th in threads)
+            {
+                try { th.Join(1500); } catch { }
+            }
+            return list;
+        }
+
+        public static int ProbeDnsHost(string ip)
+        {
+            int best = -1;
+            for (int round = 0; round < 2; round++)
+            {
+                int ms = TcpConnectMs(ip, 53, 900);
+                if (ms < 0) ms = IcmpPingMs(ip, 900);
+                if (ms >= 0 && (best < 0 || ms < best)) best = ms;
+            }
+            return best;
+        }
+
+        static int TcpConnectMs(string ip, int port, int timeoutMs)
+        {
+            try
+            {
+                using (var sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
+                {
+                    var sw = Stopwatch.StartNew();
+                    IAsyncResult ar = sock.BeginConnect(IPAddress.Parse(ip), port, null, null);
+                    bool signaled = ar.AsyncWaitHandle.WaitOne(timeoutMs, false);
+                    if (!signaled) return -1;
+                    sock.EndConnect(ar);
+                    sw.Stop();
+                    return Math.Max(1, (int)sw.ElapsedMilliseconds);
+                }
+            }
+            catch { return -1; }
+        }
+
+        static int IcmpPingMs(string ip, int timeoutMs)
+        {
+            try
+            {
+                using (var ping = new Ping())
+                {
+                    PingReply rep = ping.Send(ip, timeoutMs);
+                    if (rep != null && rep.Status == IPStatus.Success)
+                        return Math.Max(1, (int)rep.RoundtripTime);
+                }
+            }
+            catch { }
+            return -1;
+        }
+
+        public static string ApplyDns(string primary, string secondary)
+        {
+            var ni = ActivePhysicalAdapter();
+            if (ni == null) return "未找到活动物理网卡，无法切换 DNS";
+            return ApplyDnsToAdapter(ni.Name, primary, secondary, true);
+        }
+
+        public static string ApplyDnsToAdapter(string adapterName, string primary, string secondary, bool recordBackup)
+        {
+            if (string.IsNullOrEmpty(adapterName)) return "网卡名称为空";
+            try
+            {
+                if (recordBackup)
+                {
+                    var entry = new Dictionary<string, object>();
+                    entry["Type"] = "dns";
+                    entry["Path"] = adapterName;
+                    entry["Name"] = "ipv4_dns";
+                    entry["Value"] = ReadAdapterDnsBackupValue(adapterName);
+                    Program.AddBackupEntry(entry);
+                }
+
+                if (string.IsNullOrEmpty(primary))
+                {
+                    Program.RunCmd("netsh", "interface ipv4 set dnsservers name=\"" + adapterName + "\" source=dhcp");
+                    Program.RunCmd("ipconfig", "/flushdns");
+                    string msg = "网卡「" + adapterName + "」已切回 DHCP 自动获取 DNS 并刷新解析缓存";
+                    Program.Log("[网络工具箱] " + msg);
+                    return msg;
+                }
+                else
+                {
+                    Program.RunCmd("netsh", "interface ipv4 set dnsservers name=\"" + adapterName + "\" source=static addr=" + primary + " register=primary validate=no");
+                    if (!string.IsNullOrEmpty(secondary))
+                        Program.RunCmd("netsh", "interface ipv4 add dnsservers name=\"" + adapterName + "\" addr=" + secondary + " index=2 validate=no");
+                    Program.RunCmd("ipconfig", "/flushdns");
+                    string msg = "网卡「" + adapterName + "」DNS 已设为 " + primary + (string.IsNullOrEmpty(secondary) ? "" : (" / " + secondary)) + "（已自动备份原配置）";
+                    Program.Log("[网络工具箱] " + msg);
+                    return msg;
+                }
+            }
+            catch (Exception ex)
+            {
+                return "DNS 切换异常: " + ex.Message;
+            }
+        }
+
+        static string ReadAdapterDnsBackupValue(string adapterName)
+        {
+            try
+            {
+                foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (!string.Equals(ni.Name, adapterName, StringComparison.OrdinalIgnoreCase)) continue;
+                    string guid = ni.Id;
+                    if (!string.IsNullOrEmpty(guid))
+                    {
+                        object ns = Program.ReadReg(@"HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\" + guid, "NameServer");
+                        string s = Convert.ToString(ns ?? "").Trim();
+                        if (s.Length > 0) return s.Replace(' ', ',');
+                    }
+                }
+            }
+            catch { }
+            return "dhcp";
+        }
+
+        public static string FlushAndRepair(bool resetWinsock)
+        {
+            Program.RunCmd("ipconfig", "/flushdns");
+            Program.RunCmd("arp", "-d *");
+            if (resetWinsock)
+                Program.RunCmd("netsh", "winsock reset");
+            string msg = resetWinsock
+                ? "已刷新 DNS 缓存、清理 ARP 表并重置 Winsock 目录（建议重启生效）"
+                : "已清空 DNS 解析缓存与 ARP 邻居表（即时生效）";
+            Program.Log("[网络工具箱] " + msg);
+            return msg;
+        }
+    }
+
+    // ============================================================================
+    //  模块 6：多平台着色器缓存扫描与安全无锁清理（专治驱动升级/大版本更新后微卡顿）
+    // ============================================================================
+    public class ShaderCacheReport
+    {
+        public long TotalBytes;
+        public int FileCount;
+        public string Summary = "";
+    }
+
+    public static class ShaderCleaner
+    {
+        static List<KeyValuePair<string, string>> CacheDirs()
+        {
+            var list = new List<KeyValuePair<string, string>>();
+            string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string localLow = string.IsNullOrEmpty(userProfile) ? "" : Path.Combine(userProfile, @"AppData\LocalLow");
+
+            if (!string.IsNullOrEmpty(local))
+            {
+                list.Add(new KeyValuePair<string, string>("NV DXCache", Path.Combine(local, @"NVIDIA\DXCache")));
+                list.Add(new KeyValuePair<string, string>("NV GLCache", Path.Combine(local, @"NVIDIA\GLCache")));
+                list.Add(new KeyValuePair<string, string>("AMD DxCache", Path.Combine(local, @"AMD\DxCache")));
+                list.Add(new KeyValuePair<string, string>("D3DSCache", Path.Combine(local, "D3DSCache")));
+            }
+            if (!string.IsNullOrEmpty(localLow))
+                list.Add(new KeyValuePair<string, string>("NV PerDriver", Path.Combine(localLow, @"NVIDIA\PerDriverVersion\DXCache")));
+            return list;
+        }
+
+        public static ShaderCacheReport Scan()
+        {
+            var r = new ShaderCacheReport();
+            var parts = new List<string>();
+            foreach (var kv in CacheDirs())
+            {
+                if (!Directory.Exists(kv.Value)) continue;
+                long dirBytes = 0;
+                int dirFiles = 0;
+                try
+                {
+                    foreach (string f in Directory.GetFiles(kv.Value, "*", SearchOption.AllDirectories))
+                    {
+                        try { dirBytes += new FileInfo(f).Length; dirFiles++; } catch { }
+                    }
+                }
+                catch { }
+                if (dirFiles > 0)
+                {
+                    r.TotalBytes += dirBytes;
+                    r.FileCount += dirFiles;
+                    parts.Add(kv.Key + " " + FormatBytes(dirBytes));
+                }
+            }
+            r.Summary = r.FileCount == 0
+                ? "未发现积压着色器缓存文件"
+                : ("共 " + FormatBytes(r.TotalBytes) + "（" + r.FileCount + " 个文件：" + string.Join(" · ", parts.ToArray()) + "）");
+            return r;
+        }
+
+        public static string Clean()
+        {
+            long freed = 0;
+            int deleted = 0;
+            int locked = 0;
+            foreach (var kv in CacheDirs())
+            {
+                if (!Directory.Exists(kv.Value)) continue;
+                string[] files = null;
+                try { files = Directory.GetFiles(kv.Value, "*", SearchOption.AllDirectories); } catch { }
+                if (files == null) continue;
+                foreach (string f in files)
+                {
+                    try
+                    {
+                        long len = new FileInfo(f).Length;
+                        File.Delete(f);
+                        freed += len;
+                        deleted++;
+                    }
+                    catch
+                    {
+                        // 正在被桌面合成器或运行中游戏占用的热缓存文件受操作系统锁保护，静默保留零风险
+                        locked++;
+                    }
+                }
+            }
+            string msg = "已安全清理陈旧着色器缓存 " + FormatBytes(freed) + "（删除 " + deleted + " 项，跳过在用热缓存 " + locked + " 项）";
+            Program.Log("[缓存净化] " + msg);
+            return msg;
+        }
+
+        public static string FormatBytes(long bytes)
+        {
+            if (bytes >= 1024L * 1024L * 1024L)
+                return (bytes / (1024.0 * 1024.0 * 1024.0)).ToString("0.00") + " GB";
+            if (bytes >= 1024L * 1024L)
+                return (bytes / (1024.0 * 1024.0)).ToString("0.0") + " MB";
+            if (bytes >= 1024L)
+                return (bytes / 1024L) + " KB";
+            return bytes + " B";
         }
     }
 }
